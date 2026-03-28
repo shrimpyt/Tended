@@ -1,168 +1,240 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useEffect, useCallback} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
+  ScrollView,
   TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useShoppingListStore, ShoppingListItem} from '../store/shoppingListStore';
-import {useAuthStore} from '../store/authStore';
-import {useRealtimeHousehold} from '../hooks/useRealtimeHousehold';
+import {useMealsStore, Meal} from '../store/mealsStore';
 
-function ShoppingRow({
-  item,
-  onToggle,
-  onDelete,
-}: {
-  item: ShoppingListItem;
-  onToggle: () => void;
-  onDelete: () => void;
-}) {
-  const isSystem = item.added_by === 'system';
+// Default pantry staples used when generating initial suggestions
+const DEFAULT_PANTRY = [
+  'eggs', 'bread', 'garlic', 'olive oil', 'pasta', 'rice', 'onion',
+  'tomatoes', 'butter', 'cheese', 'soy sauce',
+];
+
+// Tag colour mapping — keep within Colors palette
+const TAG_COLORS: Record<string, string> = {
+  quick: Colors.blue,
+  vegetarian: Colors.green,
+  budget: Colors.amber,
+  protein: Colors.red,
+  healthy: Colors.green,
+  breakfast: Colors.amber,
+  comfort: Colors.blue,
+  sweet: Colors.amber,
+  'no-cook': Colors.green,
+};
+
+function TagPill({tag}: {tag: string}) {
+  const color = TAG_COLORS[tag] ?? Colors.textSecondary;
+  return (
+    <View style={[styles.tagPill, {borderColor: color}]}>
+      <Text style={[styles.tagText, {color}]}>{tag}</Text>
+    </View>
+  );
+}
+
+function MealCard({meal, onSave, saved}: {meal: Meal; onSave: () => void; saved: boolean}) {
+  const shortIngredients = meal.ingredients.slice(0, 4);
+  const remaining = meal.ingredients.length - shortIngredients.length;
 
   return (
-    <View style={styles.row}>
-      <TouchableOpacity
-        style={[styles.checkbox, item.completed && styles.checkboxDone]}
-        onPress={onToggle}
-        activeOpacity={0.7}>
-        {item.completed && <Text style={styles.checkmark}>✓</Text>}
-      </TouchableOpacity>
-
-      <View style={styles.rowContent}>
-        <Text style={[styles.rowName, item.completed && styles.rowNameDone]}>
-          {item.item_name}
-        </Text>
-        <View style={styles.rowMeta}>
-          {isSystem ? (
-            <View style={styles.autoTag}>
-              <Text style={styles.autoTagText}>Auto-added</Text>
-            </View>
-          ) : (
-            <Text style={styles.addedBy}>Added by {item.added_by_name}</Text>
-          )}
-          {item.note && <Text style={styles.note}> · {item.note}</Text>}
+    <View style={styles.mealCard}>
+      {/* Name + prep time */}
+      <View style={styles.mealCardHeader}>
+        <Text style={styles.mealName} numberOfLines={2}>{meal.name}</Text>
+        <View style={styles.prepTimeRow}>
+          <Text style={styles.clockIcon}>&#9201;</Text>
+          <Text style={styles.prepTimeText}>{meal.prepTime}m</Text>
         </View>
       </View>
 
-      <TouchableOpacity onPress={onDelete} style={styles.deleteBtn} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-        <Text style={styles.deleteText}>✕</Text>
+      {/* Description */}
+      <Text style={styles.mealDescription} numberOfLines={2}>
+        {meal.description}
+      </Text>
+
+      {/* Ingredients */}
+      <Text style={styles.ingredientsText} numberOfLines={1}>
+        {shortIngredients.join(', ')}{remaining > 0 ? ` +${remaining} more` : ''}
+      </Text>
+
+      {/* Tags */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tagsScroll}
+        contentContainerStyle={styles.tagsScrollContent}>
+        {meal.tags.map(tag => (
+          <TagPill key={tag} tag={tag} />
+        ))}
+      </ScrollView>
+
+      {/* Save button */}
+      <TouchableOpacity
+        style={[styles.saveBtn, saved && styles.saveBtnSaved]}
+        onPress={onSave}
+        disabled={saved}
+        activeOpacity={0.8}>
+        <Text style={[styles.saveBtnText, saved && styles.saveBtnTextSaved]}>
+          {saved ? 'Saved' : 'Save'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function SavedMealRow({meal, onRemove}: {meal: Meal; onRemove: () => void}) {
+  return (
+    <View style={styles.savedRow}>
+      <View style={styles.savedRowLeft}>
+        <Text style={styles.savedMealName}>{meal.name}</Text>
+        <View style={styles.savedMealMeta}>
+          <Text style={styles.clockIcon}>&#9201;</Text>
+          <Text style={styles.savedMealMetaText}>{meal.prepTime}m</Text>
+          <Text style={styles.savedMealMetaDot}> · </Text>
+          <Text style={styles.savedMealMetaText} numberOfLines={1}>
+            {meal.ingredients.slice(0, 3).join(', ')}
+            {meal.ingredients.length > 3 ? ' ...' : ''}
+          </Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        onPress={onRemove}
+        hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+        <Text style={styles.removeText}>&#10005;</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 export default function MealsScreen() {
-  const {profile} = useAuthStore();
-  const {items, loading, fetchItems, addItem, toggleComplete, deleteItem} = useShoppingListStore();
-  const [newItemName, setNewItemName] = useState('');
-  const [adding, setAdding] = useState(false);
+  const {suggestions, savedMeals, isLoading, generateSuggestions, saveMeal, removeSavedMeal} =
+    useMealsStore();
 
-  const householdId = profile?.household_id ?? '';
-
-  const refresh = useCallback(() => {
-    if (householdId) fetchItems(householdId);
-  }, [householdId]);
+  const loadSuggestions = useCallback(() => {
+    generateSuggestions(DEFAULT_PANTRY);
+  }, [generateSuggestions]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    loadSuggestions();
+  }, [loadSuggestions]);
 
-  useRealtimeHousehold(householdId, {onShoppingListChange: refresh});
+  const savedIds = new Set(savedMeals.map(m => m.id));
 
-  const handleAdd = async () => {
-    if (!newItemName.trim()) return;
-    setAdding(true);
-    await addItem(householdId, profile!.id, newItemName.trim());
-    setNewItemName('');
-    setAdding(false);
+  type ListItem =
+    | {type: 'suggestionsHeader'}
+    | {type: 'suggestionsRow'}
+    | {type: 'savedHeader'}
+    | {type: 'savedMeal'; data: Meal}
+    | {type: 'savedEmpty'};
+
+  const listData: ListItem[] = [
+    {type: 'suggestionsHeader'},
+    {type: 'suggestionsRow'},
+    {type: 'savedHeader'},
+    ...(savedMeals.length === 0
+      ? [{type: 'savedEmpty'} as ListItem]
+      : savedMeals.map(m => ({type: 'savedMeal', data: m} as ListItem))),
+  ];
+
+  const renderItem = ({item}: {item: ListItem}) => {
+    if (item.type === 'suggestionsHeader') {
+      return (
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Suggested for you</Text>
+          <TouchableOpacity
+            onPress={loadSuggestions}
+            disabled={isLoading}
+            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <Text style={[styles.refreshText, isLoading && styles.refreshTextDisabled]}>
+              Refresh
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (item.type === 'suggestionsRow') {
+      if (isLoading) {
+        return (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={Colors.blue} />
+          </View>
+        );
+      }
+      return (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.suggestionsScrollContent}>
+          {suggestions.map(meal => (
+            <MealCard
+              key={meal.id}
+              meal={meal}
+              saved={savedIds.has(meal.id)}
+              onSave={() => saveMeal(meal)}
+            />
+          ))}
+        </ScrollView>
+      );
+    }
+
+    if (item.type === 'savedHeader') {
+      return (
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Saved meals</Text>
+          <Text style={styles.sectionCount}>
+            {savedMeals.length} {savedMeals.length === 1 ? 'meal' : 'meals'}
+          </Text>
+        </View>
+      );
+    }
+
+    if (item.type === 'savedEmpty') {
+      return (
+        <Text style={styles.emptyText}>
+          No saved meals yet. Tap Save on a suggestion to keep it.
+        </Text>
+      );
+    }
+
+    if (item.type === 'savedMeal') {
+      return (
+        <View style={styles.savedCard}>
+          <SavedMealRow
+            meal={item.data}
+            onRemove={() => removeSavedMeal(item.data.id)}
+          />
+        </View>
+      );
+    }
+
+    return null;
   };
-
-  const pendingItems = items.filter(i => !i.completed);
-  const completedItems = items.filter(i => i.completed);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={80}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Meals</Text>
+      </View>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Meals</Text>
-        </View>
-
-        {/* Meal suggestions placeholder */}
-        <View style={styles.mealsPlaceholder}>
-          <Text style={styles.placeholderTitle}>Suggested meals</Text>
-          <Text style={styles.placeholderSub}>Coming in Phase 9 — meal suggestions based on your pantry.</Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* Shopping list header */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Shopping list</Text>
-          <Text style={styles.sectionCount}>
-            {pendingItems.length} {pendingItems.length === 1 ? 'item' : 'items'}
-          </Text>
-        </View>
-
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={Colors.blue} />
-          </View>
-        ) : (
-          <FlatList
-            data={pendingItems}
-            keyExtractor={item => item.id}
-            renderItem={({item}) => (
-              <ShoppingRow
-                item={item}
-                onToggle={() => toggleComplete(item.id, true)}
-                onDelete={() => deleteItem(item.id)}
-              />
-            )}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>Nothing on the list. Add something below.</Text>
-            }
-          />
-        )}
-
-        {/* Add item input */}
-        <View style={styles.addRow}>
-          <TextInput
-            style={styles.addInput}
-            placeholder="Add an item..."
-            placeholderTextColor={Colors.textSecondary}
-            value={newItemName}
-            onChangeText={setNewItemName}
-            onSubmitEditing={handleAdd}
-            returnKeyType="done"
-            autoCapitalize="words"
-          />
-          <TouchableOpacity
-            style={[styles.addBtn, (!newItemName.trim() || adding) && styles.addBtnDisabled]}
-            onPress={handleAdd}
-            disabled={!newItemName.trim() || adding}
-            activeOpacity={0.8}>
-            {adding
-              ? <ActivityIndicator color={Colors.textPrimary} size="small" />
-              : <Text style={styles.addBtnText}>Add</Text>
-            }
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+      <FlatList
+        data={listData}
+        keyExtractor={(item, index) => {
+          if (item.type === 'savedMeal') return item.data.id;
+          return `${item.type}-${index}`;
+        }}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+      />
     </SafeAreaView>
   );
 }
@@ -172,9 +244,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  flex: {
-    flex: 1,
-  },
+
+  // Header
   header: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
@@ -185,46 +256,22 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
   },
 
-  // Meals placeholder
-  mealsPlaceholder: {
-    marginHorizontal: Spacing.lg,
-    padding: Spacing.lg,
-    backgroundColor: Colors.surface,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    gap: Spacing.xs,
-  },
-  placeholderTitle: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
-  },
-  placeholderSub: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.regular,
-    lineHeight: 18,
+  // List
+  listContent: {
+    paddingBottom: 40,
+    gap: Spacing.md,
   },
 
-  divider: {
-    height: Border.width,
-    backgroundColor: Colors.border,
-    marginVertical: Spacing.lg,
-    marginHorizontal: Spacing.lg,
-  },
-
-  // Section header
-  sectionHeader: {
+  // Section headers
+  sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.sm,
   },
   sectionTitle: {
     color: Colors.textPrimary,
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.medium,
   },
   sectionCount: {
@@ -232,138 +279,162 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.regular,
   },
+  refreshText: {
+    color: Colors.blue,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+  },
+  refreshTextDisabled: {
+    color: Colors.textSecondary,
+  },
 
-  // List
-  listContent: {
+  // Suggestions horizontal scroll
+  suggestionsScrollContent: {
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-  separator: {
-    height: Border.width,
-    backgroundColor: Colors.border,
-  },
-
-  // Row
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
     gap: Spacing.md,
+    paddingBottom: Spacing.xs,
   },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
+  loadingRow: {
+    height: 200,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxDone: {
-    backgroundColor: Colors.green,
-    borderColor: Colors.green,
+
+  // Meal card
+  mealCard: {
+    width: 220,
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    gap: Spacing.sm,
   },
-  checkmark: {
+  mealCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  mealName: {
+    flex: 1,
     color: Colors.textPrimary,
-    fontSize: 12,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
+    lineHeight: 20,
+  },
+  prepTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    flexShrink: 0,
+  },
+  clockIcon: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  prepTimeText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.regular,
+  },
+  mealDescription: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.regular,
+    lineHeight: 16,
+  },
+  ingredientsText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.regular,
+  },
+  tagsScroll: {
+    flexGrow: 0,
+  },
+  tagsScrollContent: {
+    gap: Spacing.xs,
+  },
+  tagPill: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+    borderWidth: Border.width,
+  },
+  tagText: {
+    fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.medium,
   },
-  rowContent: {
+  saveBtn: {
+    borderRadius: Radius.sm,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    backgroundColor: Colors.blue,
+    marginTop: Spacing.xs,
+  },
+  saveBtnSaved: {
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+  },
+  saveBtnText: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+  },
+  saveBtnTextSaved: {
+    color: Colors.textSecondary,
+  },
+
+  // Saved meals
+  savedCard: {
+    marginHorizontal: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+  },
+  savedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    gap: Spacing.md,
+  },
+  savedRowLeft: {
     flex: 1,
     gap: 2,
   },
-  rowName: {
+  savedMealName: {
     color: Colors.textPrimary,
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.regular,
   },
-  rowNameDone: {
-    color: Colors.textSecondary,
-    textDecorationLine: 'line-through',
-  },
-  rowMeta: {
+  savedMealMeta: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  addedBy: {
+  savedMealMetaText: {
     color: Colors.textSecondary,
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.regular,
+    flexShrink: 1,
   },
-  note: {
+  savedMealMetaDot: {
     color: Colors.textSecondary,
     fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.regular,
   },
-  autoTag: {
-    backgroundColor: Colors.surface,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-  autoTagText: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: Typography.weights.medium,
-  },
-  deleteBtn: {
-    padding: Spacing.xs,
-  },
-  deleteText: {
+  removeText: {
     color: Colors.textSecondary,
     fontSize: Typography.sizes.sm,
   },
 
-  // Add row
-  addRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderTopWidth: Border.width,
-    borderTopColor: Colors.border,
-  },
-  addInput: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.regular,
-  },
-  addBtn: {
-    backgroundColor: Colors.blue,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addBtnDisabled: {
-    opacity: 0.4,
-  },
-  addBtnText: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
-  },
-
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   emptyText: {
     color: Colors.textSecondary,
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.regular,
-    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    lineHeight: 18,
   },
 });

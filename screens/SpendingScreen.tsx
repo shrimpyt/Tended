@@ -13,6 +13,7 @@ import {useSpendingStore, SpendingEntry, SpendingCategory} from '../store/spendi
 import {useAuthStore} from '../store/authStore';
 import {useRealtimeHousehold} from '../hooks/useRealtimeHousehold';
 import AddSpendingModal from '../components/AddSpendingModal';
+import ReceiptScanModal from '../components/ReceiptScanModal';
 
 const CATEGORIES: SpendingCategory[] = ['Groceries', 'Cleaning', 'Pantry', 'Personal care'];
 
@@ -86,6 +87,7 @@ export default function SpendingScreen() {
   const {profile} = useAuthStore();
   const {entries, loading, fetchEntries, deleteEntry} = useSpendingStore();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -233,6 +235,13 @@ export default function SpendingScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Spending</Text>
+        <TouchableOpacity
+          style={styles.scanBtn}
+          activeOpacity={0.7}
+          onPress={() => setShowScanModal(true)}>
+          <Text style={styles.scanBtnIcon}>&#128247;</Text>
+          <Text style={styles.scanBtnText}>Scan Receipt</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Month selector */}
@@ -279,6 +288,12 @@ export default function SpendingScreen() {
         householdId={householdId}
         onClose={() => setShowAddModal(false)}
       />
+
+      <ReceiptScanModal
+        visible={showScanModal}
+        householdId={householdId}
+        onClose={() => setShowScanModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -289,12 +304,34 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
   },
   headerTitle: {
     color: Colors.textPrimary,
     fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.medium,
+  },
+  scanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+  },
+  scanBtnIcon: {
+    fontSize: 15,
+  },
+  scanBtnText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
   },
 

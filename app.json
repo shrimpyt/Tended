@@ -12,7 +12,9 @@
       "backgroundColor": "#0d1117"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tryolive.tended",
+      "jsEngine": "jsc"
     },
     "android": {
       "adaptiveIcon": {
