@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import {useCameraPermissions} from 'expo-image-picker';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
 import {useInventoryStore, Category, NewItem} from '../store/inventoryStore';
 import {useAuthStore} from '../store/authStore';
@@ -145,6 +146,7 @@ interface Props {
 export default function RoomScanWizard({visible, onClose, onAdded}: Props) {
   const {profile} = useAuthStore();
   const {addItem} = useInventoryStore();
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const [step, setStep] = useState<Step>('pickRoom');
   const [selectedRoom, setSelectedRoom] = useState<RoomDefinition | null>(null);
@@ -177,8 +179,13 @@ export default function RoomScanWizard({visible, onClose, onAdded}: Props) {
   };
 
   const handleTakePhoto = async () => {
+    // Request camera permission if not yet granted
+    if (!cameraPermission?.granted) {
+      const result = await requestCameraPermission();
+      if (!result.granted) return;
+    }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       quality: 0.6,
     });
     if (!result.canceled && result.assets[0]) {
@@ -189,7 +196,7 @@ export default function RoomScanWizard({visible, onClose, onAdded}: Props) {
 
   const handleChoosePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       quality: 0.6,
     });
     if (!result.canceled && result.assets[0]) {
