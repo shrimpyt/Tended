@@ -14,7 +14,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import {useCameraPermissions} from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
 import {useInventoryStore, NewItem, getUniqueCategories} from '../store/inventoryStore';
 import {useAuthStore} from '../store/authStore';
