@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Modal,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
@@ -32,7 +33,7 @@ function getBarColor(level: number, threshold: number): string {
 
 export default function UpdateStockModal({item, onClose}: Props) {
   const {profile} = useAuthStore();
-  const {updateStockLevel} = useInventoryStore();
+  const {updateStockLevel, deleteItem} = useInventoryStore();
   const [selected, setSelected] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -57,6 +58,24 @@ export default function UpdateStockModal({item, onClose}: Props) {
   const handleClose = () => {
     setSelected(null);
     onClose();
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      `Delete "${item.name}"?`,
+      'This will permanently remove the item from your inventory.',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteItem(item.id);
+            handleClose();
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -156,6 +175,10 @@ export default function UpdateStockModal({item, onClose}: Props) {
             <Text style={styles.currentLabel}>Alert threshold</Text>
             <Text style={styles.currentValue}>{item.threshold}%</Text>
           </View>
+
+          <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.7}>
+            <Text style={styles.deleteBtnText}>Delete item</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </Modal>
@@ -294,6 +317,19 @@ const styles = StyleSheet.create({
   currentValue: {
     color: Colors.textPrimary,
     fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+  },
+  deleteBtn: {
+    marginTop: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.sm,
+    borderWidth: Border.width,
+    borderColor: Colors.red,
+    alignItems: 'center',
+  },
+  deleteBtnText: {
+    color: Colors.red,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.medium,
   },
 });

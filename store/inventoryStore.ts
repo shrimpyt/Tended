@@ -43,6 +43,7 @@ interface InventoryState {
   fetchItems: (householdId: string) => Promise<void>;
   addItem: (householdId: string, userId: string, item: NewItem) => Promise<string | null>;
   updateStockLevel: (itemId: string, userId: string, oldLevel: number, newLevel: number) => Promise<void>;
+  deleteItem: (itemId: string) => Promise<void>;
 }
 
 export const useInventoryStore = create<InventoryState>((set, get) => ({
@@ -130,5 +131,19 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         i.id === itemId ? {...i, stock_level: newLevel} : i,
       ),
     }));
+  },
+
+  deleteItem: async (itemId) => {
+    const {error} = await supabase
+      .from('items')
+      .delete()
+      .eq('id', itemId);
+
+    if (error) {
+      set({error: error.message});
+      return;
+    }
+
+    set(state => ({items: state.items.filter(i => i.id !== itemId)}));
   },
 }));
