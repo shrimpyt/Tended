@@ -15,6 +15,8 @@ import {useAuthStore} from '../store/authStore';
 import {useRealtimeHousehold} from '../hooks/useRealtimeHousehold';
 import AddItemModal from '../components/AddItemModal';
 import UpdateStockModal from '../components/UpdateStockModal';
+import BarcodeScanModal from '../components/BarcodeScanModal';
+import RoomScanWizard from '../components/RoomScanWizard';
 
 type FilterCategory = 'All' | Category;
 type StockStatus = 'OK' | 'Low' | 'Critical';
@@ -88,6 +90,9 @@ export default function InventoryScreen() {
   const {items, loading, fetchItems} = useInventoryStore();
   const [activeCategory, setActiveCategory] = useState<FilterCategory>('All');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBarcodeModal, setShowBarcodeModal] = useState(false);
+  const [showRoomWizard, setShowRoomWizard] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
   const householdId = profile?.household_id ?? '';
@@ -156,18 +161,85 @@ export default function InventoryScreen() {
         />
       )}
 
+      {/* Speed-dial backdrop */}
+      {fabOpen && (
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={() => setFabOpen(false)}
+        />
+      )}
+
+      {/* Speed-dial actions */}
+      {fabOpen && (
+        <View style={styles.speedDial}>
+          <TouchableOpacity
+            style={styles.dialAction}
+            activeOpacity={0.8}
+            onPress={() => {
+              setFabOpen(false);
+              setShowRoomWizard(true);
+            }}>
+            <Text style={styles.dialActionLabel}>Room Scan</Text>
+            <View style={styles.dialActionBtn}>
+              <Text style={styles.dialActionIcon}>🏠</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dialAction}
+            activeOpacity={0.8}
+            onPress={() => {
+              setFabOpen(false);
+              setShowBarcodeModal(true);
+            }}>
+            <Text style={styles.dialActionLabel}>Scan Barcode</Text>
+            <View style={styles.dialActionBtn}>
+              <Text style={styles.dialActionIcon}>📷</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dialAction}
+            activeOpacity={0.8}
+            onPress={() => {
+              setFabOpen(false);
+              setShowAddModal(true);
+            }}>
+            <Text style={styles.dialActionLabel}>Add Manually</Text>
+            <View style={styles.dialActionBtn}>
+              <Text style={styles.dialActionIcon}>✏️</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* FAB */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, fabOpen && styles.fabOpen]}
         activeOpacity={0.8}
-        onPress={() => setShowAddModal(true)}>
-        <Text style={styles.fabIcon}>+</Text>
+        onPress={() => setFabOpen(o => !o)}>
+        <Text style={[styles.fabIcon, fabOpen && styles.fabIconOpen]}>+</Text>
       </TouchableOpacity>
 
       {/* Add item modal */}
       <AddItemModal
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
+        onAdded={refresh}
+      />
+
+      {/* Barcode scanner */}
+      <BarcodeScanModal
+        visible={showBarcodeModal}
+        onClose={() => setShowBarcodeModal(false)}
+        onAdded={refresh}
+      />
+
+      {/* Room scan wizard */}
+      <RoomScanWizard
+        visible={showRoomWizard}
+        onClose={() => setShowRoomWizard(false)}
         onAdded={refresh}
       />
 
@@ -287,6 +359,49 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.medium,
   },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    zIndex: 10,
+  },
+  speedDial: {
+    position: 'absolute',
+    bottom: Spacing.xl + 60,
+    right: Spacing.xl,
+    gap: Spacing.md,
+    alignItems: 'flex-end',
+    zIndex: 20,
+  },
+  dialAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  dialActionLabel: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.sm,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  dialActionBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dialActionIcon: {
+    fontSize: 20,
+  },
   fab: {
     position: 'absolute',
     bottom: Spacing.xl,
@@ -297,12 +412,21 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.blue,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 20,
+  },
+  fabOpen: {
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
   },
   fabIcon: {
     color: Colors.textPrimary,
     fontSize: 28,
     lineHeight: 32,
     fontWeight: Typography.weights.regular,
+  },
+  fabIconOpen: {
+    transform: [{rotate: '45deg'}],
   },
   center: {
     flex: 1,
