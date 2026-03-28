@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useInventoryStore, Category, NewItem} from '../store/inventoryStore';
+import {useInventoryStore, NewItem, getUniqueCategories} from '../store/inventoryStore';
 import {useAuthStore} from '../store/authStore';
 
-const CATEGORIES: Category[] = ['Kitchen', 'Cleaning', 'Pantry', 'Bathroom'];
+const DEFAULT_CATEGORY_SUGGESTIONS = ['Kitchen', 'Bathroom', 'Cleaning', 'Pantry'];
 
 const STOCK_PRESETS = [
   {label: 'Full',  value: 100},
@@ -33,10 +33,10 @@ interface Props {
 
 export default function AddItemModal({visible, onClose, onAdded}: Props) {
   const {profile} = useAuthStore();
-  const {addItem} = useInventoryStore();
+  const {addItem, items} = useInventoryStore();
 
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<Category>('Kitchen');
+  const [category, setCategory] = useState('');
   const [stockLevel, setStockLevel] = useState(100);
   const [threshold, setThreshold] = useState('25');
   const [unit, setUnit] = useState('');
@@ -45,7 +45,7 @@ export default function AddItemModal({visible, onClose, onAdded}: Props) {
 
   const reset = () => {
     setName('');
-    setCategory('Kitchen');
+    setCategory('');
     setStockLevel(100);
     setThreshold('25');
     setUnit('');
@@ -73,7 +73,7 @@ export default function AddItemModal({visible, onClose, onAdded}: Props) {
 
     const newItem: NewItem = {
       name: name.trim(),
-      category,
+      category: category.trim() || null,
       stock_level: stockLevel,
       threshold: thresholdNum,
       unit: unit.trim() || null,
@@ -147,19 +147,31 @@ export default function AddItemModal({visible, onClose, onAdded}: Props) {
             />
 
             {/* Category */}
-            <Text style={styles.label}>Category</Text>
-            <View style={styles.pillRow}>
-              {CATEGORIES.map(cat => (
+            <Text style={styles.label}>Category <Text style={styles.optional}>(optional)</Text></Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Kitchen, Bedroom..."
+              placeholderTextColor={Colors.textSecondary}
+              value={category}
+              onChangeText={setCategory}
+              autoCapitalize="words"
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.suggestionRow}>
+              {(getUniqueCategories(items).length > 0
+                ? getUniqueCategories(items)
+                : DEFAULT_CATEGORY_SUGGESTIONS
+              ).map(chip => (
                 <TouchableOpacity
-                  key={cat}
-                  style={[styles.pill, category === cat && styles.pillActive]}
-                  onPress={() => setCategory(cat)}>
-                  <Text style={[styles.pillText, category === cat && styles.pillTextActive]}>
-                    {cat}
-                  </Text>
+                  key={chip}
+                  style={styles.chip}
+                  onPress={() => setCategory(chip)}>
+                  <Text style={styles.chipText}>{chip}</Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
 
             {/* Stock level */}
             <Text style={styles.label}>Starting stock level</Text>
@@ -297,6 +309,23 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     color: Colors.textPrimary,
+  },
+  suggestionRow: {
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  chip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: 20,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  chipText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
   },
   stockPreview: {
     flexDirection: 'row',

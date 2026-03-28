@@ -1,13 +1,13 @@
 import {create} from 'zustand';
 import {supabase} from '../lib/supabase';
 
-export type Category = 'Kitchen' | 'Cleaning' | 'Pantry' | 'Bathroom';
+export type Category = string;
 
 export interface Item {
   id: string;
   household_id: string;
   name: string;
-  category: Category;
+  category: Category | null;
   stock_level: number;
   threshold: number;
   unit: string | null;
@@ -19,10 +19,20 @@ export interface Item {
 
 export interface NewItem {
   name: string;
-  category: Category;
+  category: Category | null;
   stock_level: number;
   threshold: number;
   unit: string | null;
+}
+
+export function getUniqueCategories(items: Item[]): string[] {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (item.category && item.category.trim()) {
+      seen.add(item.category.trim());
+    }
+  }
+  return Array.from(seen).sort();
 }
 
 interface InventoryState {
@@ -64,6 +74,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         household_id: householdId,
         created_by: userId,
         ...newItem,
+        category: newItem.category && newItem.category.trim() ? newItem.category.trim() : null,
       })
       .select()
       .single();

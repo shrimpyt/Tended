@@ -14,7 +14,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {CameraView, useCameraPermissions} from 'expo-camera';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useInventoryStore, Category, NewItem} from '../store/inventoryStore';
+import {useInventoryStore, NewItem, getUniqueCategories} from '../store/inventoryStore';
 import {useAuthStore} from '../store/authStore';
 
 type Step = 'scanning' | 'loading' | 'confirm' | 'notFound' | 'saving';
@@ -22,12 +22,12 @@ type Step = 'scanning' | 'loading' | 'confirm' | 'notFound' | 'saving';
 interface ProductDraft {
   barcode: string;
   name: string;
-  category: Category;
+  category: string;
   unit: string;
   brand: string;
 }
 
-const CATEGORIES: Category[] = ['Kitchen', 'Cleaning', 'Pantry', 'Bathroom'];
+const DEFAULT_CATEGORY_SUGGESTIONS = ['Kitchen', 'Bathroom', 'Cleaning', 'Pantry'];
 
 const STOCK_PRESETS = [
   {label: 'Full', value: 100},
@@ -36,8 +36,8 @@ const STOCK_PRESETS = [
   {label: 'Empty', value: 0},
 ];
 
-// Map Open Food Facts category strings → our Category
-function mapOFFCategory(categoriesStr: string | undefined): Category {
+// Map Open Food Facts category strings → a sensible default string category
+function mapOFFCategory(categoriesStr: string | undefined): string {
   if (!categoriesStr) return 'Kitchen';
   const cats = categoriesStr.toLowerCase();
   if (
@@ -122,7 +122,7 @@ interface Props {
 
 export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
   const {profile} = useAuthStore();
-  const {addItem} = useInventoryStore();
+  const {addItem, items} = useInventoryStore();
 
   const [permission, requestPermission] = useCameraPermissions();
   const [step, setStep] = useState<Step>('scanning');
@@ -130,7 +130,7 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
   const [stockLevel, setStockLevel] = useState(100);
   const [threshold, setThreshold] = useState('25');
   const [manualName, setManualName] = useState('');
-  const [manualCategory, setManualCategory] = useState<Category>('Kitchen');
+  const [manualCategory, setManualCategory] = useState('');
   const [error, setError] = useState<string | null>(null);
   const scannedRef = useRef(false);
 
@@ -143,7 +143,7 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
       setStockLevel(100);
       setThreshold('25');
       setManualName('');
-      setManualCategory('Kitchen');
+      setManualCategory('');
       setError(null);
     }
   }, [visible]);
@@ -187,9 +187,10 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
     setStep('saving');
     setError(null);
 
+    const resolvedCategory = draft ? draft.category.trim() || null : manualCategory.trim() || null;
     const newItem: NewItem = {
       name,
-      category: draft ? draft.category : manualCategory,
+      category: resolvedCategory,
       stock_level: stockLevel,
       threshold: thresholdNum,
       unit: draft?.unit || null,
@@ -325,19 +326,31 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
               </View>
 
               {/* Category */}
-              <Text style={styles.label}>Category</Text>
-              <View style={styles.pillRow}>
-                {CATEGORIES.map(cat => (
+              <Text style={styles.label}>Category <Text style={styles.optional}>(optional)</Text></Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Kitchen, Bedroom..."
+                placeholderTextColor={Colors.textSecondary}
+                value={draft.category}
+                onChangeText={t => setDraft(d => d ? {...d, category: t} : d)}
+                autoCapitalize="words"
+              />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.suggestionRow}>
+                {(getUniqueCategories(items).length > 0
+                  ? getUniqueCategories(items)
+                  : DEFAULT_CATEGORY_SUGGESTIONS
+                ).map(chip => (
                   <TouchableOpacity
-                    key={cat}
-                    style={[styles.pill, draft.category === cat && styles.pillActive]}
-                    onPress={() => setDraft(d => d ? {...d, category: cat} : d)}>
-                    <Text style={[styles.pillText, draft.category === cat && styles.pillTextActive]}>
-                      {cat}
-                    </Text>
+                    key={chip}
+                    style={styles.chip}
+                    onPress={() => setDraft(d => d ? {...d, category: chip} : d)}>
+                    <Text style={styles.chipText}>{chip}</Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
 
               {/* Stock level */}
               <Text style={styles.label}>Starting stock level</Text>
@@ -402,19 +415,31 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
                 autoCapitalize="words"
               />
 
-              <Text style={styles.label}>Category</Text>
-              <View style={styles.pillRow}>
-                {CATEGORIES.map(cat => (
+              <Text style={styles.label}>Category <Text style={styles.optional}>(optional)</Text></Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Kitchen, Bedroom..."
+                placeholderTextColor={Colors.textSecondary}
+                value={manualCategory}
+                onChangeText={setManualCategory}
+                autoCapitalize="words"
+              />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.suggestionRow}>
+                {(getUniqueCategories(items).length > 0
+                  ? getUniqueCategories(items)
+                  : DEFAULT_CATEGORY_SUGGESTIONS
+                ).map(chip => (
                   <TouchableOpacity
-                    key={cat}
-                    style={[styles.pill, manualCategory === cat && styles.pillActive]}
-                    onPress={() => setManualCategory(cat)}>
-                    <Text style={[styles.pillText, manualCategory === cat && styles.pillTextActive]}>
-                      {cat}
-                    </Text>
+                    key={chip}
+                    style={styles.chip}
+                    onPress={() => setManualCategory(chip)}>
+                    <Text style={styles.chipText}>{chip}</Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
 
               <Text style={styles.label}>Starting stock level</Text>
               <View style={styles.pillRow}>
@@ -597,6 +622,27 @@ const styles = StyleSheet.create({
   pillActive: {backgroundColor: Colors.blue, borderColor: Colors.blue},
   pillText: {color: Colors.textSecondary, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.medium},
   pillTextActive: {color: Colors.textPrimary},
+  optional: {
+    color: Colors.textSecondary,
+    fontWeight: Typography.weights.regular,
+  },
+  suggestionRow: {
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  chip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: 20,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  chipText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+  },
   input: {
     backgroundColor: Colors.surface,
     borderWidth: Border.width,

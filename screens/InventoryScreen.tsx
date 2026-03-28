@@ -10,18 +10,16 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useInventoryStore, Item, Category} from '../store/inventoryStore';
+import {useInventoryStore, Item, getUniqueCategories} from '../store/inventoryStore';
 import {useAuthStore} from '../store/authStore';
 import {useRealtimeHousehold} from '../hooks/useRealtimeHousehold';
 import AddItemModal from '../components/AddItemModal';
 import UpdateStockModal from '../components/UpdateStockModal';
 import BarcodeScanModal from '../components/BarcodeScanModal';
-import RoomScanWizard from '../components/RoomScanWizard';
+import CameraInventoryModal from '../components/CameraInventoryModal';
 
-type FilterCategory = 'All' | Category;
+type FilterCategory = 'All' | string;
 type StockStatus = 'OK' | 'Low' | 'Critical';
-
-const CATEGORIES: FilterCategory[] = ['All', 'Kitchen', 'Cleaning', 'Pantry', 'Bathroom'];
 
 function getStatus(stockLevel: number, threshold: number): StockStatus {
   if (stockLevel === 0) return 'Critical';
@@ -88,10 +86,11 @@ function ItemRow({item}: {item: Item}) {
 export default function InventoryScreen() {
   const {profile} = useAuthStore();
   const {items, loading, fetchItems} = useInventoryStore();
+  const filterCategories: FilterCategory[] = ['All', ...getUniqueCategories(items)];
   const [activeCategory, setActiveCategory] = useState<FilterCategory>('All');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
-  const [showRoomWizard, setShowRoomWizard] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
@@ -126,7 +125,7 @@ export default function InventoryScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.pillsContent}
         style={styles.pillsRow}>
-        {CATEGORIES.map(cat => (
+        {filterCategories.map(cat => (
           <TouchableOpacity
             key={cat}
             onPress={() => setActiveCategory(cat)}
@@ -178,11 +177,11 @@ export default function InventoryScreen() {
             activeOpacity={0.8}
             onPress={() => {
               setFabOpen(false);
-              setShowRoomWizard(true);
+              setShowCameraModal(true);
             }}>
-            <Text style={styles.dialActionLabel}>Room Scan</Text>
+            <Text style={styles.dialActionLabel}>Scan Items</Text>
             <View style={styles.dialActionBtn}>
-              <Text style={styles.dialActionIcon}>🏠</Text>
+              <Text style={styles.dialActionIcon}>🪄</Text>
             </View>
           </TouchableOpacity>
 
@@ -236,10 +235,10 @@ export default function InventoryScreen() {
         onAdded={refresh}
       />
 
-      {/* Room scan wizard */}
-      <RoomScanWizard
-        visible={showRoomWizard}
-        onClose={() => setShowRoomWizard(false)}
+      {/* AI camera scan */}
+      <CameraInventoryModal
+        visible={showCameraModal}
+        onClose={() => setShowCameraModal(false)}
         onAdded={refresh}
       />
 
