@@ -49,8 +49,9 @@ export default function UpdateStockModal({item, onClose}: Props) {
       onClose();
       return;
     }
+    if (!profile?.id) return;
     setLoading(true);
-    await updateStockLevel(item.id, profile!.id, item.stock_level, selected);
+    await updateStockLevel(item.id, profile.id, item.stock_level, selected);
     setLoading(false);
     onClose();
   };
@@ -61,6 +62,7 @@ export default function UpdateStockModal({item, onClose}: Props) {
   };
 
   const handleDelete = () => {
+    if (loading) return;
     Alert.alert(
       `Delete "${item.name}"?`,
       'This will permanently remove the item from your inventory.',
@@ -70,7 +72,9 @@ export default function UpdateStockModal({item, onClose}: Props) {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            setLoading(true);
             await deleteItem(item.id);
+            setLoading(false);
             handleClose();
           },
         },

@@ -20,10 +20,16 @@ export default function App() {
 
   useEffect(() => {
     // Restore existing session on launch
-    supabase.auth.getSession().then(({data: {session: s}}) => {
-      setSession(s);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({data: {session: s}}) => {
+        setSession(s);
+      })
+      .catch(() => {
+        // Session restore failed — treat as signed out
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     // Listen for auth state changes (sign in, sign out, token refresh)
     const {data: {subscription}} = supabase.auth.onAuthStateChange((_event, s) => {

@@ -109,6 +109,7 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
   };
 
   const handleAddAll = async () => {
+    if (!profile?.id) return;
     const valid = lineItems.filter(li => li.item.trim() && parseFloat(li.amount) > 0);
     if (valid.length === 0) {
       Alert.alert('No valid items', 'Please ensure each item has a name and a valid amount.');
@@ -127,7 +128,7 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
         date: dateStr,
         is_waste: false,
       };
-      await addEntry(householdId, profile!.id, entry);
+      await addEntry(householdId, profile.id, entry);
     }
 
     setSaving(false);

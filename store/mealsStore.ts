@@ -46,16 +46,11 @@ export const useMealsStore = create<MealsStore>((set, get) => ({
   isLoading: false,
 
   generateSuggestions: (pantryItems = []) => {
-    set({isLoading: true});
+    const suggestions = pantryItems.length > 0
+      ? pickSuggestions(pantryItems)
+      : MEAL_DATABASE.slice().sort(() => Math.random() - 0.5).slice(0, 6);
 
-    // Simulate brief async processing
-    setTimeout(() => {
-      const suggestions = pantryItems.length > 0
-        ? pickSuggestions(pantryItems)
-        : MEAL_DATABASE.slice().sort(() => Math.random() - 0.5).slice(0, 6);
-
-      set({suggestions, isLoading: false});
-    }, 300);
+    set({suggestions, isLoading: false});
   },
 
   saveMeal: (meal: Meal) => {

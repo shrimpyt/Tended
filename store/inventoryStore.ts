@@ -105,13 +105,14 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       return;
     }
 
-    // Log the stock event
-    await supabase.from('stock_events').insert({
+    // Log the stock event (non-fatal if it fails)
+    const {error: eventError} = await supabase.from('stock_events').insert({
       item_id: itemId,
       old_level: oldLevel,
       new_level: newLevel,
       updated_by: userId,
     });
+    if (eventError) console.warn('stock_event insert failed:', eventError.message);
 
     // Auto-add to shopping list if crossing below threshold (and wasn't already low)
     const wasOk = oldLevel >= item.threshold;

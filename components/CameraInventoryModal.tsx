@@ -30,6 +30,10 @@ interface IdentifiedItem {
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? '';
 
 async function identifyItemsInPhoto(base64: string): Promise<IdentifiedItem[]> {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API key is not configured.');
+  }
+
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -78,7 +82,12 @@ async function identifyItemsInPhoto(base64: string): Promise<IdentifiedItem[]> {
   // Strip markdown code fences if present
   const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
 
-  const parsed = JSON.parse(cleaned);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error('AI returned an unreadable response. Please try again.');
+  }
   if (!Array.isArray(parsed)) return [];
 
   return parsed

@@ -53,12 +53,16 @@ export default function SignUpScreen({onNavigateToSignIn}: Props) {
     }
 
     // Update display_name on profile (trigger creates the row)
-    const {data: {session}} = await supabase.auth.getSession();
-    if (session) {
-      await supabase
-        .from('profiles')
-        .update({display_name: displayName.trim()})
-        .eq('id', session.user.id);
+    try {
+      const {data: {session}} = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        await supabase
+          .from('profiles')
+          .update({display_name: displayName.trim()})
+          .eq('id', session.user.id);
+      }
+    } catch {
+      // Non-fatal — display name can be updated later
     }
 
     setSuccess(true);
