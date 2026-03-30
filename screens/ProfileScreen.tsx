@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -38,6 +38,14 @@ export default function ProfileScreen({onClose}: Props) {
   const [membersError, setMembersError] = useState<string | null>(null);
 
   const [signingOut, setSigningOut] = useState(false);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear timer on unmount to prevent setState on unmounted component
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
+  }, []);
 
   // Derive the 6-char invite code from household_id
   const inviteCode = profile?.household_id
@@ -100,8 +108,8 @@ export default function ProfileScreen({onClose}: Props) {
       } else {
         setSaveSuccess(true);
         await fetchProfile();
-        // Clear success message after 2 seconds
-        setTimeout(() => setSaveSuccess(false), 2000);
+        // Clear success message after 2 seconds, guarded against unmount
+        successTimerRef.current = setTimeout(() => setSaveSuccess(false), 2000);
       }
     } catch (e) {
       setSaveError('Failed to save display name. Please try again.');

@@ -172,6 +172,16 @@ export default function DashboardScreen() {
   // Render
   // ---------------------------------------------------------------------------
 
+  if (!householdId) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.center}>
+          <Text style={styles.emptyText}>No household found. Please sign out and sign back in.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (loadingAll) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>

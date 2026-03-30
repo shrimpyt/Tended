@@ -49,7 +49,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    await supabase.auth.signOut();
+    const {error} = await supabase.auth.signOut();
+    if (error) console.warn('Sign out error:', error.message);
+    // Always clear local state so the user returns to the auth screen
     set({session: null, user: null, profile: null});
   },
 }));
