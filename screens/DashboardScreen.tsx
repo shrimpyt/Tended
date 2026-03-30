@@ -16,6 +16,7 @@ import {useSpendingStore} from '../store/spendingStore';
 import {useShoppingListStore} from '../store/shoppingListStore';
 import {useRealtimeHousehold} from '../hooks/useRealtimeHousehold';
 import ShoppingListScreen from './ShoppingListScreen';
+import ProfileScreen from './ProfileScreen';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -94,6 +95,7 @@ export default function DashboardScreen() {
 
   const [loadingAll, setLoadingAll] = useState(true);
   const [showShoppingList, setShowShoppingList] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   const householdId = profile?.household_id ?? '';
   const now = new Date();
@@ -189,8 +191,16 @@ export default function DashboardScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>{getGreeting()},</Text>
-          <Text style={styles.name}>{displayName}</Text>
+          <View style={styles.headerLeft}>
+            <Text style={styles.greeting}>{getGreeting()},</Text>
+            <Text style={styles.name}>{displayName}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setShowProfile(true)}
+            activeOpacity={0.7}
+            style={styles.profileButton}>
+            <Text style={styles.profileButtonText}>⚙</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Quick stats row */}
@@ -338,6 +348,15 @@ export default function DashboardScreen() {
         onRequestClose={() => setShowShoppingList(false)}>
         <ShoppingListScreen onClose={() => setShowShoppingList(false)} />
       </Modal>
+
+      {/* Profile / household settings modal */}
+      <Modal
+        visible={showProfile}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowProfile(false)}>
+        <ProfileScreen onClose={() => setShowProfile(false)} />
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -368,6 +387,12 @@ const styles = StyleSheet.create({
   // Header
   header: {
     paddingTop: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
+    flex: 1,
     gap: 2,
   },
   greeting: {
@@ -379,6 +404,21 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontSize: Typography.sizes.xxl,
     fontWeight: Typography.weights.medium,
+  },
+  profileButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  profileButtonText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.md,
   },
 
   // Stats row
