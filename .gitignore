@@ -40,3 +40,14 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# assistant / ide storage
+.claude/
+.agents/
+
+# ruby / dependencies
+.bundle/
+vendor/
+
+# supabase temp
+supabase/.temp/

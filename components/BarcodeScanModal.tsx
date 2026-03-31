@@ -14,8 +14,19 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {CameraView, useCameraPermissions} from 'expo-camera';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useInventoryStore, NewItem, getUniqueCategories} from '../store/inventoryStore';
+import {useInventory, useAddInventoryItem} from '../hooks/queries';
+import {NewItem} from '../types/models';
 import {useAuthStore} from '../store/authStore';
+
+function getUniqueCategories(items: any[]): string[] {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (item.category && item.category.trim()) {
+      seen.add(item.category.trim());
+    }
+  }
+  return Array.from(seen).sort();
+}
 
 type Step = 'scanning' | 'loading' | 'confirm' | 'notFound' | 'saving';
 
@@ -28,13 +39,6 @@ interface ProductDraft {
 }
 
 const DEFAULT_CATEGORY_SUGGESTIONS = ['Kitchen', 'Bathroom', 'Cleaning', 'Pantry'];
-
-const STOCK_PRESETS = [
-  {label: 'Full', value: 100},
-  {label: 'Half', value: 50},
-  {label: 'Low', value: 20},
-  {label: 'Empty', value: 0},
-];
 
 // Map Open Food Facts category strings → a sensible default string category
 function mapOFFCategory(categoriesStr: string | undefined): string {
@@ -117,18 +121,21 @@ async function lookupBarcode(barcode: string): Promise<ProductDraft | null> {
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onAdded: () => void;
 }
 
-export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
+export default function BarcodeScanModal({visible, onClose}: Props) {
   const {profile} = useAuthStore();
-  const {addItem, items} = useInventoryStore();
+  const householdId = profile?.household_id ?? '';
+
+  const {data: items = []} = useInventory(householdId);
+  const {mutateAsync: addItem} = useAddInventoryItem();
 
   const [permission, requestPermission] = useCameraPermissions();
   const [step, setStep] = useState<Step>('scanning');
   const [draft, setDraft] = useState<ProductDraft | null>(null);
-  const [stockLevel, setStockLevel] = useState(100);
-  const [threshold, setThreshold] = useState('25');
+  const [quantity, setQuantity] = useState('1');
+  const [maxQuantity, setMaxQuantity] = useState('1');
+  const [threshold, setThreshold] = useState('0.25');
   const [manualName, setManualName] = useState('');
   const [manualCategory, setManualCategory] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -140,8 +147,9 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
       scannedRef.current = false;
       setStep('scanning');
       setDraft(null);
-      setStockLevel(100);
-      setThreshold('25');
+      setQuantity('1');
+      setMaxQuantity('1');
+      setThreshold('0.25');
       setManualName('');
       setManualCategory('');
       setError(null);
@@ -178,9 +186,24 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
       setError('Item name is required.');
       return;
     }
-    const thresholdNum = parseInt(threshold, 10);
-    if (isNaN(thresholdNum) || thresholdNum < 0 || thresholdNum > 100) {
-      setError('Threshold must be 0–100.');
+    const qty = parseFloat(quantity);
+    const maxQty = parseFloat(maxQuantity);
+    const thresh = parseFloat(threshold);
+
+    if (isNaN(qty) || qty < 0) {
+      setError('Starting quantity must be 0 or more.');
+      return;
+    }
+    if (isNaN(maxQty) || maxQty <= 0) {
+      setError('Max quantity must be greater than 0.');
+      return;
+    }
+    if (qty > maxQty) {
+      setError('Starting quantity cannot exceed max quantity.');
+      return;
+    }
+    if (isNaN(thresh) || thresh < 0) {
+      setError('Threshold must be 0 or more.');
       return;
     }
 
@@ -191,19 +214,24 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
     const newItem: NewItem = {
       name,
       category: resolvedCategory,
-      stock_level: stockLevel,
-      threshold: thresholdNum,
+      quantity: qty,
+      max_quantity: maxQty,
+      threshold: thresh,
       unit: draft?.unit || null,
     };
 
-    const id = await addItem(profile.household_id, profile.id, newItem);
-    if (!id) {
+    try {
+      await addItem({
+        householdId: profile.household_id,
+        userId: profile.id,
+        item: newItem,
+      });
+    } catch {
       setError('Failed to save. Please try again.');
       setStep(draft ? 'confirm' : 'notFound');
       return;
     }
 
-    onAdded();
     onClose();
   };
 
@@ -213,6 +241,50 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
   };
 
   if (!visible) return null;
+
+  const unitLabel = draft?.unit ? ` ${draft.unit}` : '';
+
+  // Shared quantity fields rendered in both confirm and notFound steps
+  const QuantityFields = () => (
+    <>
+      <Text style={styles.label}>Quantity</Text>
+      <View style={styles.quantityRow}>
+        <View style={styles.quantityField}>
+          <Text style={styles.quantityFieldLabel}>Current{unitLabel}</Text>
+          <TextInput
+            style={styles.input}
+            value={quantity}
+            onChangeText={setQuantity}
+            keyboardType="decimal-pad"
+            placeholderTextColor={Colors.textSecondary}
+            placeholder="1"
+          />
+        </View>
+        <Text style={styles.quantitySep}>/</Text>
+        <View style={styles.quantityField}>
+          <Text style={styles.quantityFieldLabel}>Max{unitLabel}</Text>
+          <TextInput
+            style={styles.input}
+            value={maxQuantity}
+            onChangeText={setMaxQuantity}
+            keyboardType="decimal-pad"
+            placeholderTextColor={Colors.textSecondary}
+            placeholder="1"
+          />
+        </View>
+      </View>
+
+      <Text style={styles.label}>Reorder when below{unitLabel}</Text>
+      <TextInput
+        style={styles.input}
+        value={threshold}
+        onChangeText={setThreshold}
+        keyboardType="decimal-pad"
+        placeholderTextColor={Colors.textSecondary}
+        placeholder="0.25"
+      />
+    </>
+  );
 
   return (
     <Modal
@@ -250,7 +322,6 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
                     barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'qr', 'code128', 'code39'],
                   }}
                 />
-                {/* Targeting overlay */}
                 <View style={styles.overlay}>
                   <View style={styles.overlayTop} />
                   <View style={styles.overlayMiddle}>
@@ -309,7 +380,6 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
             <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
               {error && <Text style={styles.errorText}>{error}</Text>}
 
-              {/* Product card */}
               <View style={styles.productCard}>
                 <Text style={styles.productBrand}>{draft.brand || 'Unknown brand'}</Text>
                 <TextInput
@@ -319,13 +389,10 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
                   autoCapitalize="words"
                   placeholderTextColor={Colors.textSecondary}
                 />
-                {draft.unit ? (
-                  <Text style={styles.productUnit}>{draft.unit}</Text>
-                ) : null}
+                {draft.unit ? <Text style={styles.productUnit}>{draft.unit}</Text> : null}
                 <Text style={styles.barcodeLabel}>#{draft.barcode}</Text>
               </View>
 
-              {/* Category */}
               <Text style={styles.label}>Category <Text style={styles.optional}>(optional)</Text></Text>
               <TextInput
                 style={styles.input}
@@ -352,30 +419,7 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
                 ))}
               </ScrollView>
 
-              {/* Stock level */}
-              <Text style={styles.label}>Starting stock level</Text>
-              <View style={styles.pillRow}>
-                {STOCK_PRESETS.map(p => (
-                  <TouchableOpacity
-                    key={p.value}
-                    style={[styles.pill, stockLevel === p.value && styles.pillActive]}
-                    onPress={() => setStockLevel(p.value)}>
-                    <Text style={[styles.pillText, stockLevel === p.value && styles.pillTextActive]}>
-                      {p.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Threshold */}
-              <Text style={styles.label}>Low stock alert (%)</Text>
-              <TextInput
-                style={styles.input}
-                value={threshold}
-                onChangeText={setThreshold}
-                keyboardType="number-pad"
-                placeholderTextColor={Colors.textSecondary}
-              />
+              <QuantityFields />
             </ScrollView>
           </KeyboardAvoidingView>
         )}
@@ -441,28 +485,7 @@ export default function BarcodeScanModal({visible, onClose, onAdded}: Props) {
                 ))}
               </ScrollView>
 
-              <Text style={styles.label}>Starting stock level</Text>
-              <View style={styles.pillRow}>
-                {STOCK_PRESETS.map(p => (
-                  <TouchableOpacity
-                    key={p.value}
-                    style={[styles.pill, stockLevel === p.value && styles.pillActive]}
-                    onPress={() => setStockLevel(p.value)}>
-                    <Text style={[styles.pillText, stockLevel === p.value && styles.pillTextActive]}>
-                      {p.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.label}>Low stock alert (%)</Text>
-              <TextInput
-                style={styles.input}
-                value={threshold}
-                onChangeText={setThreshold}
-                keyboardType="number-pad"
-                placeholderTextColor={Colors.textSecondary}
-              />
+              <QuantityFields />
             </ScrollView>
           </KeyboardAvoidingView>
         )}
@@ -610,21 +633,29 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     marginTop: Spacing.md,
   },
-  pillRow: {flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.xs},
-  pill: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: 20,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  pillActive: {backgroundColor: Colors.blue, borderColor: Colors.blue},
-  pillText: {color: Colors.textSecondary, fontSize: Typography.sizes.sm, fontWeight: Typography.weights.medium},
-  pillTextActive: {color: Colors.textPrimary},
   optional: {
     color: Colors.textSecondary,
     fontWeight: Typography.weights.regular,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.sm,
+  },
+  quantityField: {
+    flex: 1,
+    gap: Spacing.xs,
+  },
+  quantityFieldLabel: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.regular,
+  },
+  quantitySep: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.regular,
+    paddingBottom: Spacing.md,
   },
   suggestionRow: {
     gap: Spacing.sm,

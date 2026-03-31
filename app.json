@@ -3,18 +3,22 @@
     "name": "Tended",
     "slug": "tended",
     "version": "1.0.0",
+    "scheme": "tended",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0d1117"
+      "backgroundColor": "#050505"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.tryolive.tended",
-      "jsEngine": "jsc"
+      "jsEngine": "jsc",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,6 +31,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f19877bb-4a9e-42c2-867c-dce13c979e0a"
+      }
+    },
+    "plugins": ["expo-router"]
   }
 }

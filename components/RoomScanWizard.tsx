@@ -8,13 +8,19 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import {useCameraPermissions} from 'expo-image-picker';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useInventoryStore, Category, NewItem} from '../store/inventoryStore';
+import {useAddInventoryItem} from '../hooks/queries';
+import {NewItem} from '../types/models';
 import {useAuthStore} from '../store/authStore';
+import {supabase} from '../lib/supabase';
+
+// We just type category as string here to keep it simple since we removed Category from models
+type Category = string;
 
 type Step = 'pickRoom' | 'photo' | 'analyzing' | 'review' | 'saving';
 
@@ -133,32 +139,38 @@ const ROOMS: RoomDefinition[] = [
   },
 ];
 
-interface CheckedItem extends RoomItem {
-  checked: boolean;
+interface DraftItem {
+  id: string;
+  name: string;
+  category: Category;
+  stock_level: number;
+  unit: string | null;
+  selected: boolean;
 }
 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onAdded: () => void;
 }
 
-export default function RoomScanWizard({visible, onClose, onAdded}: Props) {
+export default function RoomScanWizard({visible, onClose}: Props) {
   const {profile} = useAuthStore();
-  const {addItem} = useInventoryStore();
+  const {mutateAsync: addItem} = useAddInventoryItem();
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const [step, setStep] = useState<Step>('pickRoom');
   const [selectedRoom, setSelectedRoom] = useState<RoomDefinition | null>(null);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [checkedItems, setCheckedItems] = useState<CheckedItem[]>([]);
+  const [imageUris, setImageUris] = useState<string[]>([]);
+  const [imageBase64s, setImageBase64s] = useState<string[]>([]);
+  const [draftItems, setDraftItems] = useState<DraftItem[]>([]);
   const [savedCount, setSavedCount] = useState(0);
 
   const reset = () => {
     setStep('pickRoom');
     setSelectedRoom(null);
-    setPhotoUri(null);
-    setCheckedItems([]);
+    setImageUris([]);
+    setImageBase64s([]);
+    setDraftItems([]);
     setSavedCount(0);
   };
 
@@ -172,52 +184,78 @@ export default function RoomScanWizard({visible, onClose, onAdded}: Props) {
     setStep('photo');
   };
 
-  const handleSkipPhoto = () => {
-    if (!selectedRoom) return;
-    setPhotoUri(null);
-    startAnalysis();
-  };
-
   const handleTakePhoto = async () => {
-    // Request camera permission if not yet granted
     if (!cameraPermission?.granted) {
       const result = await requestCameraPermission();
       if (!result.granted) return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: 'images',
-      quality: 0.6,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      base64: true,
     });
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
-      startAnalysis();
+
+    if (!result.canceled && result.assets.length > 0) {
+      const uri = result.assets[0].uri;
+      const base64 = result.assets[0].base64;
+      setImageUris(prev => [...prev, uri]);
+      setImageBase64s(prev => [...prev, base64 || '']);
     }
   };
 
   const handleChoosePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
-      quality: 0.6,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      base64: true,
     });
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
-      startAnalysis();
+    if (!result.canceled && result.assets.length > 0) {
+      const uri = result.assets[0].uri;
+      const base64 = result.assets[0].base64;
+      setImageUris(prev => [...prev, uri]);
+      setImageBase64s(prev => [...prev, base64 || '']);
     }
   };
 
-  const startAnalysis = () => {
-    if (!selectedRoom) return;
+  const handleDonePhotos = () => {
     setStep('analyzing');
-    // Simulate AI analysis delay
-    setTimeout(() => {
-      setCheckedItems(selectedRoom.items.map(item => ({...item, checked: true})));
+    analyzeImages();
+  };
+
+  const analyzeImages = async () => {
+    try {
+      const allDrafts: DraftItem[] = [];
+      for (const base64 of imageBase64s) {
+        if (!base64) continue;
+        const { data, error } = await supabase.functions.invoke('analyze-image', {
+          body: { action: 'room', image: base64 }
+        });
+        if (error) {
+           console.error("Supabase Edge Function Error:", error);
+           continue;
+        }
+        if (data && data.items) {
+          const drafts = data.items.map((item: any) => ({
+            id: Math.random().toString(),
+            name: item.name,
+            category: selectedRoom?.items.find(i => i.name === item.name)?.category || 'Pantry',
+            stock_level: item.stock_level || 50,
+            selected: true
+          }));
+          allDrafts.push(...drafts);
+        }
+      }
+      setDraftItems(allDrafts);
       setStep('review');
-    }, 1800);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to analyze images.');
+      setStep('photo');
+    }
   };
 
   const toggleItem = (index: number) => {
-    setCheckedItems(prev =>
-      prev.map((item, i) => i === index ? {...item, checked: !item.checked} : item),
+    setDraftItems(prev =>
+      prev.map((item, i) => i === index ? {...item, selected: !item.selected} : item),
     );
   };
 
@@ -225,7 +263,7 @@ export default function RoomScanWizard({visible, onClose, onAdded}: Props) {
     if (!profile?.household_id || !profile?.id) return;
     setStep('saving');
 
-    const toAdd = checkedItems.filter(i => i.checked);
+    const toAdd = draftItems.filter(i => i.selected);
     let count = 0;
 
     for (const item of toAdd) {
@@ -236,16 +274,23 @@ export default function RoomScanWizard({visible, onClose, onAdded}: Props) {
         threshold: 25,
         unit: item.unit,
       };
-      const id = await addItem(profile.household_id, profile.id, newItem);
-      if (id) count++;
+      try {
+        await addItem({
+          householdId: profile.household_id,
+          userId: profile.id,
+          item: newItem
+        });
+        count++;
+      } catch (err) {
+        console.error(err);
+      }
     }
 
     setSavedCount(count);
-    onAdded();
     handleClose();
   };
 
-  const selectedCount = checkedItems.filter(i => i.checked).length;
+  const selectedCount = draftItems.filter(i => i.selected).length;
 
   if (!visible) return null;
 
@@ -314,7 +359,7 @@ export default function RoomScanWizard({visible, onClose, onAdded}: Props) {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.skipBtn} onPress={handleSkipPhoto}>
+              <TouchableOpacity style={styles.skipBtn} onPress={() => setStep('analyzing')}>
                 <Text style={styles.skipText}>Skip — just show me the list</Text>
               </TouchableOpacity>
             </View>
@@ -324,8 +369,8 @@ export default function RoomScanWizard({visible, onClose, onAdded}: Props) {
         {/* ── Step 3: Analyzing ── */}
         {step === 'analyzing' && (
           <View style={styles.center}>
-            {photoUri && (
-              <Image source={{uri: photoUri}} style={styles.photoPreview} resizeMode="cover" />
+            {imageUris.length > 0 && (
+              <Image source={{uri: imageUris[0]}} style={styles.photoPreview} resizeMode="cover" />
             )}
             <ActivityIndicator size="large" color={Colors.blue} style={{marginTop: Spacing.xl}} />
             <Text style={styles.analyzingTitle}>Suggesting items…</Text>
@@ -351,17 +396,17 @@ export default function RoomScanWizard({visible, onClose, onAdded}: Props) {
             </Text>
 
             <ScrollView contentContainerStyle={styles.reviewList}>
-              {checkedItems.map((item, idx) => (
+              {draftItems.map((item, idx) => (
                 <TouchableOpacity
-                  key={item.name}
-                  style={[styles.reviewRow, !item.checked && styles.reviewRowUnchecked]}
+                  key={item.id}
+                  style={[styles.reviewRow, !item.selected && styles.reviewRowUnchecked]}
                   activeOpacity={0.7}
                   onPress={() => toggleItem(idx)}>
-                  <View style={[styles.checkbox, item.checked && styles.checkboxChecked]}>
-                    {item.checked && <Text style={styles.checkmark}>✓</Text>}
+                  <View style={[styles.checkbox, item.selected && styles.checkboxChecked]}>
+                    {item.selected && <Text style={styles.checkmark}>✓</Text>}
                   </View>
                   <View style={styles.reviewItemInfo}>
-                    <Text style={[styles.reviewItemName, !item.checked && styles.reviewItemNameUnchecked]}>
+                    <Text style={[styles.reviewItemName, !item.selected && styles.reviewItemNameUnchecked]}>
                       {item.name}
                     </Text>
                     <Text style={styles.reviewItemMeta}>
@@ -374,7 +419,7 @@ export default function RoomScanWizard({visible, onClose, onAdded}: Props) {
 
             <View style={styles.reviewFooter}>
               <Text style={styles.reviewFooterCount}>
-                {selectedCount} of {checkedItems.length} selected
+                {selectedCount} of {draftItems.length} selected
               </Text>
               <TouchableOpacity
                 style={[styles.addAllBtn, selectedCount === 0 && styles.addAllBtnDisabled]}

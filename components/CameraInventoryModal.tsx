@@ -9,106 +9,49 @@ import {
   ActivityIndicator,
   Image,
   TextInput,
-  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import {useCameraPermissions} from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
-import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useInventoryStore, NewItem, getUniqueCategories} from '../store/inventoryStore';
+import {Colors, Typography, Spacing, Radius, Border, Shadows} from '../constants/theme';
+import {useInventory, useAddInventoryItem} from '../hooks/queries';
+import {NewItem} from '../types/models';
 import {useAuthStore} from '../store/authStore';
+import {supabase} from '../lib/supabase';
+
+function getUniqueCategories(items: any[]): string[] {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (item.category && item.category.trim()) {
+      seen.add(item.category.trim());
+    }
+  }
+  return Array.from(seen).sort();
+}
 
 type Step = 'pick' | 'analyzing' | 'review' | 'saving';
 
 interface IdentifiedItem {
   name: string;
   category: string;
+  quantity: number;
+  max_quantity: number;
+  threshold: number;
+  unit: string | null;
   checked: boolean;
-}
-
-const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? '';
-
-async function identifyItemsInPhoto(base64: string): Promise<IdentifiedItem[]> {
-  if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key is not configured.');
-  }
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      max_tokens: 600,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text:
-                'You are a home inventory assistant. Look at this image and identify every distinct household product or item you can see — include food, cleaning products, toiletries, pantry items, bottles, containers, boxes, etc.\n\n' +
-                'For each item return:\n' +
-                '- name: short specific product name (e.g. "Dish Soap", "Olive Oil", "Shampoo")\n' +
-                '- category: a short category label (e.g. "Cleaning", "Pantry", "Bathroom", "Kitchen")\n\n' +
-                'Return ONLY valid JSON — an array of objects like:\n' +
-                '[{"name":"Dish Soap","category":"Cleaning"},{"name":"Sponges","category":"Cleaning"}]\n\n' +
-                'If you cannot clearly identify any items, return an empty array: []',
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${base64}`,
-                detail: 'low',
-              },
-            },
-          ],
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`OpenAI error ${response.status}: ${err}`);
-  }
-
-  const json = await response.json();
-  const content: string = json.choices?.[0]?.message?.content ?? '[]';
-
-  // Strip markdown code fences if present
-  const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(cleaned);
-  } catch {
-    throw new Error('AI returned an unreadable response. Please try again.');
-  }
-  if (!Array.isArray(parsed)) return [];
-
-  return parsed
-    .filter((i: unknown) => typeof i === 'object' && i !== null)
-    .map((i: {name?: unknown; category?: unknown}) => ({
-      name: String(i.name ?? '').trim(),
-      category: String(i.category ?? '').trim(),
-      checked: true,
-    }))
-    .filter(i => i.name.length > 0);
 }
 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onAdded: () => void;
 }
 
-export default function CameraInventoryModal({visible, onClose, onAdded}: Props) {
+export default function CameraInventoryModal({visible, onClose}: Props) {
   const {profile} = useAuthStore();
-  const {addItem, items} = useInventoryStore();
+  const householdId = profile?.household_id ?? '';
+
+  const {data: items = []} = useInventory(householdId);
+  const {mutateAsync: addItem} = useAddInventoryItem();
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const [step, setStep] = useState<Step>('pick');
@@ -133,28 +76,39 @@ export default function CameraInventoryModal({visible, onClose, onAdded}: Props)
     onClose();
   };
 
-  const processPhoto = async (uri: string) => {
+  const processImage = async (uri: string, base64?: string | null) => {
     setPhotoUri(uri);
     setStep('analyzing');
     setError(null);
 
     try {
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: 'base64',
+      const { data, error } = await supabase.functions.invoke('analyze-image', {
+        body: { action: 'inventory', image: base64 }
       });
-      const results = await identifyItemsInPhoto(base64);
 
-      if (results.length === 0) {
-        setError("Couldn't identify any items. Try a clearer photo with better lighting.");
-        setStep('pick');
-        return;
+      if (error) {
+        console.error("Supabase Edge Function Error:", error);
+        throw error;
       }
 
-      setIdentified(results);
+      if (data && data.items) {
+        const drafts = data.items.map((item: any) => ({
+          name: item.name,
+          category: item.category,
+          // AI returns stock_level 10-100; map to 0-1 quantity fraction
+          quantity: Math.round(((item.stock_level || 50) / 100) * 10) / 10,
+          max_quantity: 1,
+          threshold: 0.25,
+          unit: item.unit || null,
+          checked: true,
+        }));
+        setIdentified(drafts);
+      } else {
+        setIdentified([]);
+      }
       setStep('review');
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(`Analysis failed: ${msg}`);
+    } catch (err) {
+      setError('Failed to analyze image.');
       setStep('pick');
     }
   };
@@ -165,21 +119,23 @@ export default function CameraInventoryModal({visible, onClose, onAdded}: Props)
       if (!result.granted) return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: 'images',
-      quality: 0.7,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      base64: true,
     });
-    if (!result.canceled && result.assets[0]) {
-      await processPhoto(result.assets[0].uri);
+    if (!result.canceled && result.assets.length > 0) {
+      processImage(result.assets[0].uri, result.assets[0].base64);
     }
   };
 
   const handleChoosePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
-      quality: 0.7,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      base64: true,
     });
-    if (!result.canceled && result.assets[0]) {
-      await processPhoto(result.assets[0].uri);
+    if (!result.canceled && result.assets.length > 0) {
+      processImage(result.assets[0].uri, result.assets[0].base64);
     }
   };
 
@@ -204,14 +160,22 @@ export default function CameraInventoryModal({visible, onClose, onAdded}: Props)
       const newItem: NewItem = {
         name: item.name.trim(),
         category: item.category.trim() || null,
-        stock_level: 100,
-        threshold: 25,
-        unit: null,
+        quantity: item.quantity,
+        max_quantity: item.max_quantity,
+        threshold: item.threshold,
+        unit: item.unit,
       };
-      await addItem(profile.household_id, profile.id, newItem);
+      try {
+        await addItem({
+          householdId: profile.household_id,
+          userId: profile.id,
+          item: newItem,
+        });
+      } catch (e) {
+        console.error(e);
+      }
     }
 
-    onAdded();
     handleClose();
   };
 
@@ -424,13 +388,14 @@ const styles = StyleSheet.create({
   },
   pickBtn: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceElevated,
     borderWidth: Border.width,
     borderColor: Colors.border,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     paddingVertical: Spacing.xl,
     alignItems: 'center',
     gap: Spacing.sm,
+    ...Shadows.soft,
   },
   pickBtnIcon: {fontSize: 32},
   pickBtnLabel: {
@@ -500,18 +465,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceElevated,
     borderWidth: Border.width,
     borderColor: Colors.border,
-    borderRadius: Radius.sm,
-    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    ...Shadows.soft,
   },
-  reviewRowUnchecked: {opacity: 0.4},
+  reviewRowUnchecked: {opacity: 0.5},
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1.5,
+    width: 24,
+    height: 24,
+    borderRadius: Radius.full,
+    borderWidth: 2,
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
@@ -521,9 +487,9 @@ const styles = StyleSheet.create({
   },
   checkboxChecked: {backgroundColor: Colors.blue, borderColor: Colors.blue},
   checkmark: {
-    color: Colors.textPrimary,
-    fontSize: 13,
-    fontWeight: Typography.weights.medium,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: Typography.weights.bold,
   },
   reviewFields: {flex: 1, gap: Spacing.sm},
   reviewNameInput: {
@@ -561,12 +527,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.surface,
+    backgroundColor: 'rgba(5, 5, 5, 0.9)', // slightly transparent for blur effect
     borderTopWidth: Border.width,
     borderTopColor: Colors.border,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.xxl,
     alignItems: 'center',
     gap: Spacing.sm,
   },
@@ -578,15 +544,17 @@ const styles = StyleSheet.create({
   addBtn: {
     backgroundColor: Colors.blue,
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.sm,
+    paddingVertical: Spacing.lg,
+    borderRadius: Radius.full,
     width: '100%',
     alignItems: 'center',
+    ...Shadows.glow,
   },
   addBtnDisabled: {opacity: 0.4},
   addBtnText: {
     color: Colors.textPrimary,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    letterSpacing: 0.5,
   },
 });

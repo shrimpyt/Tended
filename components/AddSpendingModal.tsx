@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useSpendingStore, SpendingCategory} from '../store/spendingStore';
+import {useAddSpendingEntry} from '../hooks/queries';
+import {SpendingCategory} from '../types/models';
 import {useAuthStore} from '../store/authStore';
 
 const CATEGORIES: SpendingCategory[] = ['Groceries', 'Cleaning', 'Pantry', 'Personal care'];
@@ -27,7 +28,7 @@ interface Props {
 
 export default function AddSpendingModal({visible, householdId, onClose}: Props) {
   const {profile} = useAuthStore();
-  const {addEntry} = useSpendingStore();
+  const {mutateAsync: addEntry} = useAddSpendingEntry();
 
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<SpendingCategory>('Groceries');
@@ -43,12 +44,16 @@ export default function AddSpendingModal({visible, householdId, onClose}: Props)
     setLoading(true);
     const today = new Date();
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    await addEntry(householdId, profile!.id, {
-      amount: amountNum,
-      category,
-      item_name: itemName.trim() || null,
-      date: dateStr,
-      is_waste: isWaste,
+    await addEntry({
+      householdId,
+      userId: profile!.id,
+      entry: {
+        amount: amountNum,
+        category,
+        item_name: itemName.trim() || null,
+        date: dateStr,
+        is_waste: isWaste,
+      }
     });
     setLoading(false);
     handleClose();

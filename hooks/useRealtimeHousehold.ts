@@ -1,21 +1,18 @@
 import {useEffect} from 'react';
+import {useQueryClient} from '@tanstack/react-query';
 import {supabase} from '../lib/supabase';
-import {useAuthStore} from '../store/authStore';
+import {queryKeys} from './queries';
 
 /**
  * Subscribes to real-time changes for all household tables.
- * Attach to a screen or root component that lives for the full session.
- * Each table's onchange callback can be extended to update Zustand stores.
+ * Invalidates React Query caches automatically.
  */
-export function useRealtimeHousehold(
-  householdId: string,
-  callbacks: {
-    onItemsChange?: () => void;
-    onShoppingListChange?: () => void;
-    onSpendingChange?: () => void;
-  } = {},
-) {
+export function useRealtimeHousehold(householdId: string) {
+  const queryClient = useQueryClient();
+
   useEffect(() => {
+    if (!householdId) return;
+
     const channel = supabase
       .channel(`household:${householdId}`)
       .on(
@@ -26,7 +23,7 @@ export function useRealtimeHousehold(
           table: 'items',
           filter: `household_id=eq.${householdId}`,
         },
-        () => callbacks.onItemsChange?.(),
+        () => queryClient.invalidateQueries({queryKey: queryKeys.inventory(householdId)}),
       )
       .on(
         'postgres_changes',
@@ -36,7 +33,7 @@ export function useRealtimeHousehold(
           table: 'shopping_list',
           filter: `household_id=eq.${householdId}`,
         },
-        () => callbacks.onShoppingListChange?.(),
+        () => queryClient.invalidateQueries({queryKey: queryKeys.shopping(householdId)}),
       )
       .on(
         'postgres_changes',
@@ -46,12 +43,12 @@ export function useRealtimeHousehold(
           table: 'spending_entries',
           filter: `household_id=eq.${householdId}`,
         },
-        () => callbacks.onSpendingChange?.(),
+        () => queryClient.invalidateQueries({queryKey: ['spending', householdId]}),
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [householdId]);
+  }, [householdId, queryClient]);
 }

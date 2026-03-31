@@ -16,15 +16,11 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useSpendingStore, SpendingCategory, NewSpendingEntry} from '../store/spendingStore';
+import {useAddSpendingEntry, useInventory, useRestockFromReceipt} from '../hooks/queries';
+import {SpendingCategory, NewSpendingEntry, Item} from '../types/models';
 import {useAuthStore} from '../store/authStore';
-
-// Mock OCR line items shown after picking an image
-const MOCK_OCR_ITEMS: LineItem[] = [
-  {item: 'Milk', amount: '4.99', category: 'Groceries'},
-  {item: 'Bread', amount: '3.49', category: 'Groceries'},
-  {item: 'Dish Soap', amount: '2.99', category: 'Cleaning'},
-];
+import {supabase} from '../lib/supabase';
+import {fuzzyMatchInventory} from '../utils/fuzzyMatch';
 
 const CATEGORIES: SpendingCategory[] = ['Groceries', 'Cleaning', 'Pantry', 'Personal care'];
 
@@ -34,21 +30,34 @@ interface LineItem {
   category: SpendingCategory;
 }
 
+interface RestockProposal {
+  inventoryItem: Item;
+  addQuantity: number;
+  approved: boolean;
+}
+
 interface Props {
   visible: boolean;
   householdId: string;
   onClose: () => void;
 }
 
-type Step = 'pick' | 'processing' | 'review';
+type Step = 'pick' | 'processing' | 'review' | 'inventoryMatch';
+
+function fmtQty(n: number): string {
+  return n % 1 === 0 ? String(n) : n.toFixed(1);
+}
 
 export default function ReceiptScanModal({visible, householdId, onClose}: Props) {
   const {profile} = useAuthStore();
-  const {addEntry} = useSpendingStore();
+  const {mutateAsync: addEntry} = useAddSpendingEntry();
+  const {mutateAsync: restockFromReceipt} = useRestockFromReceipt();
+  const {data: inventoryItems = []} = useInventory(householdId);
 
   const [step, setStep] = useState<Step>('pick');
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [lineItems, setLineItems] = useState<LineItem[]>(MOCK_OCR_ITEMS.map(i => ({...i})));
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [restockProposals, setRestockProposals] = useState<RestockProposal[]>([]);
   const [saving, setSaving] = useState(false);
 
   const handlePickFromCamera = async () => {
@@ -58,11 +67,12 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: 'images',
+      mediaTypes: ['images'],
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      processImage(result.assets[0].uri);
+      processImage(result.assets[0].uri, result.assets[0].base64);
     }
   };
 
@@ -73,23 +83,37 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
+      mediaTypes: ['images'],
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      processImage(result.assets[0].uri);
+      processImage(result.assets[0].uri, result.assets[0].base64);
     }
   };
 
-  const processImage = (uri: string) => {
+  const processImage = async (uri: string, base64?: string | null) => {
     setImageUri(uri);
     setStep('processing');
 
-    // Simulate OCR processing delay, then populate mock items
-    setTimeout(() => {
-      setLineItems(MOCK_OCR_ITEMS.map(i => ({...i})));
+    try {
+      const {data, error} = await supabase.functions.invoke('analyze-image', {
+        body: {action: 'receipt', image: base64},
+      });
+
+      if (error) throw error;
+
+      if (data && data.items) {
+        setLineItems(data.items);
+      } else {
+        Alert.alert('OCR Failed', 'Could not parse receipt. Please add manually.');
+        setLineItems([]);
+      }
       setStep('review');
-    }, 1500);
+    } catch {
+      Alert.alert('Error', 'Failed to analyze receipt.');
+      setStep('pick');
+    }
   };
 
   const handleUpdateItem = (index: number, field: keyof LineItem, value: string) => {
@@ -108,7 +132,29 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
     setLineItems(prev => [...prev, {item: '', amount: '', category: 'Groceries'}]);
   };
 
-  const handleAddAll = async () => {
+  // Called from review step — checks for inventory matches before saving
+  const handleContinue = () => {
+    const matched: RestockProposal[] = lineItems
+      .filter(li => li.item.trim())
+      .reduce<RestockProposal[]>((acc, li) => {
+        const match = fuzzyMatchInventory(li.item, inventoryItems);
+        if (match && !acc.find(p => p.inventoryItem.id === match.id)) {
+          acc.push({inventoryItem: match, addQuantity: 1, approved: true});
+        }
+        return acc;
+      }, []);
+
+    if (matched.length === 0) {
+      // No inventory matches — skip directly to saving spending entries
+      saveSpendingEntries();
+      return;
+    }
+
+    setRestockProposals(matched);
+    setStep('inventoryMatch');
+  };
+
+  const saveSpendingEntries = async () => {
     if (!profile?.id) return;
     const valid = lineItems.filter(li => li.item.trim() && parseFloat(li.amount) > 0);
     if (valid.length === 0) {
@@ -128,17 +174,34 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
         date: dateStr,
         is_waste: false,
       };
-      await addEntry(householdId, profile.id, entry);
+      await addEntry({householdId, userId: profile.id, entry});
     }
 
     setSaving(false);
     handleClose();
   };
 
+  const handleApplyRestocks = async () => {
+    if (!profile?.id) return;
+    setSaving(true);
+
+    const approved = restockProposals.filter(p => p.approved);
+    if (approved.length > 0) {
+      await restockFromReceipt({
+        proposals: approved.map(p => ({item: p.inventoryItem, addQuantity: p.addQuantity})),
+        userId: profile.id,
+        householdId,
+      });
+    }
+
+    await saveSpendingEntries();
+  };
+
   const handleClose = () => {
     setStep('pick');
     setImageUri(null);
-    setLineItems(MOCK_OCR_ITEMS.map(i => ({...i})));
+    setLineItems([]);
+    setRestockProposals([]);
     onClose();
   };
 
@@ -216,7 +279,6 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
                 contentContainerStyle={styles.reviewContent}
                 keyboardShouldPersistTaps="handled">
 
-                {/* Thumbnail */}
                 {imageUri && (
                   <Image
                     source={{uri: imageUri}}
@@ -230,7 +292,6 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
                   Edit names, amounts, or categories before adding to your spending.
                 </Text>
 
-                {/* Line items */}
                 {lineItems.map((li, index) => (
                   <View key={index} style={styles.lineItem}>
                     <View style={styles.lineItemTop}>
@@ -255,7 +316,6 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
                       </View>
                     </View>
 
-                    {/* Category pills */}
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
@@ -295,7 +355,6 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
                 </TouchableOpacity>
               </ScrollView>
 
-              {/* Footer */}
               <View style={styles.footer}>
                 <View style={styles.footerTotal}>
                   <Text style={styles.footerTotalLabel}>Total</Text>
@@ -304,11 +363,115 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
                 <TouchableOpacity
                   style={[styles.addAllBtn, saving && styles.addAllBtnDisabled]}
                   activeOpacity={0.8}
-                  onPress={handleAddAll}
+                  onPress={handleContinue}
                   disabled={saving}>
                   {saving
                     ? <ActivityIndicator color={Colors.textPrimary} size="small" />
-                    : <Text style={styles.addAllBtnText}>Add All to Spending</Text>
+                    : <Text style={styles.addAllBtnText}>Continue →</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {/* Step: Inventory match */}
+          {step === 'inventoryMatch' && (
+            <>
+              <ScrollView
+                style={styles.reviewScroll}
+                contentContainerStyle={styles.reviewContent}>
+
+                <Text style={styles.reviewLabel}>Restock inventory?</Text>
+                <Text style={styles.reviewSub}>
+                  These items were found in your inventory. Adjust amounts and toggle to apply.
+                </Text>
+
+                {restockProposals.map((proposal, idx) => {
+                  const item = proposal.inventoryItem;
+                  const newQty = Math.min(item.quantity + proposal.addQuantity, item.max_quantity);
+                  const barPct = Math.min(100, (item.quantity / item.max_quantity) * 100);
+                  const newBarPct = Math.min(100, (newQty / item.max_quantity) * 100);
+                  const unitLabel = item.unit ? ` ${item.unit}` : '';
+
+                  return (
+                    <View key={idx} style={[styles.restockCard, !proposal.approved && styles.restockCardDisabled]}>
+                      <View style={styles.restockCardHeader}>
+                        <Text style={styles.restockItemName}>{item.name}</Text>
+                        <TouchableOpacity
+                          onPress={() => setRestockProposals(prev =>
+                            prev.map((p, i) => i === idx ? {...p, approved: !p.approved} : p)
+                          )}
+                          activeOpacity={0.7}>
+                          <View style={[styles.toggle, proposal.approved && styles.toggleActive]}>
+                            <Text style={[styles.toggleText, proposal.approved && styles.toggleTextActive]}>
+                              {proposal.approved ? 'On' : 'Off'}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Stock bar: before and after */}
+                      <View style={styles.restockBars}>
+                        <View style={styles.barTrack}>
+                          <View style={[styles.barFill, {width: `${barPct}%` as `${number}%`, backgroundColor: Colors.amber}]} />
+                        </View>
+                        <Text style={styles.restockArrow}>→</Text>
+                        <View style={styles.barTrack}>
+                          <View style={[styles.barFill, {width: `${newBarPct}%` as `${number}%`, backgroundColor: Colors.green}]} />
+                        </View>
+                      </View>
+
+                      <View style={styles.restockMeta}>
+                        <Text style={styles.restockCurrent}>{fmtQty(item.quantity)}{unitLabel}</Text>
+                        <Text style={styles.restockArrow}>→</Text>
+                        <Text style={styles.restockNew}>{fmtQty(newQty)}{unitLabel}</Text>
+                      </View>
+
+                      {/* Add quantity stepper */}
+                      <View style={styles.restockStepper}>
+                        <Text style={styles.restockStepperLabel}>Add</Text>
+                        <TouchableOpacity
+                          style={styles.stepBtn}
+                          onPress={() => setRestockProposals(prev =>
+                            prev.map((p, i) => i === idx
+                              ? {...p, addQuantity: Math.max(0.5, p.addQuantity - 0.5)}
+                              : p)
+                          )}
+                          disabled={proposal.addQuantity <= 0.5}>
+                          <Text style={styles.stepBtnText}>−</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.stepQty}>+{fmtQty(proposal.addQuantity)}{unitLabel}</Text>
+                        <TouchableOpacity
+                          style={styles.stepBtn}
+                          onPress={() => setRestockProposals(prev =>
+                            prev.map((p, i) => i === idx
+                              ? {...p, addQuantity: p.addQuantity + 0.5}
+                              : p)
+                          )}>
+                          <Text style={styles.stepBtnText}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+
+              <View style={styles.footer}>
+                <TouchableOpacity
+                  style={styles.skipBtn}
+                  activeOpacity={0.8}
+                  onPress={saveSpendingEntries}
+                  disabled={saving}>
+                  <Text style={styles.skipBtnText}>Skip, just save spending</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.addAllBtn, saving && styles.addAllBtnDisabled]}
+                  activeOpacity={0.8}
+                  onPress={handleApplyRestocks}
+                  disabled={saving}>
+                  {saving
+                    ? <ActivityIndicator color={Colors.textPrimary} size="small" />
+                    : <Text style={styles.addAllBtnText}>Apply Restocks</Text>
                   }
                 </TouchableOpacity>
               </View>
@@ -350,7 +513,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.regular,
   },
   headerRight: {
-    width: 50, // balance the cancel text width
+    width: 50,
   },
 
   // Pick step
@@ -550,8 +713,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.medium,
   },
-
-  // Add item button
   addLineBtn: {
     paddingVertical: Spacing.md,
     alignItems: 'center',
@@ -564,6 +725,120 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
+  },
+
+  // Restock cards
+  restockCard: {
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  restockCardDisabled: {
+    opacity: 0.45,
+  },
+  restockCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  restockItemName: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
+    flex: 1,
+  },
+  toggle: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.sm,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  toggleActive: {
+    backgroundColor: Colors.green,
+    borderColor: Colors.green,
+  },
+  toggleText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.medium,
+  },
+  toggleTextActive: {
+    color: Colors.textPrimary,
+  },
+  restockBars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  barTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: Colors.background,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  restockArrow: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+  },
+  restockMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  restockCurrent: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+  },
+  restockNew: {
+    color: Colors.green,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+  },
+  restockStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  restockStepperLabel: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+    marginRight: Spacing.xs,
+  },
+  stepBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.background,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBtnText: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
+  },
+  stepQty: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+    minWidth: 48,
+    textAlign: 'center',
   },
 
   // Footer
@@ -588,6 +863,15 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontSize: Typography.sizes.lg,
     fontWeight: Typography.weights.medium,
+  },
+  skipBtn: {
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+  },
+  skipBtnText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
   },
   addAllBtn: {
     backgroundColor: Colors.green,

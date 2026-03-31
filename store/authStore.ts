@@ -7,6 +7,7 @@ export interface Profile {
   email: string;
   display_name: string;
   household_id: string | null;
+  expo_push_token?: string | null;
 }
 
 interface AuthState {

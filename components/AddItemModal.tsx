@@ -13,42 +13,50 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useInventoryStore, NewItem, getUniqueCategories} from '../store/inventoryStore';
+import {useInventory, useAddInventoryItem} from '../hooks/queries';
+import {NewItem} from '../types/models';
 import {useAuthStore} from '../store/authStore';
 
-const DEFAULT_CATEGORY_SUGGESTIONS = ['Kitchen', 'Bathroom', 'Cleaning', 'Pantry'];
+function getUniqueCategories(items: any[]): string[] {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (item.category && item.category.trim()) {
+      seen.add(item.category.trim());
+    }
+  }
+  return Array.from(seen).sort();
+}
 
-const STOCK_PRESETS = [
-  {label: 'Full',  value: 100},
-  {label: 'Half',  value: 50},
-  {label: 'Low',   value: 20},
-  {label: 'Empty', value: 0},
-];
+const DEFAULT_CATEGORY_SUGGESTIONS = ['Kitchen', 'Bathroom', 'Cleaning', 'Pantry'];
 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onAdded: () => void;
 }
 
-export default function AddItemModal({visible, onClose, onAdded}: Props) {
+export default function AddItemModal({visible, onClose}: Props) {
   const {profile} = useAuthStore();
-  const {addItem, items} = useInventoryStore();
+  const householdId = profile?.household_id ?? '';
+
+  const {data: items = []} = useInventory(householdId);
+  const {mutateAsync: addItem} = useAddInventoryItem();
 
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
-  const [stockLevel, setStockLevel] = useState(100);
-  const [threshold, setThreshold] = useState('25');
   const [unit, setUnit] = useState('');
+  const [quantity, setQuantity] = useState('1');
+  const [maxQuantity, setMaxQuantity] = useState('1');
+  const [threshold, setThreshold] = useState('0.25');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
     setName('');
     setCategory('');
-    setStockLevel(100);
-    setThreshold('25');
     setUnit('');
+    setQuantity('1');
+    setMaxQuantity('1');
+    setThreshold('0.25');
     setError(null);
   };
 
@@ -62,9 +70,24 @@ export default function AddItemModal({visible, onClose, onAdded}: Props) {
       setError('Item name is required.');
       return;
     }
-    const thresholdNum = parseInt(threshold, 10);
-    if (isNaN(thresholdNum) || thresholdNum < 0 || thresholdNum > 100) {
-      setError('Threshold must be between 0 and 100.');
+    const qty = parseFloat(quantity);
+    const maxQty = parseFloat(maxQuantity);
+    const thresh = parseFloat(threshold);
+
+    if (isNaN(qty) || qty < 0) {
+      setError('Starting quantity must be 0 or more.');
+      return;
+    }
+    if (isNaN(maxQty) || maxQty <= 0) {
+      setError('Max quantity must be greater than 0.');
+      return;
+    }
+    if (qty > maxQty) {
+      setError('Starting quantity cannot exceed max quantity.');
+      return;
+    }
+    if (isNaN(thresh) || thresh < 0) {
+      setError('Reorder threshold must be 0 or more.');
       return;
     }
 
@@ -74,27 +97,32 @@ export default function AddItemModal({visible, onClose, onAdded}: Props) {
     const newItem: NewItem = {
       name: name.trim(),
       category: category.trim() || null,
-      stock_level: stockLevel,
-      threshold: thresholdNum,
+      quantity: qty,
+      max_quantity: maxQty,
+      threshold: thresh,
       unit: unit.trim() || null,
     };
 
-    const id = await addItem(
-      profile!.household_id!,
-      profile!.id,
-      newItem,
-    );
-
-    setLoading(false);
-
-    if (!id) {
+    try {
+      await addItem({
+        householdId: profile!.household_id!,
+        userId: profile!.id,
+        item: newItem,
+      });
+    } catch {
+      setLoading(false);
       setError('Failed to save item. Please try again.');
       return;
     }
 
-    onAdded();
+    setLoading(false);
     handleClose();
   };
+
+  const qtyNum = parseFloat(quantity) || 0;
+  const maxQtyNum = parseFloat(maxQuantity) || 1;
+  const barPct = Math.min(100, (qtyNum / maxQtyNum) * 100);
+  const unitLabel = unit.trim() ? ` ${unit.trim()}` : '';
 
   return (
     <Modal
@@ -173,51 +201,62 @@ export default function AddItemModal({visible, onClose, onAdded}: Props) {
               ))}
             </ScrollView>
 
-            {/* Stock level */}
-            <Text style={styles.label}>Starting stock level</Text>
-            <View style={styles.pillRow}>
-              {STOCK_PRESETS.map(preset => (
-                <TouchableOpacity
-                  key={preset.value}
-                  style={[styles.pill, stockLevel === preset.value && styles.pillActive]}
-                  onPress={() => setStockLevel(preset.value)}>
-                  <Text style={[styles.pillText, stockLevel === preset.value && styles.pillTextActive]}>
-                    {preset.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            {/* Quantity */}
+            <Text style={styles.label}>Quantity</Text>
+            <View style={styles.quantityRow}>
+              <View style={styles.quantityField}>
+                <Text style={styles.quantityFieldLabel}>Current{unitLabel}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="1"
+                  placeholderTextColor={Colors.textSecondary}
+                  value={quantity}
+                  onChangeText={setQuantity}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <Text style={styles.quantitySep}>/</Text>
+              <View style={styles.quantityField}>
+                <Text style={styles.quantityFieldLabel}>Max{unitLabel}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="1"
+                  placeholderTextColor={Colors.textSecondary}
+                  value={maxQuantity}
+                  onChangeText={setMaxQuantity}
+                  keyboardType="decimal-pad"
+                />
+              </View>
             </View>
+
+            {/* Stock preview bar */}
             <View style={styles.stockPreview}>
               <View style={styles.barTrack}>
                 <View
                   style={[
                     styles.barFill,
                     {
-                      width: `${stockLevel}%` as `${number}%`,
-                      backgroundColor: stockLevel === 0
-                        ? Colors.red
-                        : stockLevel <= 25
-                        ? Colors.amber
-                        : Colors.green,
+                      width: `${barPct}%` as `${number}%`,
+                      backgroundColor: barPct === 0 ? Colors.red : barPct <= 25 ? Colors.amber : Colors.green,
                     },
                   ]}
                 />
               </View>
-              <Text style={styles.stockPct}>{stockLevel}%</Text>
+              <Text style={styles.stockPct}>{Math.round(barPct)}%</Text>
             </View>
 
             {/* Threshold */}
-            <Text style={styles.label}>Low stock threshold (%)</Text>
+            <Text style={styles.label}>Reorder when below{unitLabel}</Text>
             <TextInput
               style={styles.input}
-              placeholder="25"
+              placeholder="0.25"
               placeholderTextColor={Colors.textSecondary}
               value={threshold}
               onChangeText={setThreshold}
-              keyboardType="number-pad"
+              keyboardType="decimal-pad"
             />
             <Text style={styles.hint}>
-              You'll be alerted when stock drops below this level.
+              You'll be alerted when{unitLabel ? unitLabel.trim() : ' amount'} drops below this.
             </Text>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -284,32 +323,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.regular,
   },
-  pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  pill: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: 20,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  pillActive: {
-    backgroundColor: Colors.blue,
-    borderColor: Colors.blue,
-  },
-  pillText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-  },
-  pillTextActive: {
-    color: Colors.textPrimary,
-  },
   suggestionRow: {
     gap: Spacing.sm,
     paddingVertical: Spacing.xs,
@@ -326,6 +339,26 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.sm,
+  },
+  quantityField: {
+    flex: 1,
+    gap: Spacing.xs,
+  },
+  quantityFieldLabel: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.regular,
+  },
+  quantitySep: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.regular,
+    paddingBottom: Spacing.md,
   },
   stockPreview: {
     flexDirection: 'row',

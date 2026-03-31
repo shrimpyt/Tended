@@ -14,7 +14,8 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
 import {useAuthStore} from '../store/authStore';
-import {useShoppingListStore, ShoppingListItem} from '../store/shoppingListStore';
+import {useShoppingList, useAddShoppingListItem, useToggleShoppingListItem, useDeleteShoppingListItem} from '../hooks/queries';
+import {ShoppingListItem} from '../types/models';
 import {useRealtimeHousehold} from '../hooks/useRealtimeHousehold';
 
 // ---------------------------------------------------------------------------
@@ -95,25 +96,19 @@ interface Props {
 
 export default function ShoppingListScreen({onClose}: Props) {
   const {profile} = useAuthStore();
-  const {items, loading, fetchItems, addItem, toggleComplete, deleteItem} =
-    useShoppingListStore();
+  const householdId = profile?.household_id ?? '';
+  const userId = profile?.id ?? '';
+
+  const {data: items = [], isLoading: loading} = useShoppingList(householdId);
+  const {mutateAsync: addItem} = useAddShoppingListItem();
+  const {mutate: toggleComplete} = useToggleShoppingListItem();
+  const {mutateAsync: deleteItemAsync, mutate: deleteItem} = useDeleteShoppingListItem();
 
   const [newItemText, setNewItemText] = useState('');
   const [adding, setAdding] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
-  const householdId = profile?.household_id ?? '';
-  const userId = profile?.id ?? '';
-
-  const refresh = useCallback(() => {
-    if (householdId) fetchItems(householdId);
-  }, [householdId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  useRealtimeHousehold(householdId, {onShoppingListChange: refresh});
+  useRealtimeHousehold(householdId);
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -124,14 +119,14 @@ export default function ShoppingListScreen({onClose}: Props) {
     if (!trimmed || !householdId || !userId) return;
     setAdding(true);
     setNewItemText('');
-    await addItem(householdId, userId, trimmed);
+    await addItem({householdId, userId, itemName: trimmed});
     setAdding(false);
     inputRef.current?.focus();
   }, [newItemText, householdId, userId, addItem]);
 
   const handleToggle = useCallback(
     (item: ShoppingListItem) => {
-      toggleComplete(item.id, !item.completed);
+      toggleComplete({itemId: item.id, completed: !item.completed});
     },
     [toggleComplete],
   );
@@ -145,8 +140,8 @@ export default function ShoppingListScreen({onClose}: Props) {
 
   // Mark all items complete (removes them from the store/list)
   const handleClearAll = useCallback(async () => {
-    await Promise.all(items.map(i => deleteItem(i.id)));
-  }, [items, deleteItem]);
+    await Promise.all(items.map(i => deleteItemAsync(i.id)));
+  }, [items, deleteItemAsync]);
 
   // ---------------------------------------------------------------------------
   // List data

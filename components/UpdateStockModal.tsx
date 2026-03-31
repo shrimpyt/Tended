@@ -1,63 +1,97 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   Modal,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useInventoryStore, Item} from '../store/inventoryStore';
+import {useUpdateQuantity, useDeleteInventoryItem} from '../hooks/queries';
+import {Item} from '../types/models';
 import {useAuthStore} from '../store/authStore';
 
-const PRESETS = [
-  {label: 'Full',  value: 100},
-  {label: 'Half',  value: 50},
-  {label: 'Low',   value: 20},
-  {label: 'Empty', value: 0},
-];
+function fmtQty(n: number): string {
+  return n % 1 === 0 ? String(n) : n.toFixed(1);
+}
+
+function getBarColor(quantity: number, _maxQuantity: number, threshold: number): string {
+  if (quantity === 0) return Colors.red;
+  if (quantity < threshold) return Colors.amber;
+  return Colors.green;
+}
 
 interface Props {
   item: Item | null;
   onClose: () => void;
 }
 
-function getBarColor(level: number, threshold: number): string {
-  if (level === 0) return Colors.red;
-  if (level < threshold) return Colors.amber;
-  return Colors.green;
-}
-
 export default function UpdateStockModal({item, onClose}: Props) {
   const {profile} = useAuthStore();
-  const {updateStockLevel, deleteItem} = useInventoryStore();
-  const [selected, setSelected] = useState<number | null>(null);
+  const {mutateAsync: updateQuantity} = useUpdateQuantity();
+  const {mutateAsync: deleteItem} = useDeleteInventoryItem();
+
+  const [pendingQuantity, setPendingQuantity] = useState(0);
+  const [exactInput, setExactInput] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (item) {
+      setPendingQuantity(item.quantity);
+      setExactInput(fmtQty(item.quantity));
+    }
+  }, [item]);
 
   if (!item) return null;
 
-  const pendingLevel = selected ?? item.stock_level;
-  const barColor = getBarColor(pendingLevel, item.threshold);
-  const willGoLow = pendingLevel < item.threshold && pendingLevel > 0;
-  const willBeEmpty = pendingLevel === 0;
+  const clamp = (v: number) => Math.max(0, Math.min(v, item.max_quantity));
+  const barPct = Math.min(100, (pendingQuantity / item.max_quantity) * 100);
+  const barColor = getBarColor(pendingQuantity, item.max_quantity, item.threshold);
+  const hasChanged = pendingQuantity !== item.quantity;
+  const willGoLow = pendingQuantity < item.threshold && pendingQuantity > 0;
+  const willBeEmpty = pendingQuantity === 0;
+
+  const adjust = (delta: number) => {
+    const next = clamp(pendingQuantity + delta);
+    setPendingQuantity(next);
+    setExactInput(fmtQty(next));
+  };
+
+  const setPreset = (value: number) => {
+    const next = clamp(value);
+    setPendingQuantity(next);
+    setExactInput(fmtQty(next));
+  };
+
+  const handleExactChange = (text: string) => {
+    setExactInput(text);
+    const num = parseFloat(text);
+    if (!isNaN(num)) {
+      setPendingQuantity(clamp(num));
+    }
+  };
 
   const handleSave = async () => {
-    if (selected === null || selected === item.stock_level) {
-      onClose();
-      return;
-    }
+    if (!hasChanged) { onClose(); return; }
     if (!profile?.id) return;
     setLoading(true);
-    await updateStockLevel(item.id, profile.id, item.stock_level, selected);
+    await updateQuantity({
+      itemId: item.id,
+      userId: profile.id,
+      oldQuantity: item.quantity,
+      newQuantity: pendingQuantity,
+      item,
+    });
     setLoading(false);
     onClose();
   };
 
   const handleClose = () => {
-    setSelected(null);
     onClose();
   };
 
@@ -82,6 +116,8 @@ export default function UpdateStockModal({item, onClose}: Props) {
     );
   };
 
+  const unitLabel = item.unit ? ` ${item.unit}` : '';
+
   return (
     <Modal
       visible={!!item}
@@ -98,17 +134,17 @@ export default function UpdateStockModal({item, onClose}: Props) {
           <TouchableOpacity onPress={handleSave} disabled={loading}>
             {loading
               ? <ActivityIndicator color={Colors.blue} />
-              : <Text style={[styles.saveText, selected === null && styles.saveDisabled]}>
-                  Save
-                </Text>
+              : <Text style={[styles.saveText, !hasChanged && styles.saveDisabled]}>Save</Text>
             }
           </TouchableOpacity>
         </View>
 
-        <View style={styles.body}>
-          {/* Item name + category */}
+        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+          {/* Item info */}
           <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={styles.itemCategory}>{item.category}{item.unit ? ` · ${item.unit}` : ''}</Text>
+          <Text style={styles.itemCategory}>
+            {item.category}{item.unit ? ` · ${item.unit}` : ''}
+          </Text>
 
           {/* Stock bar */}
           <View style={styles.barSection}>
@@ -116,17 +152,16 @@ export default function UpdateStockModal({item, onClose}: Props) {
               <View
                 style={[
                   styles.barFill,
-                  {
-                    width: `${pendingLevel}%` as `${number}%`,
-                    backgroundColor: barColor,
-                  },
+                  {width: `${barPct}%` as `${number}%`, backgroundColor: barColor},
                 ]}
               />
             </View>
-            <Text style={[styles.barPct, {color: barColor}]}>{pendingLevel}%</Text>
+            <Text style={[styles.barLabel, {color: barColor}]}>
+              {fmtQty(pendingQuantity)}/{fmtQty(item.max_quantity)}{unitLabel}
+            </Text>
           </View>
 
-          {/* Warning */}
+          {/* Warnings */}
           {willBeEmpty && (
             <View style={[styles.alert, {borderColor: Colors.red}]}>
               <Text style={[styles.alertText, {color: Colors.red}]}>
@@ -142,48 +177,74 @@ export default function UpdateStockModal({item, onClose}: Props) {
             </View>
           )}
 
-          {/* Presets */}
-          <Text style={styles.sectionLabel}>Quick set</Text>
-          <View style={styles.presetRow}>
-            {PRESETS.map(p => (
-              <TouchableOpacity
-                key={p.value}
-                style={[
-                  styles.presetBtn,
-                  pendingLevel === p.value && styles.presetBtnActive,
-                ]}
-                onPress={() => setSelected(p.value)}
-                activeOpacity={0.7}>
-                <Text style={[
-                  styles.presetLabel,
-                  pendingLevel === p.value && styles.presetLabelActive,
-                ]}>
-                  {p.label}
-                </Text>
-                <Text style={[
-                  styles.presetPct,
-                  pendingLevel === p.value && styles.presetLabelActive,
-                ]}>
-                  {p.value}%
-                </Text>
-              </TouchableOpacity>
-            ))}
+          {/* +/- controls */}
+          <Text style={styles.sectionLabel}>Adjust</Text>
+          <View style={styles.adjustRow}>
+            <TouchableOpacity style={styles.adjustBtn} onPress={() => adjust(-1)} activeOpacity={0.7}>
+              <Text style={styles.adjustBtnText}>−1{unitLabel}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.adjustBtn} onPress={() => adjust(-0.5)} activeOpacity={0.7}>
+              <Text style={styles.adjustBtnText}>−½{unitLabel}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.adjustBtn} onPress={() => adjust(0.5)} activeOpacity={0.7}>
+              <Text style={styles.adjustBtnText}>+½{unitLabel}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.adjustBtn} onPress={() => adjust(1)} activeOpacity={0.7}>
+              <Text style={styles.adjustBtnText}>+1{unitLabel}</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Current level indicator */}
-          <View style={styles.currentRow}>
-            <Text style={styles.currentLabel}>Current level</Text>
-            <Text style={styles.currentValue}>{item.stock_level}%</Text>
+          {/* Quick presets */}
+          <Text style={styles.sectionLabel}>Quick set</Text>
+          <View style={styles.presetRow}>
+            <TouchableOpacity
+              style={styles.presetBtn}
+              onPress={() => setPreset(Math.round(pendingQuantity * 0.5 * 10) / 10)}
+              activeOpacity={0.7}>
+              <Text style={styles.presetBtnText}>Used ½</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.presetBtn}
+              onPress={() => setPreset(0)}
+              activeOpacity={0.7}>
+              <Text style={styles.presetBtnText}>Used all</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.presetBtn, {borderColor: Colors.green}]}
+              onPress={() => setPreset(item.max_quantity)}
+              activeOpacity={0.7}>
+              <Text style={[styles.presetBtnText, {color: Colors.green}]}>Refill</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.currentRow}>
-            <Text style={styles.currentLabel}>Alert threshold</Text>
-            <Text style={styles.currentValue}>{item.threshold}%</Text>
+
+          {/* Exact amount */}
+          <Text style={styles.sectionLabel}>Set exact amount</Text>
+          <View style={styles.exactRow}>
+            <TextInput
+              style={styles.exactInput}
+              value={exactInput}
+              onChangeText={handleExactChange}
+              keyboardType="decimal-pad"
+              selectTextOnFocus
+              placeholderTextColor={Colors.textSecondary}
+            />
+            <Text style={styles.exactMax}>/ {fmtQty(item.max_quantity)}{unitLabel}</Text>
+          </View>
+
+          {/* Info rows */}
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Current</Text>
+            <Text style={styles.infoValue}>{fmtQty(item.quantity)}{unitLabel}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Reorder at</Text>
+            <Text style={styles.infoValue}>{fmtQty(item.threshold)}{unitLabel}</Text>
           </View>
 
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.7}>
             <Text style={styles.deleteBtnText}>Delete item</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </Modal>
   );
@@ -224,6 +285,7 @@ const styles = StyleSheet.create({
   body: {
     padding: Spacing.lg,
     gap: Spacing.md,
+    paddingBottom: Spacing.xxl,
   },
   itemName: {
     color: Colors.textPrimary,
@@ -253,10 +315,10 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 4,
   },
-  barPct: {
-    fontSize: Typography.sizes.md,
+  barLabel: {
+    fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
-    width: 44,
+    minWidth: 70,
     textAlign: 'right',
   },
   alert: {
@@ -273,7 +335,25 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  adjustRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  adjustBtn: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+  },
+  adjustBtnText: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
   },
   presetRow: {
     flexDirection: 'row',
@@ -287,38 +367,47 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     paddingVertical: Spacing.md,
     alignItems: 'center',
-    gap: 2,
   },
-  presetBtnActive: {
-    backgroundColor: Colors.blue,
-    borderColor: Colors.blue,
-  },
-  presetLabel: {
+  presetBtnText: {
     color: Colors.textPrimary,
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
   },
-  presetPct: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.xs,
+  exactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  exactInput: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.regular,
   },
-  presetLabelActive: {
-    color: Colors.textPrimary,
+  exactMax: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.regular,
   },
-  currentRow: {
+  infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: Spacing.xs,
     borderBottomWidth: Border.width,
     borderBottomColor: Colors.border,
   },
-  currentLabel: {
+  infoLabel: {
     color: Colors.textSecondary,
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.regular,
   },
-  currentValue: {
+  infoValue: {
     color: Colors.textPrimary,
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
