@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/* ─── Deep Ink palette ─────────────────────────────────────────── */
+:root {
+  --background:       #0A0A0B;
+  --foreground:       #F0F0F2;
+  --text-secondary:   rgba(240, 240, 242, 0.45);
+
+  --surface:          rgba(255, 255, 255, 0.05);
+  --surface-elevated: rgba(255, 255, 255, 0.08);
+  --border:           rgba(255, 255, 255, 0.08);
+
+  --primary-blue:   #3B82F6;
+  --success-green:  #34D399;
+  --warning-amber:  #FBBF24;
+  --danger-red:     #F87171;
+
+  /* glass tokens (used by .glass utility below) */
+  --glass-bg:     rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-hover:  rgba(255, 255, 255, 0.09);
+}
+
+/* ─── Tailwind color tokens ────────────────────────────────────── */
+@theme inline {
+  --color-background:    var(--background);
+  --color-foreground:    var(--foreground);
+  --color-surface:       var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-text-secondary: var(--text-secondary);
+  --color-border:        var(--border);
+
+  /* Solid accent colours — hex so opacity modifiers (bg-blue/10) work */
+  --color-blue:   #3B82F6;
+  --color-green:  #34D399;
+  --color-amber:  #FBBF24;
+  --color-red:    #F87171;
+
+  --font-sans: var(--font-inter, ui-sans-serif, system-ui, sans-serif);
+}
+
+/* ─── Base ─────────────────────────────────────────────────────── */
+html {
+  color-scheme: dark;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Glassmorphism utility ────────────────────────────────────── */
+/*
+  Use: className="glass rounded-2xl …"
+  Combines semi-transparent bg + blur + border in one class.
+*/
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-hover:hover {
+  background: var(--glass-hover);
+}
+
+/* ─── Scrollbar ────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ─── Selection ────────────────────────────────────────────────── */
+::selection {
+  background: rgba(59, 130, 246, 0.35);
+  color: #F0F0F2;
+}

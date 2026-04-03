@@ -71,6 +71,7 @@ function InitialLayout() {
   }, []);
 
   useEffect(() => {
+    /*
     if (session && profile) {
       registerForPushNotificationsAsync().then((token) => {
         if (token && token !== profile.expo_push_token) {
@@ -80,6 +81,7 @@ function InitialLayout() {
         }
       });
     }
+    */
   }, [session, profile, fetchProfile]);
 
   useEffect(() => {

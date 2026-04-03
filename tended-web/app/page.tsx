@@ -1,0 +1,412 @@
+'use client';
+
+import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
+import {
+  ShoppingCart, AlertTriangle, Zap,
+  Circle, CheckCircle2, ChevronRight,
+  TrendingUp, TrendingDown, Package, BarChart2,
+} from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+import {
+  useInventory,
+  useSpendingEntries,
+  useShoppingList,
+  useToggleShoppingListItem,
+} from '@/hooks/queries';
+import { useRealtimeHousehold } from '@/hooks/useRealtimeHousehold';
+import AIDialog from '@/components/AIDialog';
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function isoWeek(offset = 0): { start: string; end: string } {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  const mon = new Date(now);
+  mon.setDate(now.getDate() + diffToMon + offset * 7);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return { start: fmt(mon), end: fmt(sun) };
+}
+
+function fmt$(n: number) {
+  return '$' + n.toFixed(2);
+}
+
+// ── Sub-components ─────────────────────────────────────────────────
+
+function CardHeader({
+  icon: Icon,
+  label,
+  iconBg,
+  iconColor,
+  badge,
+}: {
+  icon: React.ElementType;
+  label: string;
+  iconBg: string;
+  iconColor: string;
+  badge?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-2">
+        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+          <Icon size={14} className={iconColor} />
+        </div>
+        <h2 className="text-sm font-semibold text-foreground">{label}</h2>
+      </div>
+      {badge}
+    </div>
+  );
+}
+
+// ── Page ───────────────────────────────────────────────────────────
+
+export default function DashboardPage() {
+  const { profile } = useAuthStore();
+  const householdId = profile?.household_id ?? '';
+  const now = new Date();
+  const [aiOpen, setAiOpen] = useState(false);
+
+  const { data: items = [], isLoading: loadingItems } =
+    useInventory(householdId);
+  const { data: entries = [], isLoading: loadingEntries } =
+    useSpendingEntries(householdId, now.getFullYear(), now.getMonth() + 1);
+  const { data: shoppingItems = [], isLoading: loadingShopping } =
+    useShoppingList(householdId);
+  const { mutate: toggleComplete } = useToggleShoppingListItem();
+
+  useRealtimeHousehold(householdId);
+
+  // Spending
+  const thisWeek = useMemo(() => isoWeek(0), []);
+  const lastWeek = useMemo(() => isoWeek(-1), []);
+
+  const { thisTotal, lastTotal, hasLastWeek } = useMemo(() => {
+    let thisTotal = 0, lastTotal = 0, hasLastWeek = false;
+    for (const e of entries) {
+      if (e.date >= thisWeek.start && e.date <= thisWeek.end) thisTotal += e.amount;
+      if (e.date >= lastWeek.start && e.date <= lastWeek.end) {
+        lastTotal += e.amount;
+        hasLastWeek = true;
+      }
+    }
+    return { thisTotal, lastTotal, hasLastWeek };
+  }, [entries, thisWeek, lastWeek]);
+
+  const weekDelta = hasLastWeek ? thisTotal - lastTotal : null;
+  const monthSpend = useMemo(() => entries.reduce((s, e) => s + e.amount, 0), [entries]);
+
+  // Inventory
+  const lowStockItems = useMemo(
+    () => items.filter(i => i.max_quantity > 0 && (i.quantity / i.max_quantity) <= i.threshold),
+    [items]
+  );
+  const wellStockedCount = items.length - lowStockItems.length;
+
+  // Shopping
+  const pendingItems = useMemo(() => shoppingItems.filter(i => !i.completed), [shoppingItems]);
+  const pendingSlice = pendingItems.slice(0, 6);
+
+  const displayName = profile?.display_name ?? 'there';
+  const loading = loadingItems || loadingEntries || loadingShopping;
+
+  // ── Divider colour ───────────────────────────────────────────
+  const divStyle = { borderColor: 'var(--glass-border)' };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Page header */}
+      <div className="px-5 sm:px-8 pt-8 pb-5">
+        <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-widest mb-1">
+          Dashboard
+        </p>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">
+          {getGreeting()}, {displayName}
+        </h1>
+      </div>
+
+      {loading ? (
+        <div className="flex h-60 items-center justify-center">
+          <div className="w-7 h-7 rounded-full border-2 border-blue border-t-transparent animate-spin" />
+        </div>
+      ) : (
+        <div className="px-5 sm:px-8 pb-8">
+          {/* ── Bento Grid ──────────────────────────────────────── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            {/* ① Active Shopping ── col-span-2 */}
+            <div className="glass rounded-2xl p-5 md:col-span-2 flex flex-col">
+              <CardHeader
+                icon={ShoppingCart}
+                label="Active Shopping"
+                iconBg="bg-green/10"
+                iconColor="text-green"
+                badge={
+                  pendingItems.length > 0 ? (
+                    <span className="text-[11px] font-semibold text-green bg-green/10 px-2 py-0.5 rounded-full">
+                      {pendingItems.length} pending
+                    </span>
+                  ) : undefined
+                }
+              />
+
+              {pendingSlice.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-8 text-center gap-2">
+                  <CheckCircle2 size={28} className="text-green/40" />
+                  <p className="text-sm text-text-secondary">All clear — nothing on the list.</p>
+                </div>
+              ) : (
+                <div className="flex-1 space-y-0.5">
+                  {pendingSlice.map(item => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 px-2 py-2.5 -mx-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group"
+                      onClick={() => toggleComplete({ itemId: item.id, completed: true })}
+                    >
+                      <Circle
+                        size={15}
+                        className="text-text-secondary group-hover:text-green transition-colors flex-shrink-0"
+                      />
+                      <span className="text-sm text-foreground flex-1">{item.item_name}</span>
+                      {item.note && (
+                        <span className="text-xs text-text-secondary">{item.note}</span>
+                      )}
+                    </div>
+                  ))}
+                  {pendingItems.length > 6 && (
+                    <Link
+                      href="/shopping-list"
+                      className="flex items-center gap-1 pt-1 text-xs text-text-secondary hover:text-foreground transition-colors"
+                    >
+                      +{pendingItems.length - 6} more <ChevronRight size={11} />
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-4 pt-3 border-t" style={divStyle}>
+                <Link
+                  href="/shopping-list"
+                  className="flex items-center gap-1 text-xs text-text-secondary hover:text-blue transition-colors"
+                >
+                  Open full list <ChevronRight size={11} />
+                </Link>
+              </div>
+            </div>
+
+            {/* ② Low Stock Alerts ── tall (row-span-2) */}
+            <div className="glass rounded-2xl p-5 md:row-span-2 flex flex-col">
+              <CardHeader
+                icon={AlertTriangle}
+                label="Low Stock"
+                iconBg="bg-red/10"
+                iconColor="text-red"
+                badge={
+                  lowStockItems.length > 0 ? (
+                    <span className="text-[11px] font-semibold text-red bg-red/10 px-2 py-0.5 rounded-full">
+                      {lowStockItems.length}
+                    </span>
+                  ) : undefined
+                }
+              />
+
+              {lowStockItems.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-8 text-center gap-2">
+                  <CheckCircle2 size={28} className="text-green/40" />
+                  <p className="text-sm text-text-secondary">Everything is well stocked!</p>
+                </div>
+              ) : (
+                <div className="flex-1 space-y-3 overflow-y-auto">
+                  {lowStockItems.slice(0, 10).map(item => {
+                    const pct = Math.min(
+                      100,
+                      Math.max(0, (item.quantity / item.max_quantity) * 100)
+                    );
+                    const isEmpty = item.quantity === 0;
+                    return (
+                      <div key={item.id}>
+                        <div className="flex justify-between items-center text-xs mb-1.5">
+                          <span className="font-medium text-foreground truncate flex-1 pr-2">
+                            {item.name}
+                          </span>
+                          <span
+                            className={`flex-shrink-0 ${isEmpty ? 'text-red' : 'text-amber'}`}
+                          >
+                            {isEmpty
+                              ? 'Out'
+                              : `${item.quantity}${item.unit ? ` ${item.unit}` : ''}`}
+                          </span>
+                        </div>
+                        <div className="h-1 w-full rounded-full overflow-hidden bg-white/6">
+                          <div
+                            className={`h-full rounded-full transition-all ${isEmpty ? 'bg-red' : 'bg-amber'}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {lowStockItems.length > 10 && (
+                    <Link
+                      href="/inventory"
+                      className="flex items-center gap-1 text-xs text-text-secondary hover:text-foreground transition-colors"
+                    >
+                      +{lowStockItems.length - 10} more <ChevronRight size={11} />
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-4 pt-3 border-t" style={divStyle}>
+                <button
+                  onClick={() => setAiOpen(true)}
+                  className="w-full text-xs py-2 rounded-xl transition-all text-text-secondary hover:text-blue"
+                  style={{ border: '1px solid var(--glass-border)' }}
+                >
+                  + Add to shopping list
+                </button>
+              </div>
+            </div>
+
+            {/* ③ Household Status */}
+            <div className="glass rounded-2xl p-5">
+              <CardHeader
+                icon={Package}
+                label="Household"
+                iconBg="bg-blue/10"
+                iconColor="text-blue"
+              />
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  { value: items.length,        label: 'Items tracked', color: 'text-foreground' },
+                  { value: wellStockedCount,     label: 'Well stocked',  color: 'text-green'      },
+                  { value: lowStockItems.length, label: 'Low / empty',   color: 'text-amber'      },
+                  { value: pendingItems.length,  label: 'In cart',       color: 'text-foreground' },
+                ].map(({ value, label, color }) => (
+                  <div key={label} className="rounded-xl p-3 bg-white/5">
+                    <div className={`text-xl font-bold ${color}`}>{value}</div>
+                    <div className="text-[11px] text-text-secondary mt-0.5">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ④ Spending Summary */}
+            <div className="glass rounded-2xl p-5">
+              <CardHeader
+                icon={BarChart2}
+                label="Spending"
+                iconBg="bg-amber/10"
+                iconColor="text-amber"
+              />
+              <div className="mb-3">
+                <div className="text-2xl font-bold text-foreground tracking-tight">
+                  {fmt$(thisTotal)}
+                </div>
+                <div className="text-xs text-text-secondary">this week</div>
+              </div>
+              {weekDelta !== null && (
+                <div
+                  className={`flex items-center gap-1 text-xs font-medium mb-3 ${
+                    weekDelta > 0 ? 'text-amber' : 'text-green'
+                  }`}
+                >
+                  {weekDelta > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                  {weekDelta > 0 ? '+' : ''}{fmt$(weekDelta)} vs last week
+                </div>
+              )}
+              <div className="pt-3 border-t flex justify-between text-xs" style={divStyle}>
+                <span className="text-text-secondary">This month</span>
+                <span className="font-medium text-foreground">{fmt$(monthSpend)}</span>
+              </div>
+            </div>
+
+            {/* ⑤ AI Scan / Add ── full width */}
+            <div
+              className="glass rounded-2xl p-6 md:col-span-3 relative overflow-hidden"
+            >
+              {/* Subtle blue gradient wash */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    'radial-gradient(ellipse at 20% 50%, rgba(59,130,246,0.07) 0%, transparent 65%)',
+                }}
+              />
+
+              <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-5">
+                {/* Copy */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 rounded-xl bg-blue/15 flex items-center justify-center">
+                      <Zap size={16} className="text-blue" />
+                    </div>
+                    <h2 className="text-base font-semibold text-foreground">AI Scan &amp; Add</h2>
+                  </div>
+                  <p className="text-sm text-text-secondary max-w-sm leading-relaxed">
+                    Scan your pantry, drop a receipt, or chat to instantly
+                    update your household inventory.
+                  </p>
+                </div>
+
+                {/* Primary CTA */}
+                <button
+                  onClick={() => setAiOpen(true)}
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm text-blue transition-all flex-shrink-0"
+                  style={{
+                    background: 'rgba(59,130,246,0.12)',
+                    border: '1px solid rgba(59,130,246,0.25)',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      'rgba(59,130,246,0.2)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      'rgba(59,130,246,0.12)';
+                  }}
+                >
+                  <Zap size={15} />
+                  Open AI Assistant
+                </button>
+              </div>
+
+              {/* Quick-action chips */}
+              <div className="relative mt-5 flex flex-wrap gap-2">
+                {[
+                  'Scan pantry with camera',
+                  'Scan a barcode',
+                  'Upload receipt',
+                  'Chat with AI',
+                ].map(action => (
+                  <button
+                    key={action}
+                    onClick={() => setAiOpen(true)}
+                    className="text-xs px-3 py-1.5 rounded-full text-text-secondary hover:text-blue transition-all"
+                    style={{ border: '1px solid var(--glass-border)' }}
+                  >
+                    {action}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <AIDialog open={aiOpen} onClose={() => setAiOpen(false)} />
+    </div>
+  );
+}

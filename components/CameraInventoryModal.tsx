@@ -88,7 +88,7 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
 
       if (error) {
         console.error("Supabase Edge Function Error:", error);
-        throw error;
+        throw new Error(error.message ?? 'Edge function failed');
       }
 
       if (data && data.items) {
@@ -119,7 +119,7 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
       if (!result.granted) return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
       base64: true,
     });
@@ -130,7 +130,7 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
 
   const handleChoosePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
       base64: true,
     });
