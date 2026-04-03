@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
-import { Inter, Geist } from "next/font/google";
+import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import ClientProvider from "@/components/ClientProvider";
 import NavShell from "@/components/NavShell";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-outfit",
+  display: "swap",
+});
 
 const inter = Inter({
   subsets: ["latin"],
@@ -24,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    <html lang="en" className={cn("font-sans", outfit.variable, inter.variable)}>
       <body className="bg-background text-foreground antialiased">
         {/*
           NavShell is a client component that reads usePathname() to decide
