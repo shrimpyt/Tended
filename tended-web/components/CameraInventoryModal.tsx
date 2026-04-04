@@ -67,10 +67,12 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
       if (error) {
         console.error('[CameraInventoryModal] Supabase function error:', error);
         let errorMessage = error.message || 'Error invoking Supabase edge function';
+        let rawDetails = '';
         // Attempt to extract the inner JSON error if available
         if (error.context && typeof error.context.json === 'function') {
           try {
             const errBody = await error.context.json();
+            rawDetails = JSON.stringify(errBody, null, 2);
             if (errBody && errBody.error) {
               errorMessage = errBody.error;
             }
@@ -78,7 +80,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
             // ignore JSON parse error
           }
         }
-        throw new Error(errorMessage);
+        throw new Error(`${errorMessage} | RAW_DETAILS: ${rawDetails}`);
       }
 
       console.log('[CameraInventoryModal] Response data:', data);
@@ -176,9 +178,9 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
             </p>
             
             {errorText && (
-              <div className="mb-6 p-4 rounded-lg bg-red-100 border border-red-300 text-red-700 w-full flex gap-3 text-left items-start">
+              <div className="mb-6 p-4 rounded-lg bg-red-100 border border-red-300 text-red-700 w-full flex gap-3 text-left items-start max-h-48 overflow-y-auto overflow-x-hidden break-words whitespace-pre-wrap">
                 <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
-                <span className="text-sm">{errorText}</span>
+                <span className="text-sm">{errorText.replace(' | RAW_DETAILS: ', '\n\nDetails:\n')}</span>
               </div>
             )}
 
