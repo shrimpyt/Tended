@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useUpdateQuantity, useInventory } from '@/hooks/queries';
+import { useUpdateQuantity, useInventory, useAddInventoryItem } from '@/hooks/queries';
 import { useAuthStore } from '@/store/authStore';
 import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
-import { X, Upload, Camera, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Upload, Camera, Check, Plus, AlertCircle, Loader2 } from 'lucide-react';
 import { Item } from '@/types/models';
 import { compressImage } from '@/utils/imageCompressor';
 
@@ -25,6 +25,7 @@ interface Props {
 export default function CameraInventoryModal({ visible, householdId, onClose }: Props) {
   const { profile } = useAuthStore();
   const { mutateAsync: updateQuantity } = useUpdateQuantity();
+  const { mutateAsync: addItem } = useAddInventoryItem();
   const { data: inventoryItems = [] } = useInventory(householdId);
 
   const [step, setStep] = useState<'pick' | 'processing' | 'review'>('pick');
@@ -59,34 +60,22 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
 
   const processImage = async (base64: string) => {
     try {
-      console.log('[CameraInventoryModal] Invoking analyze-image function...');
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      const { data, error } = await supabase.functions.invoke('analyze-image', {
-        body: { action: 'inventory', image: base64 },
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      console.log('[CameraInventoryModal] Invoking analyze-image API route...');
+      const response = await fetch('/api/analyze-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'inventory', image: base64 }),
       });
 
-      if (error) {
-        console.error('[CameraInventoryModal] Supabase function error:', error);
-        let errorMessage = error.message || 'Error invoking Supabase edge function';
-        let rawDetails = '';
-        // Attempt to extract the inner JSON error if available
-        if (error.context && typeof error.context.json === 'function') {
-          try {
-            const errBody = await error.context.json();
-            rawDetails = JSON.stringify(errBody, null, 2);
-            if (errBody && errBody.error) {
-              errorMessage = errBody.error;
-            }
-          } catch {
-            // ignore JSON parse error
-          }
-        }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error('[CameraInventoryModal] API route error:', errorData);
+        const errorMessage = errorData?.error || 'Error invoking API route';
+        const rawDetails = errorData ? JSON.stringify(errorData, null, 2) : await response.text();
         throw new Error(`${errorMessage} | RAW_DETAILS: ${rawDetails}`);
       }
 
+      const data = await response.json();
       console.log('[CameraInventoryModal] Response data:', data);
 
       let parsedData = data;
@@ -139,6 +128,22 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
             oldQuantity: item.matched_item.quantity,
             newQuantity: newQty,
             item: item.matched_item,
+          });
+        } else {
+          // Add new item
+          const maxQty = 10; // Default max quantity for visual scans
+          const newQty = Math.round((item.stock_level / 100) * maxQty);
+          await addItem({
+            householdId,
+            userId: profile.id,
+            item: {
+              name: item.name,
+              category: item.category || 'Pantry',
+              quantity: newQty || 1, // Avoid 0 if possible on first add
+              max_quantity: maxQty,
+              threshold: Math.max(1, Math.round(maxQty * 0.2)),
+              unit: 'pc'
+            },
           });
         }
       }
@@ -228,10 +233,15 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
                       {item.matched_item ? `Matched with ${item.matched_item.name}` : 'No local match found'}
                     </div>
                   </div>
-                  {item.matched_item && (
-                    <div className="flex items-center gap-1 text-green text-[11px] font-bold uppercase tracking-wider">
+                  {item.matched_item ? (
+                    <div className="flex items-center gap-1 text-green-500 text-[11px] font-bold uppercase tracking-wider">
                       <Check size={12} strokeWidth={3} />
                       Syncing
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 text-primary-blue text-[11px] font-bold uppercase tracking-wider">
+                      <Plus size={12} strokeWidth={3} />
+                      Adding
                     </div>
                   )}
                 </div>
@@ -242,11 +252,11 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
             <div className="fixed bottom-0 inset-x-0 p-6 bg-background/80 backdrop-blur-md border-t border-border">
               <button
                 onClick={handleSyncItems}
-                disabled={saving || foundItems.filter(i => i.matched_item).length === 0}
+                disabled={saving || foundItems.length === 0}
                 className="w-full py-4 bg-primary-blue hover:bg-opacity-90 disabled:opacity-50 text-white rounded-xl font-bold tracking-wide shadow-lg flex items-center justify-center gap-2 transition-all"
               >
                 {saving ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />}
-                {saving ? 'Syncing...' : `Confirm & Sync ${foundItems.filter(i => i.matched_item).length} Items`}
+                {saving ? 'Processing...' : `Confirm & Save ${foundItems.length} Items`}
               </button>
             </div>
           </div>
