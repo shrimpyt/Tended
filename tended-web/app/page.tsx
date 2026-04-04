@@ -119,12 +119,16 @@ export default function DashboardPage() {
       if (data && data.name) {
         setQuickFeedback(`Adding ${data.name}...`);
         await addItem({
-          household_id: householdId,
-          name: data.name,
-          category: data.category || 'Pantry',
-          quantity: 1,
-          unit: 'pc',
-          min_quantity: 1,
+          householdId,
+          userId: profile?.id ?? '',
+          item: {
+            name: data.name,
+            category: data.category || 'Pantry',
+            quantity: 1,
+            unit: 'pc',
+            max_quantity: 1,
+            threshold: 1,
+          }
         });
         setQuickFeedback(`Added ${data.name}!`);
         setTimeout(() => setQuickFeedback(null), 3000);
