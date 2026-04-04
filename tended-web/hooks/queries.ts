@@ -6,6 +6,8 @@ import {
   SpendingEntry,
   NewSpendingEntry,
   ShoppingListItem,
+  WasteEvent,
+  NewWasteEvent,
 } from '../types/models';
 
 export const queryKeys = {
@@ -13,6 +15,7 @@ export const queryKeys = {
   spending: (householdId: string, year: number, month: number) => ['spending', householdId, year, month] as const,
   shopping: (householdId: string) => ['shopping', householdId] as const,
   stockEvents: (itemId: string) => ['stockEvents', itemId] as const,
+  wasteEvents: (householdId: string) => ['wasteEvents', householdId] as const,
 };
 
 // =====================
@@ -62,6 +65,23 @@ export function useAddInventoryItem() {
 export function useUpdateQuantity() {
   const queryClient = useQueryClient();
   return useMutation({
+    // ── Optimistic update: reflect change immediately in cache ──
+    onMutate: async ({ item, newQuantity }: { itemId: string; userId: string; oldQuantity: number; newQuantity: number; item: Item }) => {
+      const qk = queryKeys.inventory(item.household_id);
+      await queryClient.cancelQueries({ queryKey: qk });
+      const previous = queryClient.getQueryData<Item[]>(qk);
+      const clamped = Math.max(0, Math.min(newQuantity, item.max_quantity));
+      queryClient.setQueryData<Item[]>(qk, old =>
+        old?.map(i => i.id === item.id ? { ...i, quantity: clamped } : i) ?? []
+      );
+      return { previous };
+    },
+    onError: (_err, { item }, context) => {
+      // Roll back on server error
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.inventory(item.household_id), context.previous);
+      }
+    },
     mutationFn: async ({itemId, userId, oldQuantity, newQuantity, item}: {
       itemId: string;
       userId: string;
@@ -293,6 +313,54 @@ export function useDeleteShoppingListItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['shopping']});
+    },
+  });
+}
+
+// =====================
+// WASTE EVENTS (Graveyard)
+// =====================
+
+export function useWasteEvents(householdId: string) {
+  return useQuery({
+    queryKey: queryKeys.wasteEvents(householdId),
+    queryFn: async () => {
+      if (!householdId) return [];
+      const {data, error} = await supabase
+        .from('waste_events')
+        .select('*')
+        .eq('household_id', householdId)
+        .order('created_at', {ascending: false})
+        .limit(100);
+      if (error) throw new Error(error.message);
+      return data as WasteEvent[];
+    },
+    enabled: !!householdId,
+  });
+}
+
+export function useAddWasteEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({householdId, userId, event}: {
+      householdId: string;
+      userId: string;
+      event: NewWasteEvent;
+    }) => {
+      const {data, error} = await supabase
+        .from('waste_events')
+        .insert({
+          household_id: householdId,
+          recorded_by: userId,
+          ...event,
+        })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data as WasteEvent;
+    },
+    onSuccess: (_, {householdId}) => {
+      queryClient.invalidateQueries({queryKey: queryKeys.wasteEvents(householdId)});
     },
   });
 }

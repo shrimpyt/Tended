@@ -24,6 +24,15 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
     const codeReader = new BrowserMultiFormatReader();
     readerRef.current = codeReader;
 
+    // Camera requires a secure context on most browsers
+    if (!window.isSecureContext) {
+      setHasCamera(false);
+      setError('Camera requires a secure (HTTPS) connection.');
+      return;
+    }
+
+    const BACK_CAMERA_HINTS = ['back', 'rear', 'environment'];
+
     codeReader.listVideoInputDevices()
       .then((videoInputDevices) => {
         if (videoInputDevices.length === 0) {
@@ -31,10 +40,13 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
           setError('No camera found on this device.');
           return;
         }
-        
+
         let selectedDeviceId = videoInputDevices[0].deviceId;
-        // Prefer back camera if available
-        const backCamera = videoInputDevices.find(device => device.label.toLowerCase().includes('back'));
+        // Prefer back/rear/environment-facing camera when available
+        const backCamera = videoInputDevices.find(device => {
+          const label = device.label.toLowerCase();
+          return BACK_CAMERA_HINTS.some(hint => label.includes(hint));
+        });
         if (backCamera) {
           selectedDeviceId = backCamera.deviceId;
         }
@@ -50,10 +62,16 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
           });
         }
       })
-      .catch((err) => {
+      .catch((err: Error) => {
         console.error(err);
         setHasCamera(false);
-        setError('Camera access denied or unavailable.');
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setError('Camera permission denied. Please allow access in your browser settings.');
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          setError('No camera found on this device.');
+        } else {
+          setError('Camera access denied or unavailable.');
+        }
       });
 
     return () => {

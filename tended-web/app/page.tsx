@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
   ShoppingCart, AlertTriangle, Zap,
   Circle, CheckCircle2, ChevronRight,
   TrendingUp, TrendingDown, Package, BarChart2,
+  Minus, Plus, Sparkles, Trash2,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -13,9 +14,14 @@ import {
   useSpendingEntries,
   useShoppingList,
   useToggleShoppingListItem,
+  useUpdateQuantity,
+  useAddShoppingListItem,
+  useAddWasteEvent,
 } from '@/hooks/queries';
 import { useRealtimeHousehold } from '@/hooks/useRealtimeHousehold';
 import AIDialog from '@/components/AIDialog';
+import { parseItem } from '@/utils/nlpParser';
+import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -79,17 +85,56 @@ export default function DashboardPage() {
   const now = new Date();
   const [aiOpen, setAiOpen] = useState(false);
 
-  const { data: items = [], isLoading: loadingItems } =
-    useInventory(householdId);
-  const { data: entries = [], isLoading: loadingEntries } =
-    useSpendingEntries(householdId, now.getFullYear(), now.getMonth() + 1);
-  const { data: shoppingItems = [], isLoading: loadingShopping } =
-    useShoppingList(householdId);
-  const { mutate: toggleComplete } = useToggleShoppingListItem();
+  // Quick Add state
+  const [quickAdd, setQuickAdd] = useState('');
+  const [quickFeedback, setQuickFeedback] = useState<string | null>(null);
+  const quickInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: items = [], isLoading: loadingItems }     = useInventory(householdId);
+  const { data: entries = [], isLoading: loadingEntries } = useSpendingEntries(householdId, now.getFullYear(), now.getMonth() + 1);
+  const { data: shoppingItems = [], isLoading: loadingShopping } = useShoppingList(householdId);
+
+  const { mutate: toggleComplete }  = useToggleShoppingListItem();
+  const { mutate: updateQuantity }  = useUpdateQuantity();
+  const { mutate: addShoppingItem } = useAddShoppingListItem();
+  const { mutate: addWasteEvent }   = useAddWasteEvent();
 
   useRealtimeHousehold(householdId);
 
-  // Spending
+  // ── Quick Add handler ──────────────────────────────────────────
+  const handleQuickAdd = useCallback(() => {
+    if (!profile?.id || !quickAdd.trim()) return;
+    const parsed = parseItem(quickAdd);
+    if (!parsed) return;
+
+    const match = fuzzyMatchInventory(parsed.name, items);
+
+    if (match) {
+      updateQuantity({
+        itemId: match.id,
+        userId: profile.id,
+        oldQuantity: match.quantity,
+        newQuantity: match.quantity + parsed.quantity,
+        item: match,
+      });
+      setQuickFeedback(`Updated "${match.name}" ✓`);
+    } else {
+      addShoppingItem({
+        householdId,
+        userId: profile.id,
+        itemName: parsed.name,
+        note: parsed.quantity > 1
+          ? `×${parsed.quantity}${parsed.unit ? ' ' + parsed.unit : ''}`
+          : undefined,
+      });
+      setQuickFeedback(`Added "${parsed.name}" to list ✓`);
+    }
+
+    setQuickAdd('');
+    setTimeout(() => setQuickFeedback(null), 2500);
+  }, [quickAdd, items, profile, householdId, updateQuantity, addShoppingItem]);
+
+  // ── Spending ───────────────────────────────────────────────────
   const thisWeek = useMemo(() => isoWeek(0), []);
   const lastWeek = useMemo(() => isoWeek(-1), []);
 
@@ -105,36 +150,64 @@ export default function DashboardPage() {
     return { thisTotal, lastTotal, hasLastWeek };
   }, [entries, thisWeek, lastWeek]);
 
-  const weekDelta = hasLastWeek ? thisTotal - lastTotal : null;
+  const weekDelta  = hasLastWeek ? thisTotal - lastTotal : null;
   const monthSpend = useMemo(() => entries.reduce((s, e) => s + e.amount, 0), [entries]);
 
-  // Inventory
-  const lowStockItems = useMemo(
+  // ── Inventory ──────────────────────────────────────────────────
+  const lowStockItems    = useMemo(
     () => items.filter(i => i.max_quantity > 0 && (i.quantity / i.max_quantity) <= i.threshold),
     [items]
   );
   const wellStockedCount = items.length - lowStockItems.length;
 
-  // Shopping
+  // ── Shopping ───────────────────────────────────────────────────
   const pendingItems = useMemo(() => shoppingItems.filter(i => !i.completed), [shoppingItems]);
   const pendingSlice = pendingItems.slice(0, 6);
 
   const displayName = profile?.display_name ?? 'there';
-  const loading = loadingItems || loadingEntries || loadingShopping;
+  const loading     = loadingItems || loadingEntries || loadingShopping;
 
-  // ── Divider colour ───────────────────────────────────────────
   const divStyle = { borderColor: 'var(--glass-border)' };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Page header */}
-      <div className="px-5 sm:px-8 pt-8 pb-5">
+      {/* ── Page header ─────────────────────────────────────── */}
+      <div className="px-5 sm:px-8 pt-8 pb-3">
         <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-widest mb-1">
           Dashboard
         </p>
         <h1 className="text-2xl font-bold text-foreground tracking-tight">
           {getGreeting()}, {displayName}
         </h1>
+      </div>
+
+      {/* ── Quick Add bar ────────────────────────────────────── */}
+      <div className="px-5 sm:px-8 pb-5">
+        <div
+          className="flex items-center gap-3 rounded-2xl px-4 py-3 transition-all"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}
+        >
+          <Sparkles size={15} className="text-blue flex-shrink-0" />
+          <input
+            ref={quickInputRef}
+            type="text"
+            value={quickAdd}
+            onChange={e => setQuickAdd(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleQuickAdd(); }}
+            placeholder="Quick add — try '3 eggs' or '2 bags of rice'…"
+            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-text-secondary min-w-0"
+          />
+          {quickFeedback ? (
+            <span className="text-xs text-green flex-shrink-0 font-medium">{quickFeedback}</span>
+          ) : quickAdd.trim() ? (
+            <button
+              onClick={handleQuickAdd}
+              className="text-xs text-blue hover:opacity-80 flex-shrink-0 font-medium"
+            >
+              Add ↵
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {loading ? (
@@ -235,23 +308,88 @@ export default function DashboardPage() {
                       Math.max(0, (item.quantity / item.max_quantity) * 100)
                     );
                     const isEmpty = item.quantity === 0;
+
+                    const nudge = (delta: number) => {
+                      if (!profile?.id) return;
+                      updateQuantity({
+                        itemId: item.id,
+                        userId: profile.id,
+                        oldQuantity: item.quantity,
+                        newQuantity: item.quantity + delta,
+                        item,
+                      });
+                    };
+
+                    const handleWaste = () => {
+                      if (!profile?.id || item.quantity <= 0) return;
+                      // 1. Log the waste event
+                      addWasteEvent({
+                        householdId,
+                        userId: profile.id,
+                        event: {
+                          item_id: item.id,
+                          item_name: item.name,
+                          quantity: item.quantity,
+                          unit: item.unit,
+                          cost: (item.price || 0) * item.quantity,
+                          reason: 'discarded',
+                        }
+                      });
+                      // 2. Set quantity to 0
+                      updateQuantity({
+                        itemId: item.id,
+                        userId: profile.id,
+                        oldQuantity: item.quantity,
+                        newQuantity: 0,
+                        item,
+                      });
+                    };
+
                     return (
                       <div key={item.id}>
-                        <div className="flex justify-between items-center text-xs mb-1.5">
-                          <span className="font-medium text-foreground truncate flex-1 pr-2">
+                        <div className="flex items-center text-xs mb-1.5 gap-2">
+                          <span className="font-medium text-foreground truncate flex-1">
                             {item.name}
                           </span>
-                          <span
-                            className={`flex-shrink-0 ${isEmpty ? 'text-red' : 'text-amber'}`}
-                          >
-                            {isEmpty
-                              ? 'Out'
-                              : `${item.quantity}${item.unit ? ` ${item.unit}` : ''}`}
-                          </span>
+
+                          {/* ── ±1 instant quantity nudge ── */}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <button
+                              onClick={() => nudge(-1)}
+                              disabled={item.quantity <= 0}
+                              className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-red hover:bg-red/10 disabled:opacity-20"
+                              aria-label={`Decrease ${item.name}`}
+                            >
+                              <Minus size={10} />
+                            </button>
+                            <span className={`w-10 text-center ${isEmpty ? 'text-red' : 'text-amber'}`}>
+                              {isEmpty
+                                ? 'Out'
+                                : `${item.quantity}${item.unit ? ` ${item.unit}` : ''}`}
+                            </span>
+                            <button
+                              onClick={() => nudge(1)}
+                              disabled={item.quantity >= item.max_quantity}
+                              className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-green hover:bg-green/10 disabled:opacity-20"
+                              aria-label={`Increase ${item.name}`}
+                            >
+                              <Plus size={10} />
+                            </button>
+
+                            <button
+                              onClick={handleWaste}
+                              disabled={item.quantity <= 0}
+                              className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-red hover:bg-red/10 disabled:opacity-20 ml-1"
+                              title="Log as waste"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
                         </div>
+
                         <div className="h-1 w-full rounded-full overflow-hidden bg-white/6">
                           <div
-                            className={`h-full rounded-full transition-all ${isEmpty ? 'bg-red' : 'bg-amber'}`}
+                            className={`h-full rounded-full transition-all duration-300 ${isEmpty ? 'bg-red' : 'bg-amber'}`}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -334,10 +472,7 @@ export default function DashboardPage() {
             </div>
 
             {/* ⑤ AI Scan / Add ── full width */}
-            <div
-              className="glass rounded-2xl p-6 md:col-span-3 relative overflow-hidden"
-            >
-              {/* Subtle blue gradient wash */}
+            <div className="glass rounded-2xl p-6 md:col-span-3 relative overflow-hidden">
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{
@@ -347,7 +482,6 @@ export default function DashboardPage() {
               />
 
               <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-5">
-                {/* Copy */}
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-8 h-8 rounded-xl bg-blue/15 flex items-center justify-center">
@@ -361,7 +495,6 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                {/* Primary CTA */}
                 <button
                   onClick={() => setAiOpen(true)}
                   className="flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm text-blue transition-all flex-shrink-0"
@@ -369,21 +502,18 @@ export default function DashboardPage() {
                     background: 'rgba(59,130,246,0.12)',
                     border: '1px solid rgba(59,130,246,0.25)',
                   }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLButtonElement).style.background =
-                      'rgba(59,130,246,0.2)';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLButtonElement).style.background =
-                      'rgba(59,130,246,0.12)';
-                  }}
+                  onMouseEnter={e =>
+                    ((e.currentTarget as HTMLButtonElement).style.background = 'rgba(59,130,246,0.2)')
+                  }
+                  onMouseLeave={e =>
+                    ((e.currentTarget as HTMLButtonElement).style.background = 'rgba(59,130,246,0.12)')
+                  }
                 >
                   <Zap size={15} />
                   Open AI Assistant
                 </button>
               </div>
 
-              {/* Quick-action chips */}
               <div className="relative mt-5 flex flex-wrap gap-2">
                 {[
                   'Scan pantry with camera',

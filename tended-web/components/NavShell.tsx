@@ -3,13 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Package, ShoppingCart, Sparkles } from 'lucide-react';
+import { Home, Package, ShoppingCart, Trash2, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const NAV_ITEMS = [
   { href: '/',              icon: Home,         label: 'Dashboard' },
   { href: '/inventory',     icon: Package,      label: 'Inventory'  },
   { href: '/shopping-list', icon: ShoppingCart, label: 'Shopping'   },
+  { href: '/graveyard',     icon: Trash2,       label: 'Graveyard'  },
 ] as const;
 
 // Routes that should not render the navigation shell
