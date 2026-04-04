@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useAddSpendingEntry, useInventory, useRestockFromReceipt } from '@/hooks/queries';
+import { useAddSpendingEntry, useInventory, useRestockFromReceipt, useAddInventoryItem } from '@/hooks/queries';
 import { useAuthStore } from '@/store/authStore';
 import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
 import { SpendingCategory, NewSpendingEntry, Item } from '@/types/models';
@@ -18,7 +18,9 @@ interface LineItem {
 }
 
 interface RestockProposal {
-  inventoryItem: Item;
+  inventoryItem?: Item;
+  newItemName?: string;
+  newItemCategory?: string;
   addQuantity: number;
   approved: boolean;
 }
@@ -39,6 +41,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
   const { profile } = useAuthStore();
   const { mutateAsync: addEntry } = useAddSpendingEntry();
   const { mutateAsync: restockFromReceipt } = useRestockFromReceipt();
+  const { mutateAsync: addInventoryItem } = useAddInventoryItem();
   const { data: inventoryItems = [] } = useInventory(householdId);
 
   const [step, setStep] = useState<Step>('pick');
@@ -75,33 +78,22 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
 
   const processImage = async (base64: string) => {
     try {
-      console.log('[ReceiptScanModal] Invoking analyze-image function...');
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      const { data, error } = await supabase.functions.invoke('analyze-image', {
-        body: { action: 'receipt', image: base64 },
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      console.log('[ReceiptScanModal] Invoking analyze-image API route...');
+      const response = await fetch('/api/analyze-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'receipt', image: base64 }),
       });
 
-      if (error) {
-        console.error('[ReceiptScanModal] Supabase function error:', error);
-        let errorMessage = error.message || 'Error invoking Supabase edge function';
-        let rawDetails = '';
-        if (error.context && typeof error.context.json === 'function') {
-          try {
-            const errBody = await error.context.json();
-            rawDetails = JSON.stringify(errBody, null, 2);
-            if (errBody && errBody.error) {
-              errorMessage = errBody.error;
-            }
-          } catch {
-            // ignore
-          }
-        }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error('[ReceiptScanModal] API route error:', errorData);
+        const errorMessage = errorData?.error || 'Error invoking API route';
+        const rawDetails = errorData ? JSON.stringify(errorData, null, 2) : await response.text();
         throw new Error(`${errorMessage} | RAW_DETAILS: ${rawDetails}`);
       }
 
+      const data = await response.json();
       console.log('[ReceiptScanModal] Response data:', data);
 
       let parsedData = data;
@@ -168,15 +160,17 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
         });
       }
 
-      // 2. Prepare Inventory Matches
+      // 2. Prepare Inventory Matches (propose all for restock/add)
       const proposals: RestockProposal[] = lineItems.map(li => {
         const match = fuzzyMatchInventory(li.item, inventoryItems);
         return {
-          inventoryItem: match as Item,
-          addQuantity: 1, // Default restock qty
-          approved: !!match
+          inventoryItem: match as Item | undefined,
+          newItemName: li.item,
+          newItemCategory: li.category,
+          addQuantity: 1, // Default restock/add qty
+          approved: true // Default to adding all, user can opt out
         };
-      }).filter(p => p.inventoryItem) as RestockProposal[];
+      });
 
       if (proposals.length > 0) {
         setRestockProposals(proposals);
@@ -193,19 +187,40 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
   };
 
   const handleFinishRestock = async () => {
+    if (!profile?.id) return;
     setSaving(true);
     try {
       const approvedProposals = restockProposals.filter(p => p.approved);
-      if (approvedProposals.length > 0) {
+
+      const toRestock = approvedProposals.filter(p => p.inventoryItem);
+      const toAdd = approvedProposals.filter(p => !p.inventoryItem);
+
+      if (toRestock.length > 0) {
         await restockFromReceipt({
-          proposals: approvedProposals.map(p => ({
-            item: p.inventoryItem,
+          proposals: toRestock.map(p => ({
+            item: p.inventoryItem!,
             addQuantity: p.addQuantity
           })),
-          userId: profile?.id || '',
+          userId: profile.id,
           householdId
         });
       }
+
+      for (const proposal of toAdd) {
+        await addInventoryItem({
+          householdId,
+          userId: profile.id,
+          item: {
+            name: proposal.newItemName || 'Unknown Item',
+            category: proposal.newItemCategory || 'Pantry',
+            quantity: proposal.addQuantity,
+            max_quantity: proposal.addQuantity, // Set initial max to match purchased
+            threshold: Math.max(1, Math.round(proposal.addQuantity * 0.2)),
+            unit: 'pc'
+          }
+        });
+      }
+
       handleClose();
     } catch (err) {
       console.error(err);
@@ -360,8 +375,10 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
                     {p.approved ? <Check size={20} /> : <div className="w-5 h-5 rounded-full border-2 border-border" />}
                   </div>
                   <div className="flex-1">
-                    <div className="text-sm font-bold text-text-primary">{p.inventoryItem.name}</div>
-                    <div className="text-xs text-text-secondary">Current: {p.inventoryItem.quantity} {p.inventoryItem.unit}</div>
+                    <div className="text-sm font-bold text-text-primary">{p.inventoryItem?.name || p.newItemName}</div>
+                    <div className="text-xs text-text-secondary">
+                      {p.inventoryItem ? `Current: ${p.inventoryItem.quantity} ${p.inventoryItem.unit || ''}` : `New to inventory`}
+                    </div>
                   </div>
                   <div className="flex items-center gap-3 bg-surface-elevated p-1 rounded-lg" onClick={e => e.stopPropagation()}>
                     <button 
