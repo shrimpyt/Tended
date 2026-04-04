@@ -357,10 +357,10 @@ export default function Dashboard() {
         </div>
 
         <div className="px-5 sm:px-8 pb-5">
-           <Link href="/scan" className="w-full flex items-center justify-center gap-2 py-4 bg-primary-blue text-white font-semibold rounded-2xl shadow-lg hover:bg-primary-blue/90 transition-all">
+           <button onClick={() => setAiOpen(true)} className="w-full flex items-center justify-center gap-2 py-4 bg-primary-blue text-white font-semibold rounded-2xl shadow-lg hover:bg-primary-blue/90 transition-all">
              <Zap size={20} />
              Quick Capture
-           </Link>
+           </button>
         </div>
 
         <div className="px-5 sm:px-8 grid grid-cols-1 gap-4 mt-2">
@@ -538,9 +538,9 @@ export default function Dashboard() {
                <div className="px-3 py-2 text-text-secondary hover:text-text-primary">Family Settings</div>
             </nav>
 
-            <Link href="/scan" className="block w-full bg-primary-blue text-white text-center py-2 rounded-md font-medium text-sm hover:bg-primary-blue/90 transition-colors">
+            <button onClick={() => setAiOpen(true)} className="w-full bg-primary-blue text-white text-center py-2 rounded-md font-medium text-sm hover:bg-primary-blue/90 transition-colors">
               + Quick Capture
-            </Link>
+            </button>
           </aside>
 
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -625,6 +625,35 @@ export default function Dashboard() {
         </div>
 
         {/* Parse Modal */}
+        {/* Floating Modals for Desktop */}
+        <AIDialog
+          open={aiOpen}
+          onClose={() => setAiOpen(false)}
+          onTriggerScanner={(type) => {
+            if (type === 'camera') setCameraOpen(true);
+            else if (type === 'barcode') setBarcodeOpen(true);
+            else if (type === 'receipt') setReceiptOpen(true);
+          }}
+        />
+
+        <CameraInventoryModal
+          visible={cameraOpen}
+          householdId={householdId}
+          onClose={() => setCameraOpen(false)}
+        />
+
+        <BarcodeScanModal
+          visible={barcodeOpen}
+          onScan={handleBarcodeScan}
+          onClose={() => setBarcodeOpen(false)}
+        />
+
+        <ReceiptScanModal
+          visible={receiptOpen}
+          householdId={householdId}
+          onClose={() => setReceiptOpen(false)}
+        />
+
         {modalOpen && pendingItem && (
            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
               <div className="bg-surface-elevated rounded-xl p-6 w-full max-w-sm border border-border">
