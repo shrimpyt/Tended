@@ -27,8 +27,7 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
   // Initialize Scanner when modal opens
   useEffect(() => {
     if (!visible) {
-      setStatus('scanning');
-      setStatusMessage('');
+      // Defer resetting status
       return;
     }
 
@@ -37,8 +36,10 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
 
     // Camera requires a secure context on most browsers
     if (!window.isSecureContext) {
-      setHasCamera(false);
-      setError('Camera requires a secure (HTTPS) connection.');
+      setTimeout(() => {
+        setHasCamera(false);
+        setError('Camera requires a secure (HTTPS) connection.');
+      }, 0);
       return;
     }
 

@@ -74,7 +74,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
             if (errBody && errBody.error) {
               errorMessage = errBody.error;
             }
-          } catch (e) {
+          } catch {
             // ignore JSON parse error
           }
         }
@@ -100,7 +100,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
 
       if (parsedData && parsedData.items && Array.isArray(parsedData.items)) {
         console.log(`[CameraInventoryModal] Successfully parsed ${parsedData.items.length} items`);
-        const enrichedItems = parsedData.items.map((item: any) => {
+        const enrichedItems = parsedData.items.map((item: {name: string, quantity: number, unit?: string, category: string}) => {
           const match = fuzzyMatchInventory(item.name, inventoryItems);
           return { ...item, matched_item: match };
         });
@@ -111,9 +111,9 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
         setErrorText('Could not detect items. Please try a clearer photo.');
         setStep('pick');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[CameraInventoryModal] processImage catch block error:', err);
-      const msg = err?.message || 'Unknown error occurred.';
+      const msg = err instanceof Error ? err.message : 'Unknown error occurred.';
       setErrorText(`Failed to analyze pantry: ${msg}`);
       setStep('pick');
     }
@@ -197,6 +197,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
         {step === 'processing' && (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
             {imageUri && (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img src={imageUri} alt="pantry" className="w-64 max-h-64 object-contain opacity-50 mb-8 rounded-lg shadow-sm" />
             )}
             <Loader2 className="animate-spin text-primary-blue mb-4" size={40} />

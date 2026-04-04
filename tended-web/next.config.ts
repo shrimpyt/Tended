@@ -8,11 +8,6 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   // Use standard Webpack for stability during UI dev
   turbopack: {},
-  eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
-    ignoreDuringBuilds: true,
-  },
 };
 
 export default withPWA(nextConfig);
