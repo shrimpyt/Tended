@@ -1,0 +1,3 @@
+## 2025-04-04 - Icon-Only Button Accessibility
+**Learning:** Found multiple instances across the web dashboard's modal components where icon-only buttons (Close, Send, Remove, Plus, Minus) lacked `aria-label` attributes and keyboard focus indicators, rendering them invisible or confusing to screen reader users and difficult for keyboard navigators.
+**Action:** Always add descriptive `aria-label` attributes to icon-only buttons and ensure clear visual indicators (like `focus-visible:ring-2` and `focus-visible:opacity-100`) for keyboard accessibility. Applied these standards to `AIDialog.tsx`, `CameraInventoryModal.tsx`, `ReceiptScanModal.tsx`, and `BarcodeScanModal.tsx`.
