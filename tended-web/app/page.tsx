@@ -17,8 +17,10 @@ import {
   useUpdateQuantity,
   useAddShoppingListItem,
   useAddWasteEvent,
+  useAddInventoryItem,
 } from '@/hooks/queries';
 import { useRealtimeHousehold } from '@/hooks/useRealtimeHousehold';
+import { supabase } from '@/lib/supabase';
 import AIDialog from '@/components/AIDialog';
 import BarcodeScanModal from '@/components/BarcodeScanModal';
 import ReceiptScanModal from '@/components/ReceiptScanModal';
@@ -98,6 +100,44 @@ export default function DashboardPage() {
 
   const { data: items = [], isLoading: loadingItems }     = useInventory(householdId);
   const { data: entries = [], isLoading: loadingEntries } = useSpendingEntries(householdId, now.getFullYear(), now.getMonth() + 1);
+  const { mutateAsync: addItem } = useAddInventoryItem();
+
+  const handleBarcodeScan = async (code: string) => {
+    setQuickFeedback('Identifying product...');
+    try {
+      console.log('[Dashboard] Scanned barcode, invoking AI:', code);
+      const { data, error } = await supabase.functions.invoke('analyze-image', {
+        body: { action: 'barcode', barcode: code },
+      });
+
+      if (error) {
+        console.error('[Dashboard] Edge function error:', error);
+        setQuickFeedback('Lookup failed. Please try again.');
+        return;
+      }
+
+      if (data && data.name) {
+        setQuickFeedback(`Adding ${data.name}...`);
+        await addItem({
+          household_id: householdId,
+          name: data.name,
+          category: data.category || 'Pantry',
+          quantity: 1,
+          unit: 'pc',
+          min_quantity: 1,
+        });
+        setQuickFeedback(`Added ${data.name}!`);
+        setTimeout(() => setQuickFeedback(null), 3000);
+      } else {
+        setQuickFeedback('Product not identified.');
+        setTimeout(() => setQuickFeedback(null), 3000);
+      }
+    } catch (err) {
+      console.error('[Dashboard] Barcode handle error:', err);
+      setQuickFeedback('An error occurred.');
+      setTimeout(() => setQuickFeedback(null), 3000);
+    }
+  };
   const { data: shoppingItems = [], isLoading: loadingShopping } = useShoppingList(householdId);
 
   const { mutate: toggleComplete }  = useToggleShoppingListItem();
@@ -560,7 +600,7 @@ export default function DashboardPage() {
 
       <BarcodeScanModal
         visible={barcodeOpen}
-        onScan={(code) => console.log('[Dashboard] Scanned barcode:', code)}
+        onScan={handleBarcodeScan}
         onClose={() => setBarcodeOpen(false)}
       />
 
