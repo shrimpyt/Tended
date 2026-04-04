@@ -12,7 +12,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
+    // Wrap req.json() so if it fails (e.g., payload too large throwing an error in Deno), we catch it
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error("[analyze-image] Error parsing request JSON:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Failed to parse request data. Image might be too large or malformed." }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
     const { action, image, barcode } = body;
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -72,15 +83,26 @@ Deno.serve(async (req) => {
     }
 
     const openaiData = await openaiRes.json();
-    const result = openaiData.choices[0].message.content;
+    let result = openaiData.choices?.[0]?.message?.content;
+
+    if (!result) {
+      console.error("[analyze-image] OpenAI returned unexpected format:", openaiData);
+      throw new Error("OpenAI API returned an unexpected response format");
+    }
+
+    // Clean up markdown blocks if the model wrapped the JSON
+    result = result.trim();
+    if (result.startsWith('```')) {
+      result = result.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+    }
 
     console.log(`[analyze-image] Success! Result: ${result}`);
     return new Response(result, { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[analyze-image] Fatal Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error.message || "An unknown error occurred" }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
+      status: 500,
     });
   }
 });

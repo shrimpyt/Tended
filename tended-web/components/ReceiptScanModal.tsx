@@ -82,7 +82,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
 
       if (error) {
         console.error('[ReceiptScanModal] Supabase function error:', error);
-        throw error;
+        throw new Error(error.message || 'Error invoking Supabase edge function');
       }
 
       console.log('[ReceiptScanModal] Response data:', data);
@@ -111,9 +111,10 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
         setErrorText('Could not parse receipt. Please add manually.');
         setStep('pick');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[ReceiptScanModal] processImage catch block error:', err);
-      setErrorText('Failed to analyze receipt. Please try again.');
+      const msg = err?.message || 'Unknown error occurred.';
+      setErrorText(`Failed to analyze receipt: ${msg}`);
       setStep('pick');
     }
   };

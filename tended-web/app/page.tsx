@@ -111,6 +111,8 @@ export default function DashboardPage() {
 
       if (error) {
         console.error('[Dashboard] Edge function error:', error);
+        setQuickFeedback(`Error: ${error.message || 'Unknown'}`);
+        setTimeout(() => setQuickFeedback(null), 4000);
         return false;
       }
 
@@ -148,8 +150,10 @@ export default function DashboardPage() {
       } else {
         return false;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Dashboard] Barcode handle error:', err);
+      setQuickFeedback(`Failed: ${err?.message || 'Network error'}`);
+      setTimeout(() => setQuickFeedback(null), 4000);
       return false;
     }
   };
