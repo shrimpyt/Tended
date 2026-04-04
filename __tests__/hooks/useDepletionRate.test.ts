@@ -1,47 +1,10 @@
-/**
- * Tests for the depletion rate calculation logic embedded in useDepletionRate.
- *
- * Because the logic lives inside a queryFn, we extract it into a testable
- * helper by reproducing the exact same calculation here. This ensures the
- * algorithm (not the hook plumbing) is covered.
- */
+import {computeDepletionResult} from '../../hooks/useDepletionRate';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface StockEvent {
   old_quantity: number;
   new_quantity: number;
   updated_at: string;
-}
-
-type DepletionResult =
-  | {available: true; daysRemaining: number}
-  | {available: false};
-
-// ── Mirror of the queryFn calculation in useDepletionRate ──────────────────
-function computeDepletion(
-  events: StockEvent[] | null | undefined,
-  currentQuantity: number,
-): DepletionResult {
-  if (!events) return {available: false};
-
-  // Only consumption events (quantity went down)
-  const consumption = events.filter(e => e.new_quantity < e.old_quantity);
-  if (consumption.length < 3) return {available: false};
-
-  const totalConsumed = consumption.reduce(
-    (sum, e) => sum + (e.old_quantity - e.new_quantity),
-    0,
-  );
-
-  const oldest = new Date(consumption[0].updated_at).getTime();
-  const newest = new Date(consumption[consumption.length - 1].updated_at).getTime();
-  const spanDays = Math.max(1, (newest - oldest) / 86400000);
-
-  const dailyRate = totalConsumed / spanDays;
-  if (dailyRate <= 0) return {available: false};
-
-  const daysRemaining = Math.round(currentQuantity / dailyRate);
-  return {available: true, daysRemaining};
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -55,18 +18,18 @@ function makeEvent(
   return {old_quantity, new_quantity, updated_at: d.toISOString()};
 }
 
-describe('computeDepletion (useDepletionRate calculation logic)', () => {
+describe('computeDepletionResult (useDepletionRate calculation logic)', () => {
   describe('insufficient data returns {available: false}', () => {
     it('returns unavailable when events is null', () => {
-      expect(computeDepletion(null, 10)).toEqual({available: false});
+      expect(computeDepletionResult(null, 10)).toEqual({available: false});
     });
 
     it('returns unavailable when events is undefined', () => {
-      expect(computeDepletion(undefined, 10)).toEqual({available: false});
+      expect(computeDepletionResult(undefined, 10)).toEqual({available: false});
     });
 
     it('returns unavailable when events array is empty', () => {
-      expect(computeDepletion([], 10)).toEqual({available: false});
+      expect(computeDepletionResult([], 10)).toEqual({available: false});
     });
 
     it('returns unavailable when there are fewer than 3 consumption events', () => {
@@ -74,7 +37,7 @@ describe('computeDepletion (useDepletionRate calculation logic)', () => {
         makeEvent(10, 8, 10), // consumed 2
         makeEvent(8, 5, 5),   // consumed 3
       ];
-      expect(computeDepletion(events, 5)).toEqual({available: false});
+      expect(computeDepletionResult(events, 5)).toEqual({available: false});
     });
 
     it('returns unavailable when all events are restock events (quantity increased)', () => {
@@ -83,7 +46,7 @@ describe('computeDepletion (useDepletionRate calculation logic)', () => {
         makeEvent(3, 9, 7),
         makeEvent(1, 5, 3),
       ];
-      expect(computeDepletion(events, 5)).toEqual({available: false});
+      expect(computeDepletionResult(events, 5)).toEqual({available: false});
     });
 
     it('returns unavailable when mixed events yield fewer than 3 consumption events', () => {
@@ -93,7 +56,7 @@ describe('computeDepletion (useDepletionRate calculation logic)', () => {
         makeEvent(10, 9, 9),  // consumed
         makeEvent(9, 12, 5),  // restock – ignored
       ];
-      expect(computeDepletion(events, 9)).toEqual({available: false});
+      expect(computeDepletionResult(events, 9)).toEqual({available: false});
     });
   });
 
@@ -106,7 +69,7 @@ describe('computeDepletion (useDepletionRate calculation logic)', () => {
         makeEvent(4, 3, 15), // consumed 1, middle
         makeEvent(3, 2, 0),  // consumed 1, newest
       ];
-      const result = computeDepletion(events, 10);
+      const result = computeDepletionResult(events, 10);
       expect(result).toEqual({available: true, daysRemaining: 100});
     });
 
@@ -118,7 +81,7 @@ describe('computeDepletion (useDepletionRate calculation logic)', () => {
         makeEvent(8, 5, 5),   // consumed 3
         makeEvent(5, 0, 0),   // consumed 5
       ];
-      const result = computeDepletion(events, 5);
+      const result = computeDepletionResult(events, 5);
       expect(result).toEqual({available: true, daysRemaining: 5});
     });
 
@@ -133,7 +96,7 @@ describe('computeDepletion (useDepletionRate calculation logic)', () => {
         makeEvent(9, 14, 5),  // restock (ignored)
         makeEvent(14, 12, 0), // consumed 2
       ];
-      const result = computeDepletion(events, 7);
+      const result = computeDepletionResult(events, 7);
       expect(result).toEqual({available: true, daysRemaining: 20});
     });
 
@@ -147,7 +110,7 @@ describe('computeDepletion (useDepletionRate calculation logic)', () => {
         {old_quantity: 4, new_quantity: 3, updated_at: now},
         {old_quantity: 3, new_quantity: 2, updated_at: now},
       ];
-      const result = computeDepletion(events, 9);
+      const result = computeDepletionResult(events, 9);
       expect(result).toEqual({available: true, daysRemaining: 3});
     });
 
@@ -159,7 +122,7 @@ describe('computeDepletion (useDepletionRate calculation logic)', () => {
         makeEvent(4, 3, 1), // consumed 1
         makeEvent(3, 2, 0), // consumed 1
       ];
-      const result = computeDepletion(events, 2);
+      const result = computeDepletionResult(events, 2);
       expect(result).toEqual({available: true, daysRemaining: 1});
     });
 
@@ -169,7 +132,7 @@ describe('computeDepletion (useDepletionRate calculation logic)', () => {
         makeEvent(4, 3, 5),
         makeEvent(3, 2, 0),
       ];
-      const result = computeDepletion(events, 0);
+      const result = computeDepletionResult(events, 0);
       expect(result).toEqual({available: true, daysRemaining: 0});
     });
   });
