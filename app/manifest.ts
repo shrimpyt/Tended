@@ -16,15 +16,25 @@ export default function manifest(): MetadataRoute.Manifest {
         src: '/icons/icon.svg',
         sizes: 'any',
         type: 'image/svg+xml',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        purpose: 'any' as any,
+        purpose: 'any',
       },
       {
-        src: '/icons/icon.svg',
-        sizes: 'any',
-        type: 'image/svg+xml',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        purpose: 'maskable' as any,
+        src: '/icons/icon-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icons/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icons/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
       },
     ],
     screenshots: [],

@@ -6,7 +6,7 @@ import {
   ShoppingCart, AlertTriangle, Zap,
   Circle, CheckCircle2, ChevronRight,
   TrendingUp, TrendingDown, Package, BarChart2,
-  Minus, Plus, Sparkles,
+  Minus, Plus, Sparkles, Trash2,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -16,6 +16,7 @@ import {
   useToggleShoppingListItem,
   useUpdateQuantity,
   useAddShoppingListItem,
+  useAddWasteEvent,
 } from '@/hooks/queries';
 import { useRealtimeHousehold } from '@/hooks/useRealtimeHousehold';
 import AIDialog from '@/components/AIDialog';
@@ -96,6 +97,7 @@ export default function DashboardPage() {
   const { mutate: toggleComplete }  = useToggleShoppingListItem();
   const { mutate: updateQuantity }  = useUpdateQuantity();
   const { mutate: addShoppingItem } = useAddShoppingListItem();
+  const { mutate: addWasteEvent }   = useAddWasteEvent();
 
   useRealtimeHousehold(householdId);
 
@@ -318,6 +320,31 @@ export default function DashboardPage() {
                       });
                     };
 
+                    const handleWaste = () => {
+                      if (!profile?.id || item.quantity <= 0) return;
+                      // 1. Log the waste event
+                      addWasteEvent({
+                        householdId,
+                        userId: profile.id,
+                        event: {
+                          item_id: item.id,
+                          item_name: item.name,
+                          quantity: item.quantity,
+                          unit: item.unit,
+                          cost: (item.price || 0) * item.quantity,
+                          reason: 'discarded',
+                        }
+                      });
+                      // 2. Set quantity to 0
+                      updateQuantity({
+                        itemId: item.id,
+                        userId: profile.id,
+                        oldQuantity: item.quantity,
+                        newQuantity: 0,
+                        item,
+                      });
+                    };
+
                     return (
                       <div key={item.id}>
                         <div className="flex items-center text-xs mb-1.5 gap-2">
@@ -347,6 +374,15 @@ export default function DashboardPage() {
                               aria-label={`Increase ${item.name}`}
                             >
                               <Plus size={10} />
+                            </button>
+
+                            <button
+                              onClick={handleWaste}
+                              disabled={item.quantity <= 0}
+                              className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-red hover:bg-red/10 disabled:opacity-20 ml-1"
+                              title="Log as waste"
+                            >
+                              <Trash2 size={11} />
                             </button>
                           </div>
                         </div>
