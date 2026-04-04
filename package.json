@@ -2,11 +2,15 @@
   "name": "tended",
   "version": "1.0.0",
   "main": "expo-router/entry",
+  "workspaces": [
+    "tended-web"
+  ],
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build": "npm run build --workspace=tended-web"
   },
   "dependencies": {
     "@expo/metro-runtime": "^6.1.2",
@@ -42,6 +46,7 @@
     "@types/jest": "29.5.14",
     "@types/react": "~19.1.10",
     "@types/react-test-renderer": "^19.1.0",
+    "next": "16.2.2",
     "react-test-renderer": "^19.2.4",
     "typescript": "~5.9.2"
   },
