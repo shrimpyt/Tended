@@ -52,7 +52,7 @@ export default function ClientProvider({ children }: { children: React.ReactNode
       }
     } else {
       if (!profile?.household_id) {
-        if (!isHouseholdRoute) {
+        if (!isHouseholdRoute && !isDesignLab) {
           router.replace('/household');
         }
       } else {
