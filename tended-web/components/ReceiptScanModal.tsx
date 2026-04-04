@@ -6,7 +6,7 @@ import { useAddSpendingEntry, useInventory, useRestockFromReceipt } from '@/hook
 import { useAuthStore } from '@/store/authStore';
 import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
 import { SpendingCategory, NewSpendingEntry, Item } from '@/types/models';
-import { X, Upload, Camera, ArrowRight, Minus, Plus, Loader2 } from 'lucide-react';
+import { X, Upload, Camera, ArrowRight, Minus, Plus, Loader2, Check } from 'lucide-react';
 
 const CATEGORIES: SpendingCategory[] = ['Groceries', 'Cleaning', 'Pantry', 'Personal care'];
 
@@ -109,14 +109,17 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
       // 1. Create Spending Entries
       for (const li of lineItems) {
         const entry: NewSpendingEntry = {
-          household_id: householdId,
-          user_id: profile.id,
           amount: parseFloat(li.amount) || 0,
           category: li.category,
-          description: li.item,
+          item_name: li.item,
           date: new Date().toISOString(),
+          is_waste: false,
         };
-        await addEntry(entry);
+        await addEntry({
+          householdId,
+          userId: profile.id,
+          entry
+        });
       }
 
       // 2. Prepare Inventory Matches
@@ -147,11 +150,14 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
     setSaving(true);
     try {
       const approvedProposals = restockProposals.filter(p => p.approved);
-      for (const p of approvedProposals) {
+      if (approvedProposals.length > 0) {
         await restockFromReceipt({
-          itemId: p.inventoryItem.id,
-          addQuantity: p.addQuantity,
+          proposals: approvedProposals.map(p => ({
+            item: p.inventoryItem,
+            addQuantity: p.addQuantity
+          })),
           userId: profile?.id || '',
+          householdId
         });
       }
       handleClose();
