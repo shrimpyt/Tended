@@ -234,7 +234,7 @@ export default function Dashboard() {
                                <td className="py-3 pr-4">
                                   <input
                                      defaultValue={item.name}
-                                     onBlur={(e) => handleUpdateName(item, e.target.value)}
+                                     onBlur={(e) => supabase.from('items').update({ name: e.target.value }).eq('id', item.id)}
                                      className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-full"
                                   />
                                </td>
