@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { useInventory } from '@/hooks/queries';
+import { useInventory, useUpdateQuantity, useDeleteInventoryItem } from '@/hooks/queries';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { Trash2 } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -52,6 +53,41 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
 
   const { data: inventory = [], isLoading: isLoadingInventory } = useInventory(householdId);
+
+  const { mutateAsync: updateQuantity } = useUpdateQuantity();
+  const { mutateAsync: deleteItem } = useDeleteInventoryItem();
+
+  const handleUpdateStockLevel = async (item: any, newStockPct: string) => {
+    if (!profile?.id || newStockPct === '') return;
+    const pct = parseFloat(newStockPct);
+    if (isNaN(pct)) return;
+    const newQuantity = (pct / 100) * item.max_quantity;
+
+    await updateQuantity({
+       itemId: item.id,
+       userId: profile.id,
+       oldQuantity: item.quantity,
+       newQuantity,
+       item
+    });
+  };
+
+  const handleUpdateTarget = async (item: any, newTarget: string) => {
+    if (newTarget === '') return;
+    const target = parseFloat(newTarget);
+    if (isNaN(target)) return;
+
+    // In order to update max_quantity we must use supabase directly
+    // since useUpdateQuantity is specifically for `quantity` and events
+    await supabase.from('items').update({ max_quantity: target }).eq('id', item.id);
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+  };
+
+  const handleDelete = async (itemId: string) => {
+    if (confirm('Are you sure you want to delete this item?')) {
+      await deleteItem(itemId);
+    }
+  };
 
   const { data: inboxItems = [], isLoading: isLoadingInbox } = useQuery<InboxItem[], Error, InboxItem[]>({
     queryKey: ['inbox_scans', householdId],
@@ -183,6 +219,7 @@ export default function Dashboard() {
                             <th className="py-2 font-medium text-text-secondary">Category</th>
                             <th className="py-2 font-medium text-text-secondary">Stock %</th>
                             <th className="py-2 font-medium text-text-secondary">Target</th>
+                            <th className="py-2 font-medium text-text-secondary w-10"></th>
                          </tr>
                       </thead>
                       <tbody>
@@ -191,6 +228,7 @@ export default function Dashboard() {
                                <td className="py-3 pr-4">
                                   <input
                                      defaultValue={item.name}
+                                     onBlur={(e) => supabase.from('items').update({ name: e.target.value }).eq('id', item.id)}
                                      className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-full"
                                   />
                                </td>
@@ -199,6 +237,7 @@ export default function Dashboard() {
                                   <input
                                     type="number"
                                     defaultValue={Math.round((item.quantity / item.max_quantity) * 100)}
+                                    onBlur={(e) => handleUpdateStockLevel(item, e.target.value)}
                                     className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-16"
                                   />
                                </td>
@@ -206,8 +245,14 @@ export default function Dashboard() {
                                   <input
                                     type="number"
                                     defaultValue={item.max_quantity}
+                                    onBlur={(e) => handleUpdateTarget(item, e.target.value)}
                                     className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-16"
                                   />
+                               </td>
+                               <td className="py-3">
+                                  <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Trash2 size={16} />
+                                  </button>
                                </td>
                             </tr>
                          ))}
