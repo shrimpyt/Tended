@@ -44,62 +44,79 @@ export default function LandingPage() {
   if (profile) return null;
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-text-primary">
+    <div className="flex flex-col min-h-screen bg-[#0A0B10] text-white overflow-hidden relative">
+      {/* Background Gradients (matching the deep space/blue vibe) */}
+      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-600/10 blur-[120px] rounded-full pointer-events-none" />
+
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <Image src="/icons/icon.svg" alt="Tended" width={28} height={28} />
-          <span className="text-lg font-bold tracking-tight">Tended</span>
+      <header className="relative z-10 flex items-center justify-between px-6 md:px-12 py-6">
+        <div className="flex items-center gap-3">
+          <Image src="/icons/icon.svg" alt="Tended" width={32} height={32} />
+          <span className="text-xl font-bold tracking-tight text-white">Tended</span>
         </div>
-        <Link
-          href="/sign-in"
-          className="text-sm text-primary-blue font-medium hover:underline"
-        >
-          Sign in
-        </Link>
+        <div className="flex items-center gap-6">
+           <Link
+             href="/sign-in"
+             className="text-sm text-text-secondary hover:text-white font-medium transition-colors"
+           >
+             Sign in
+           </Link>
+           <Link
+             href="/sign-up"
+             className="text-sm px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors"
+           >
+             Get Started
+           </Link>
+        </div>
       </header>
 
       {/* Hero */}
-      <section className="flex flex-col items-center justify-center text-center px-6 pt-20 pb-16 gap-6">
-        <span className="text-xs font-semibold uppercase tracking-widest text-primary-blue border border-primary-blue/30 bg-primary-blue/10 rounded-full px-3 py-1">
-          Beta
+      <section className="relative z-10 flex flex-col items-center justify-center text-center px-6 pt-24 pb-20 gap-6 flex-1">
+        <span className="text-xs font-semibold uppercase tracking-widest text-blue-400 border border-blue-500/30 bg-blue-500/10 rounded-full px-4 py-1.5 backdrop-blur-sm">
+          Welcome to Beta
         </span>
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-tight max-w-xl">
-          Your home,<br />tended to.
+        <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight leading-tight max-w-3xl">
+          Your home,<br /> <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">beautifully tended.</span>
         </h1>
-        <p className="text-text-secondary text-base sm:text-lg max-w-md leading-relaxed">
-          Tended helps households track inventory, manage shopping, and stay on top of spending — together.
+        <p className="text-text-secondary text-lg sm:text-xl max-w-2xl leading-relaxed mt-2">
+          Experience the ultimate command center for your household. Track inventory, manage shopping, and monitor spending with elegance.
         </p>
-        <Link
-          href="/sign-up"
-          className="mt-2 px-8 py-3.5 bg-primary-blue text-white rounded-xl font-semibold text-base shadow-md hover:opacity-90 transition-opacity"
-        >
-          Get started for free
-        </Link>
+        <div className="mt-8 flex flex-col sm:flex-row gap-4 items-center">
+           <Link
+             href="/sign-up"
+             className="px-8 py-4 bg-blue-600 text-white rounded-xl font-semibold text-lg shadow-lg hover:bg-blue-500 transition-all hover:scale-105 active:scale-95"
+           >
+             Start Your Dashboard
+           </Link>
+        </div>
       </section>
 
       {/* Features */}
-      <section className="w-full max-w-2xl mx-auto px-6 pb-20 grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <section className="relative z-10 w-full max-w-5xl mx-auto px-6 pb-24 grid grid-cols-1 md:grid-cols-2 gap-6">
         {FEATURES.map(({ icon: Icon, title, desc }) => (
           <div
             key={title}
-            className="flex flex-col gap-2 bg-surface-elevated border border-border rounded-2xl p-5"
+            className="flex flex-col gap-4 bg-[#11131A]/60 backdrop-blur-xl border border-white/5 hover:border-white/10 rounded-2xl p-8 transition-colors group"
           >
-            <div className="w-9 h-9 rounded-lg bg-primary-blue/10 flex items-center justify-center">
-              <Icon size={18} className="text-primary-blue" />
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Icon size={24} className="text-blue-400" />
             </div>
-            <p className="font-semibold text-text-primary text-sm">{title}</p>
-            <p className="text-text-secondary text-sm leading-relaxed">{desc}</p>
+            <div>
+               <h3 className="font-bold text-white text-xl mb-2">{title}</h3>
+               <p className="text-text-secondary text-base leading-relaxed">{desc}</p>
+            </div>
           </div>
         ))}
       </section>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-border px-6 py-5 text-center text-xs text-text-secondary">
-        Already have an account?{' '}
-        <Link href="/sign-in" className="text-primary-blue hover:underline font-medium">
+      <footer className="relative z-10 mt-auto border-t border-white/5 px-6 py-8 text-center text-sm text-text-secondary">
+        <p>Already have an account?{' '}
+        <Link href="/sign-in" className="text-blue-400 hover:text-blue-300 font-medium">
           Sign in
         </Link>
+        </p>
       </footer>
     </div>
   );

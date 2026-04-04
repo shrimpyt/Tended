@@ -31,21 +31,21 @@ export default function NavShell() {
     { href: '/settings', icon: Settings, label: 'Settings' },
   ] as const;
 
+  const displayName = profile?.display_name || 'User';
+
   return (
     <>
-      {/* ── Desktop: fixed icon-only sidebar ─────────────────────── */}
+      {/* ── Desktop: expanded sidebar ────────────────────────────── */}
       <nav
         aria-label="Main navigation"
-        className="hidden md:flex fixed left-0 top-0 h-full w-14 flex-col items-center py-4 gap-1 z-40 border-r"
+        className="hidden md:flex fixed left-0 top-0 h-full w-64 flex-col py-6 z-40 border-r"
         style={{
-          background: 'rgba(10, 10, 11, 0.85)',
+          background: '#1A1C23', // Matches the dark slate/blue background from the design
           borderColor: 'rgba(255, 255, 255, 0.08)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
         }}
       >
-        {/* Logo mark */}
-        <div className="w-10 h-10 mb-6 flex items-center justify-center flex-shrink-0">
+        {/* Logo mark & Text */}
+        <div className="flex items-center px-6 mb-10">
           <Image
             src="/icons/icon.svg"
             alt="Tended Logo"
@@ -53,27 +53,38 @@ export default function NavShell() {
             height={32}
             className="w-8 h-8 select-none"
           />
+          <span className="ml-3 text-xl font-bold text-white tracking-tight">Tended</span>
         </div>
 
-        <div className="flex flex-col items-center gap-1 w-full px-2">
+        <div className="flex flex-col gap-2 w-full px-4 flex-1">
           {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
             const active = pathname === href;
             return (
               <Link
                 key={href}
                 href={href}
-                title={label}
                 className={clsx(
-                  'w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-150',
+                  'flex items-center px-4 py-3 rounded-lg transition-all duration-150',
                   active
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-text-secondary hover:text-foreground hover:bg-white/5'
+                    ? 'bg-white/10 text-white font-medium'
+                    : 'text-text-secondary hover:text-white hover:bg-white/5'
                 )}
               >
-                <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+                <Icon size={18} strokeWidth={active ? 2.2 : 1.8} className="mr-3" />
+                <span>{label}</span>
               </Link>
             );
           })}
+        </div>
+
+        {/* User Profile Footer */}
+        <div className="mt-auto px-6 py-4 border-t border-white/5 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm overflow-hidden flex-shrink-0">
+             {displayName.charAt(0).toUpperCase()}
+          </div>
+          <div className="text-sm text-text-secondary font-medium truncate">
+             {displayName}
+          </div>
         </div>
       </nav>
 
