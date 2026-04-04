@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import {useCameraPermissions} from 'expo-image-picker';
 import {Colors, Typography, Spacing, Radius, Border, Shadows} from '../constants/theme';
 import {useInventory, useAddInventoryItem} from '../hooks/queries';
@@ -116,9 +117,25 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
         setIdentified([]);
       }
       setStep('review');
-    } catch (err) {
-      setError('Failed to analyze image.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to analyze image.');
       setStep('pick');
+    }
+  };
+
+  const resizeAndProcess = async (uri: string, originalBase64?: string | null) => {
+    try {
+      // Use expo-image-manipulator to aggressively compress the image and ensure format
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 800 } }], // Resize largest dimension to 800
+        { compress: 0.4, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      processImage(manipResult.uri, manipResult.base64);
+    } catch (e) {
+      console.error("Failed to manipulate image:", e);
+      // Fallback
+      processImage(uri, originalBase64);
     }
   };
 
@@ -135,7 +152,7 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      processImage(result.assets[0].uri, result.assets[0].base64);
+      resizeAndProcess(result.assets[0].uri, result.assets[0].base64);
     }
   };
 
@@ -148,7 +165,7 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      processImage(result.assets[0].uri, result.assets[0].base64);
+      resizeAndProcess(result.assets[0].uri, result.assets[0].base64);
     }
   };
 

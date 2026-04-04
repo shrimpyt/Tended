@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
 import {useAddSpendingEntry, useInventory, useRestockFromReceipt} from '../hooks/queries';
 import {SpendingCategory, NewSpendingEntry, Item} from '../types/models';
@@ -74,7 +75,7 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      processImage(result.assets[0].uri, result.assets[0].base64);
+      resizeAndProcess(result.assets[0].uri, result.assets[0].base64);
     }
   };
 
@@ -92,7 +93,21 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      processImage(result.assets[0].uri, result.assets[0].base64);
+      resizeAndProcess(result.assets[0].uri, result.assets[0].base64);
+    }
+  };
+
+  const resizeAndProcess = async (uri: string, originalBase64?: string | null) => {
+    try {
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 800 } }], // Compress width down to 800px max
+        { compress: 0.4, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      processImage(manipResult.uri, manipResult.base64);
+    } catch (e) {
+      console.error("Failed to manipulate receipt image:", e);
+      processImage(uri, originalBase64);
     }
   };
 
@@ -126,8 +141,8 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
         setLineItems([]);
       }
       setStep('review');
-    } catch {
-      Alert.alert('Error', 'Failed to analyze receipt.');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to analyze receipt.');
       setStep('pick');
     }
   };
