@@ -15,8 +15,8 @@ const queryClient = new QueryClient({
 });
 
 export default function ClientProvider({ children }: { children: React.ReactNode }) {
-  const { session, profile, setSession, fetchProfile } = useAuthStore();
-  const [loading, setLoading] = useState(true);
+  const { session, profile, loading: authLoading, setSession, fetchProfile, setLoading: setAuthLoading } = useAuthStore();
+  const [sessionResolved, setSessionResolved] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -24,9 +24,12 @@ export default function ClientProvider({ children }: { children: React.ReactNode
     supabase.auth.getSession()
       .then(({ data: { session: s } }) => {
         setSession(s);
+        setSessionResolved(true);
       })
-      .catch((e) => console.error(e))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        console.error(e);
+        setSessionResolved(true);
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
@@ -36,23 +39,30 @@ export default function ClientProvider({ children }: { children: React.ReactNode
   }, [setSession]);
 
   useEffect(() => {
-    if (session) fetchProfile();
-  }, [session, fetchProfile]);
+    if (session) {
+      fetchProfile();
+    } else if (sessionResolved) {
+      setAuthLoading(false);
+    }
+  }, [session, sessionResolved, fetchProfile, setAuthLoading]);
 
   useEffect(() => {
-    if (loading) return;
+    if (!sessionResolved || authLoading) return;
 
     const isAuthRoute = pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/forgot-password';
-    const isLandingRoute = pathname === '/landing';
+    const isLandingRoute = pathname === '/';
+    const isDashboardRoute = pathname === '/dashboard';
     const isHouseholdRoute = pathname === '/household';
     const isOnboardingRoute = pathname === '/onboarding';
     const isDesignLab = pathname === '/design-lab';
 
     if (!session) {
-      if (!isAuthRoute && !isLandingRoute && !isDesignLab) {
-        router.replace('/landing');
+      // Guest users: Allow landing, auth routes, and design lab
+      if (!isLandingRoute && !isAuthRoute && !isDesignLab) {
+        router.replace('/');
       }
     } else {
+      // Authenticated users:
       if (!profile?.household_id) {
         if (!isHouseholdRoute && !isDesignLab) {
           router.replace('/household');
@@ -62,14 +72,16 @@ export default function ClientProvider({ children }: { children: React.ReactNode
           router.replace('/onboarding');
         }
       } else {
+        // Fully onboarded:
+        // Redirect them to /dashboard if they are on an auth route, the landing page, or household/onboarding
         if (isAuthRoute || isLandingRoute || isHouseholdRoute || isOnboardingRoute) {
-          router.replace('/');
+          router.replace('/dashboard');
         }
       }
     }
-  }, [session, profile, loading, pathname, router]);
+  }, [session, profile, sessionResolved, authLoading, pathname, router]);
 
-  if (loading) {
+  if (!sessionResolved || authLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-blue"></div>

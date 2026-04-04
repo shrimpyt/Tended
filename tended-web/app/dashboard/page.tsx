@@ -162,7 +162,7 @@ function SortableInboxItem({ item }: { item: InboxItem }) {
 // ── Main Dashboard Component ──────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { profile } = useAuthStore();
+  const { profile, loading } = useAuthStore();
   const householdId = profile?.household_id ?? '';
   const now = new Date();
 
@@ -333,7 +333,13 @@ export default function Dashboard() {
     }
   };
 
-  if (!profile) return null;
+  if (loading || !profile) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary-blue"></div>
+      </div>
+    );
+  }
 
   return (
     <>
