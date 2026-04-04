@@ -32,11 +32,11 @@ const FLUID = {
 // ─── Design Lab Page ─────────────────────────────────────────────
 
 export default function DesignLab() {
-  const [theme, setTheme] = useState<'blue' | 'emerald' | 'iris' | 'forest' | 'space'>('blue')
+  const [theme, setTheme] = useState<'blue' | 'emerald' | 'iris' | 'forest' | 'space' | 'forest-navy'>('forest-navy')
 
   const [showAuras, setShowAuras] = useState(true)
   const [showGrain, setShowGrain] = useState(true)
-  const [physics, setPhysics] = useState<'snappy' | 'fluid'>('fluid')
+  const [physics, setPhysics] = useState<'snappy' | 'fluid'>('snappy')
 
   // Apply theme to document body
   useEffect(() => {
@@ -121,12 +121,14 @@ export default function DesignLab() {
               </h3>
               <div className="grid grid-cols-1 gap-2">
                 {[
+                  { id: 'forest-navy', label: 'Forest Navy', color: '#059669', desc: 'Hybrid: Navy BG, Green Primary' },
                   { id: 'blue', label: 'Deep Blue', color: '#3B82F6', desc: 'Trust, Clarity, Tech' },
                   { id: 'space', label: 'Deep Space', color: '#1E293B', desc: 'Infinity, Focus, Navy' },
                   { id: 'emerald', label: 'Emerald Sage', color: '#10B981', desc: 'Home, Health, Organic' },
                   { id: 'forest', label: 'Forest Night', color: '#064E3B', desc: 'Deep, Moody, Growth' },
                   { id: 'iris', label: 'Midnight Iris', color: '#8B5CF6', desc: 'Future, AI, Magic' }
                 ].map((t) => (
+
 
                   <button
                     key={t.id}
