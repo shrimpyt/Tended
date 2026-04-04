@@ -24,6 +24,7 @@ interface Message {
 interface AIDialogProps {
   open: boolean;
   onClose: () => void;
+  initialAction?: 'camera' | 'barcode' | 'receipt' | null;
 }
 
 // ── Scanner actions ────────────────────────────────────────────────
@@ -54,7 +55,7 @@ const SCANNER_ACTIONS = [
 
 // ── Component ──────────────────────────────────────────────────────
 
-export default function AIDialog({ open, onClose }: AIDialogProps) {
+export default function AIDialog({ open, onClose, initialAction }: AIDialogProps) {
   const { profile } = useAuthStore();
   const householdId = profile?.household_id ?? '';
 
@@ -93,6 +94,16 @@ export default function AIDialog({ open, onClose }: AIDialogProps) {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
+
+  // Handle initialAction when opened from Dashboard
+  useEffect(() => {
+    if (open && initialAction) {
+      console.log('[AIDialog] initialAction triggered:', initialAction);
+      if (initialAction === 'camera') openCamera();
+      else if (initialAction === 'barcode') openBarcode();
+      else if (initialAction === 'receipt') openReceipt();
+    }
+  }, [open, initialAction]);
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
