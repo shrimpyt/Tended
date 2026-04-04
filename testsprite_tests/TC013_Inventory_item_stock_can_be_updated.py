@@ -32,46 +32,46 @@ async def run_test():
         # Interact with the page elements to simulate user flow
         # -> Navigate to http://localhost:8081
         await page.goto("http://localhost:8081", wait_until="commit", timeout=10000)
-        
+
         # -> Fill the email and password fields, then click 'Sign in' to authenticate.
         frame = context.pages[-1]
         # Input text
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/input').nth(0)
         await page.wait_for_timeout(3000); await elem.fill('trystan@tryolive.dev')
-        
+
         frame = context.pages[-1]
         # Input text
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/input[2]').nth(0)
         await page.wait_for_timeout(3000); await elem.fill('S3@hawks')
-        
+
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/div/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Open the Inventory tab to view the inventory list (click the Inventory tab).
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div[2]/div[2]/div[2]/a').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Click the 'Biscuits' inventory item to open its detail/edit view so the stock level can be updated.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div/div[2]/div/div/div/div[3]/div/div/div/div/div/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Set the 'Biscuits' stock to 50% using the quick-set 'Half' option, save the change, then verify the inventory list shows '50%' for Biscuits.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div[7]/div/div[2]/div/div/div/div[2]/div[5]/div[2]/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div[7]/div/div[2]/div/div/div/div/div[3]/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # --> Test passed — verified by AI agent
         frame = context.pages[-1]
         current_url = await frame.evaluate("() => window.location.href")
@@ -87,4 +87,3 @@ async def run_test():
             await pw.stop()
 
 asyncio.run(run_test())
-    

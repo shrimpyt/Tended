@@ -32,13 +32,13 @@ async def run_test():
         # Interact with the page elements to simulate user flow
         # -> Navigate to http://localhost:8081
         await page.goto("http://localhost:8081", wait_until="commit", timeout=10000)
-        
+
         # -> Click the 'Sign in' button to submit the form with both fields empty and then check for validation error messages.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/div/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # --> Test passed — verified by AI agent
         frame = context.pages[-1]
         current_url = await frame.evaluate("() => window.location.href")
@@ -54,4 +54,3 @@ async def run_test():
             await pw.stop()
 
 asyncio.run(run_test())
-    
