@@ -20,14 +20,14 @@ const SNAPPY = {
   type: 'spring',
   stiffness: 400,
   damping: 30
-}
+} as const
 
 const FLUID = {
   type: 'spring',
   stiffness: 100,
   damping: 18,
   mass: 1
-}
+} as const
 
 // ─── Design Lab Page ─────────────────────────────────────────────
 
