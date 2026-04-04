@@ -270,8 +270,9 @@ export default function RoomScanWizard({visible, onClose}: Props) {
       const newItem: NewItem = {
         name: item.name,
         category: item.category,
-        stock_level: 100,
-        threshold: 25,
+        quantity: 1,
+        max_quantity: 1,
+        threshold: 0.25,
         unit: item.unit,
       };
       try {
