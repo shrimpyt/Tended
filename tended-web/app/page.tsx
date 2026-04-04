@@ -161,6 +161,8 @@ export default function DashboardPage() {
       const json = await res.json();
 
       if (json.status !== 1 || !json.product) {
+        setQuickFeedback(`Error: Product not found.`);
+        setTimeout(() => setQuickFeedback(null), 4000);
         return false;
       }
 
@@ -190,8 +192,10 @@ export default function DashboardPage() {
       } else {
         return false;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Dashboard] Barcode handle error:', err);
+      setQuickFeedback(`Failed: ${err?.message || 'Network error'}`);
+      setTimeout(() => setQuickFeedback(null), 4000);
       return false;
     }
   };
