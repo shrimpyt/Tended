@@ -113,24 +113,39 @@ export default function DashboardPage() {
       if (error) {
         console.error('[Dashboard] Edge function error:', error);
         setQuickFeedback('Lookup failed. Please try again.');
+        setTimeout(() => setQuickFeedback(null), 3000);
         return;
       }
 
-      if (data && data.name) {
-        setQuickFeedback(`Adding ${data.name}...`);
+      let parsedData = data;
+      if (typeof data === 'string') {
+        try {
+          // Strip markdown blocks if returned by the LLM
+          let cleanData = data.trim();
+          if (cleanData.startsWith('```')) {
+            cleanData = cleanData.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+          }
+          parsedData = JSON.parse(cleanData);
+        } catch (e) {
+          console.error('[Dashboard] Failed to parse barcode JSON response:', e);
+        }
+      }
+
+      if (parsedData && parsedData.name && parsedData.name !== "Unknown") {
+        setQuickFeedback(`Adding ${parsedData.name}...`);
         await addItem({
           householdId,
           userId: profile?.id ?? '',
           item: {
-            name: data.name,
-            category: data.category || 'Pantry',
+            name: parsedData.name,
+            category: parsedData.category || 'Pantry',
             quantity: 1,
             unit: 'pc',
             max_quantity: 1,
             threshold: 1,
           }
         });
-        setQuickFeedback(`Added ${data.name}!`);
+        setQuickFeedback(`Added ${parsedData.name}!`);
         setTimeout(() => setQuickFeedback(null), 3000);
       } else {
         setQuickFeedback('Product not identified.');

@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
 import { SpendingCategory, NewSpendingEntry, Item } from '@/types/models';
 import { X, Upload, Camera, ArrowRight, Minus, Plus, Loader2, Check } from 'lucide-react';
+import { compressImage } from '@/utils/imageCompressor';
 
 const CATEGORIES: SpendingCategory[] = ['Groceries', 'Cleaning', 'Pantry', 'Personal care'];
 
@@ -47,7 +48,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
   const [saving, setSaving] = useState(false);
   const [errorText, setErrorText] = useState('');
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) {
       console.log('[ReceiptScanModal] No files selected');
       return;
@@ -57,35 +58,62 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
     
     const uri = URL.createObjectURL(file);
     setImageUri(uri);
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64Str = (reader.result as string).split(',')[1];
-      console.log('[ReceiptScanModal] Image read as base64, starting processImage');
-      processImage(base64Str);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const processImage = async (base64: string) => {
     setStep('processing');
     setErrorText('');
 
     try {
+      console.log('[ReceiptScanModal] Compressing image...');
+      const base64Str = await compressImage(file, 1); // target 1MB
+      console.log('[ReceiptScanModal] Image compressed, starting processImage');
+      processImage(base64Str);
+    } catch (err) {
+      console.error('[ReceiptScanModal] Image compression error:', err);
+      setErrorText('Failed to process receipt image. Please try another.');
+      setStep('pick');
+    }
+  };
+
+  const processImage = async (base64: string) => {
+    try {
+      console.log('[ReceiptScanModal] Invoking analyze-image function...');
       const { data, error } = await supabase.functions.invoke('analyze-image', {
         body: { action: 'receipt', image: base64 },
       });
 
-      if (error) throw error;
-
-      if (data && data.items) {
-        setLineItems(data.items);
-      } else {
-        setErrorText('Could not parse receipt. Please add manually.');
+      if (error) {
+        console.error('[ReceiptScanModal] Supabase function error:', error);
+        throw error;
       }
-      setStep('review');
-    } catch {
-      setErrorText('Failed to analyze receipt.');
+
+      console.log('[ReceiptScanModal] Response data:', data);
+
+      let parsedData = data;
+      if (typeof data === 'string') {
+        try {
+          // Strip potential markdown code blocks like ```json ... ```
+          let cleanData = data.trim();
+          if (cleanData.startsWith('```')) {
+            cleanData = cleanData.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+          }
+          parsedData = JSON.parse(cleanData);
+        } catch (e) {
+          console.error('[ReceiptScanModal] Failed to parse JSON response:', e);
+          throw new Error('Invalid JSON response from AI');
+        }
+      }
+
+      if (parsedData && parsedData.items && Array.isArray(parsedData.items)) {
+        console.log(`[ReceiptScanModal] Successfully parsed ${parsedData.items.length} items`);
+        setLineItems(parsedData.items);
+        setStep('review');
+      } else {
+        console.warn('[ReceiptScanModal] No items array found in parsed data:', parsedData);
+        setErrorText('Could not parse receipt. Please add manually.');
+        setStep('pick');
+      }
+    } catch (err) {
+      console.error('[ReceiptScanModal] processImage catch block error:', err);
+      setErrorText('Failed to analyze receipt. Please try again.');
       setStep('pick');
     }
   };
