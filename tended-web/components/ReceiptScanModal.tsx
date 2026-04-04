@@ -82,7 +82,18 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
 
       if (error) {
         console.error('[ReceiptScanModal] Supabase function error:', error);
-        throw new Error(error.message || 'Error invoking Supabase edge function');
+        let errorMessage = error.message || 'Error invoking Supabase edge function';
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errBody = await error.context.json();
+            if (errBody && errBody.error) {
+              errorMessage = errBody.error;
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       console.log('[ReceiptScanModal] Response data:', data);

@@ -68,7 +68,9 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
     }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 0.4,
+      allowsEditing: true,
+      aspect: [3, 4],
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
@@ -84,7 +86,9 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 0.4,
+      allowsEditing: true,
+      aspect: [3, 4],
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
@@ -101,7 +105,19 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
         body: {action: 'receipt', image: base64},
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase Edge Function Error:", error);
+        let errorMessage = error.message ?? 'Edge function failed';
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errBody = await error.context.json();
+            if (errBody && errBody.error) {
+              errorMessage = errBody.error;
+            }
+          } catch (e) {}
+        }
+        throw new Error(errorMessage);
+      }
 
       if (data && data.items) {
         setLineItems(data.items);
