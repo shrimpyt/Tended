@@ -87,20 +87,33 @@ function InitialLayout() {
   useEffect(() => {
     if (loading) return;
 
-    const isAuthRoute = segments[0] === 'sign-in' || segments[0] === 'sign-up';
-    const isHouseholdRoute = segments[0] === 'household';
+    const seg0 = segments[0] as string | undefined;
+    const isAuthRoute = seg0 === 'sign-in' || seg0 === 'sign-up' || seg0 === 'forgot-password';
+    const isLandingRoute = seg0 === 'landing';
+    const isHouseholdRoute = seg0 === 'household';
+    const isOnboardingRoute = seg0 === 'onboarding';
+    const isSettingsRoute = seg0 === 'settings';
 
     if (!session) {
-      if (!isAuthRoute) {
-        router.replace('/sign-in');
+      // Unauthenticated: allow landing and auth routes; redirect everything else to landing
+      if (!isAuthRoute && !isLandingRoute) {
+        router.replace('/landing');
       }
     } else {
+      // Authenticated
       if (!profile?.household_id) {
+        // No household yet
         if (!isHouseholdRoute) {
           router.replace('/household');
         }
+      } else if (!profile?.has_onboarded) {
+        // Has household but hasn't seen onboarding
+        if (!isOnboardingRoute) {
+          router.replace('/onboarding');
+        }
       } else {
-        if (isAuthRoute || isHouseholdRoute) {
+        // Fully set up — redirect away from auth/landing/household/onboarding
+        if (isAuthRoute || isLandingRoute || isHouseholdRoute || isOnboardingRoute) {
           router.replace('/(tabs)');
         }
       }
