@@ -84,6 +84,7 @@ export default function DashboardPage() {
   const householdId = profile?.household_id ?? '';
   const now = new Date();
   const [aiOpen, setAiOpen] = useState(false);
+  const [aiAction, setAiAction] = useState<'camera' | 'barcode' | 'receipt' | null>(null);
 
   // Quick Add state
   const [quickAdd, setQuickAdd] = useState('');
@@ -516,18 +517,21 @@ export default function DashboardPage() {
 
               <div className="relative mt-5 flex flex-wrap gap-2">
                 {[
-                  'Scan pantry with camera',
-                  'Scan a barcode',
-                  'Upload receipt',
-                  'Chat with AI',
-                ].map(action => (
+                  { label: 'Scan pantry with camera', action: 'camera' as const },
+                  { label: 'Scan a barcode', action: 'barcode' as const },
+                  { label: 'Upload receipt', action: 'receipt' as const },
+                  { label: 'Chat with AI', action: null },
+                ].map(({ label, action }) => (
                   <button
-                    key={action}
-                    onClick={() => setAiOpen(true)}
+                    key={label}
+                    onClick={() => {
+                      setAiAction(action);
+                      setAiOpen(true);
+                    }}
                     className="text-xs px-3 py-1.5 rounded-full text-text-secondary hover:text-blue transition-all"
                     style={{ border: '1px solid var(--glass-border)' }}
                   >
-                    {action}
+                    {label}
                   </button>
                 ))}
               </div>
@@ -536,7 +540,14 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <AIDialog open={aiOpen} onClose={() => setAiOpen(false)} />
+      <AIDialog 
+        open={aiOpen} 
+        onClose={() => {
+          setAiOpen(false);
+          setAiAction(null);
+        }} 
+        initialAction={aiAction}
+      />
     </div>
   );
 }

@@ -48,8 +48,12 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
   const [errorText, setErrorText] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
+    if (!e.target.files || e.target.files.length === 0) {
+      console.log('[ReceiptScanModal] No files selected');
+      return;
+    }
     const file = e.target.files[0];
+    console.log('[ReceiptScanModal] File selected:', file.name, file.size, file.type);
     
     const uri = URL.createObjectURL(file);
     setImageUri(uri);
@@ -57,6 +61,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
     const reader = new FileReader();
     reader.onload = () => {
       const base64Str = (reader.result as string).split(',')[1];
+      console.log('[ReceiptScanModal] Image read as base64, starting processImage');
       processImage(base64Str);
     };
     reader.readAsDataURL(file);

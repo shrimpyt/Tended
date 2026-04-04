@@ -24,6 +24,7 @@ interface Message {
 interface AIDialogProps {
   open: boolean;
   onClose: () => void;
+  initialAction?: 'camera' | 'barcode' | 'receipt' | null;
 }
 
 // ── Scanner actions ────────────────────────────────────────────────
@@ -54,7 +55,7 @@ const SCANNER_ACTIONS = [
 
 // ── Component ──────────────────────────────────────────────────────
 
-export default function AIDialog({ open, onClose }: AIDialogProps) {
+export default function AIDialog({ open, onClose, initialAction }: AIDialogProps) {
   const { profile } = useAuthStore();
   const householdId = profile?.household_id ?? '';
 
@@ -94,6 +95,16 @@ export default function AIDialog({ open, onClose }: AIDialogProps) {
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
+  // Handle initialAction when opened from Dashboard
+  useEffect(() => {
+    if (open && initialAction) {
+      console.log('[AIDialog] initialAction triggered:', initialAction);
+      if (initialAction === 'camera') openCamera();
+      else if (initialAction === 'barcode') openBarcode();
+      else if (initialAction === 'receipt') openReceipt();
+    }
+  }, [open, initialAction]);
+
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed) return;
@@ -129,9 +140,23 @@ export default function AIDialog({ open, onClose }: AIDialogProps) {
   const handleDragLeave = useCallback(() => setIsDragging(false), []);
 
   // Close AIDialog before opening a scanner modal so they don't stack
-  const openCamera  = useCallback(() => { onClose(); setCameraOpen(true);  }, [onClose]);
-  const openBarcode = useCallback(() => { onClose(); setBarcodeOpen(true); }, [onClose]);
-  const openReceipt = useCallback(() => { onClose(); setReceiptOpen(true); }, [onClose]);
+  const openCamera  = useCallback(() => { 
+    console.log('[AIDialog] Opening camera scanner');
+    onClose(); 
+    setCameraOpen(true); 
+  }, [onClose]);
+  
+  const openBarcode = useCallback(() => { 
+    console.log('[AIDialog] Opening barcode scanner');
+    onClose(); 
+    setBarcodeOpen(true); 
+  }, [onClose]);
+  
+  const openReceipt = useCallback(() => { 
+    console.log('[AIDialog] Opening receipt scanner');
+    onClose(); 
+    setReceiptOpen(true); 
+  }, [onClose]);
 
   // Ordered to match SCANNER_ACTIONS indices: Camera, Barcode, Receipt
   const MODAL_OPENERS = [openCamera, openBarcode, openReceipt] as const;
@@ -145,6 +170,8 @@ export default function AIDialog({ open, onClose }: AIDialogProps) {
   }, []);
 
   // Render nothing when all panels are closed
+  console.log('[AIDialog] Render:', { open, cameraOpen, barcodeOpen, receiptOpen });
+  
   if (!open && !cameraOpen && !barcodeOpen && !receiptOpen) return null;
 
   return (

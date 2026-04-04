@@ -35,6 +35,7 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
 
     codeReader.listVideoInputDevices()
       .then((videoInputDevices) => {
+        console.log('[BarcodeScanModal] Found devices:', videoInputDevices.map(d => d.label));
         if (videoInputDevices.length === 0) {
           setHasCamera(false);
           setError('No camera found on this device.');
@@ -48,29 +49,41 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
           return BACK_CAMERA_HINTS.some(hint => label.includes(hint));
         });
         if (backCamera) {
+          console.log('[BarcodeScanModal] Selecting back camera:', backCamera.label);
           selectedDeviceId = backCamera.deviceId;
+        } else {
+          console.log('[BarcodeScanModal] No back camera found, using default:', videoInputDevices[0].label);
         }
 
         if (videoRef.current) {
+          console.log('[BarcodeScanModal] Starting decode from device:', selectedDeviceId);
           codeReader.decodeFromVideoDevice(selectedDeviceId, videoRef.current, (result, err) => {
             if (result) {
+              console.log('[BarcodeScanModal] Scan success:', result.getText());
               onScan(result.getText());
               // Auto-stop after successful scan
               codeReader.reset();
               onClose();
             }
+            if (err && !(err.name === 'NotFoundException')) {
+              // Only log real errors, not the "no barcode found in this frame" exception
+              console.error('[BarcodeScanModal] Decode error:', err);
+            }
           });
+        } else {
+          console.error('[BarcodeScanModal] videoRef.current is null during initialization');
+          setError('Video element not ready.');
         }
       })
       .catch((err: Error) => {
-        console.error(err);
+        console.error('[BarcodeScanModal] Initialization error:', err);
         setHasCamera(false);
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
           setError('Camera permission denied. Please allow access in your browser settings.');
         } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
           setError('No camera found on this device.');
         } else {
-          setError('Camera access denied or unavailable.');
+          setError(`Camera error: ${err.message}`);
         }
       });
 
@@ -107,6 +120,7 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
             <video 
               ref={videoRef}
               className="absolute inset-0 w-full h-full object-cover"
+              autoPlay
               playsInline
               muted
             />
