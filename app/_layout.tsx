@@ -1,6 +1,6 @@
 import React, {useEffect} from 'react';
 import {View, ActivityIndicator, StyleSheet, AppState, AppStateStatus, Platform} from 'react-native';
-import {Slot, useRouter, useSegments} from 'expo-router';
+import {Stack, useRouter, useSegments} from 'expo-router';
 import {QueryClient, onlineManager, focusManager} from '@tanstack/react-query';
 import {PersistQueryClientProvider} from '@tanstack/react-query-persist-client';
 import {createAsyncStoragePersister} from '@tanstack/query-async-storage-persister';
@@ -92,8 +92,6 @@ function InitialLayout() {
     const isLandingRoute = seg0 === 'landing';
     const isHouseholdRoute = seg0 === 'household';
     const isOnboardingRoute = seg0 === 'onboarding';
-    const isSettingsRoute = seg0 === 'settings';
-
     if (!session) {
       // Unauthenticated: allow landing and auth routes; redirect everything else to landing
       if (!isAuthRoute && !isLandingRoute) {
@@ -128,7 +126,7 @@ function InitialLayout() {
     );
   }
 
-  return <Slot />;
+  return <Stack screenOptions={{headerShown: false}} />;
 }
 
 export default function RootLayout() {
