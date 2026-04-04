@@ -100,6 +100,7 @@ export default function MealsPage() {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    // We defer setting this until hydration is complete to avoid SSR mismatch on local storage
     setIsClient(true);
   }, []);
 
