@@ -4,7 +4,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ─── Deep Ink palette ─────────────────────────────────────────── */
+/* ─── Theme Palettes ────────────────────────────────────────────── */
 :root {
   --background:       #0A0A0B;
   --foreground:       #F0F0F2;
@@ -14,17 +14,16 @@
   --surface-elevated: rgba(255, 255, 255, 0.08);
   --border:           rgba(255, 255, 255, 0.10);
 
-  --primary-blue:   #3B82F6;
-  --success-green:  #34D399;
-  --warning-amber:  #FBBF24;
-  --danger-red:     #F87171;
+  /* Default Blue */
+  --primary:            #3B82F6;
+  --primary-glow:       rgba(59, 130, 246, 0.5);
+  --accent-glow:        rgba(59, 130, 246, 0.15);
 
   /* Shadcn standard variables mapped to Deep Ink */
   --card:               #0E0E10;
   --card-foreground:    #F0F0F2;
   --popover:            #0E0E10;
   --popover-foreground: #F0F0F2;
-  --primary:            #3B82F6;
   --primary-foreground: #FFFFFF;
   --secondary:          rgba(255, 255, 255, 0.08);
   --secondary-foreground: #F0F0F2;
@@ -35,13 +34,27 @@
   --destructive:        #F87171;
   --destructive-foreground: #FFFFFF;
   --input:              rgba(255, 255, 255, 0.08);
-  --ring:               #3B82F6;
+  --ring:               var(--primary);
   --radius:             0.75rem;
 
-  /* glass tokens (used by .glass utility below) */
+  /* glass tokens */
   --glass-bg:     rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.10);
   --glass-hover:  rgba(255, 255, 255, 0.09);
+}
+
+[data-theme='emerald'] {
+  --primary:      #10B981;
+  --primary-glow: rgba(16, 185, 129, 0.5);
+  --accent-glow:  rgba(16, 185, 129, 0.15);
+  --ring:         var(--primary);
+}
+
+[data-theme='iris'] {
+  --primary:      #8B5CF6;
+  --primary-glow: rgba(139, 92, 246, 0.5);
+  --accent-glow:  rgba(139, 92, 246, 0.15);
+  --ring:         var(--primary);
 }
 
 /* ─── Tailwind v4 @theme blocks ────────────────────────────────────── */
@@ -53,17 +66,6 @@
   --color-text-secondary: var(--text-secondary);
   --color-border:        var(--border);
 
-  /* Solid accent colours — hex so opacity modifiers (bg-blue/10) work */
-  --color-blue:   #3B82F6;
-  --color-green:  #34D399;
-  --color-amber:  #FBBF24;
-  --color-red:    #F87171;
-
-  --font-sans:    var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
-  --font-body:    var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-
-  /* Shadcn mappings */
   --color-primary:     var(--primary);
   --color-secondary:   var(--secondary);
   --color-muted:       var(--muted);
@@ -71,6 +73,20 @@
   --color-destructive: var(--destructive);
   --color-popover:     var(--popover);
   --color-card:        var(--card);
+
+  --font-sans:    var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-body:    var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-20px) rotate(5deg); }
+  }
+
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.1); }
+  }
 }
 
 /* ─── Base ─────────────────────────────────────────────────────── */
@@ -78,48 +94,59 @@ html {
   color-scheme: dark;
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
-  -moz-osx-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
-/* ─── Glassmorphism utility ────────────────────────────────────── */
+/* ─── Visual Effects ───────────────────────────────────────────── */
+
 .glass {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
 }
 
-.glass-hover:hover {
-  background: var(--glass-hover);
+/* High-end beveled border effect */
+.glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%, rgba(0,0,0,0.1) 100%);
+  opacity: 0.5;
 }
 
-/* ─── Scrollbar ────────────────────────────────────────────────── */
-::-webkit-scrollbar       { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 2px;
+.grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+
+.aura {
+  position: fixed;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 100%;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+  filter: blur(100px);
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.6;
 }
+
+.aura-1 { top: -20%; left: -10%; animation: pulse-slow 8s infinite; }
+.aura-2 { bottom: -20%; right: -10%; animation: pulse-slow 12s infinite reverse; }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
+  * { @apply border-border/50; }
+  body { @apply bg-background text-foreground font-sans; }
 }
