@@ -83,6 +83,12 @@ export default function Dashboard() {
     queryClient.invalidateQueries({ queryKey: ['inventory'] });
   };
 
+  const handleUpdateName = async (item: any, newName: string) => {
+    if (!newName.trim()) return;
+    await supabase.from('items').update({ name: newName.trim() }).eq('id', item.id);
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+  };
+
   const handleDelete = async (itemId: string) => {
     if (confirm('Are you sure you want to delete this item?')) {
       await deleteItem(itemId);
@@ -228,7 +234,7 @@ export default function Dashboard() {
                                <td className="py-3 pr-4">
                                   <input
                                      defaultValue={item.name}
-                                     onBlur={(e) => supabase.from('items').update({ name: e.target.value }).eq('id', item.id)}
+                                     onBlur={(e) => handleUpdateName(item, e.target.value)}
                                      className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-full"
                                   />
                                </td>
