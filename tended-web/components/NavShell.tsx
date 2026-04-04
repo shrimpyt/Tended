@@ -9,7 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 
 // Routes that should not render the navigation shell
 const HIDDEN_ROUTES = new Set([
-  '/sign-in', '/sign-up', '/forgot-password',
+  '/', '/sign-in', '/sign-up', '/forgot-password',
   '/household', '/onboarding', '/landing', '/design-lab',
 ]);
 
@@ -21,7 +21,7 @@ export default function NavShell() {
   if (HIDDEN_ROUTES.has(pathname)) return null;
 
   const NAV_ITEMS = [
-    { href: '/',              icon: Home,         label: 'Dashboard' },
+    { href: '/dashboard',     icon: Home,         label: 'Dashboard' },
     { href: '/inventory',     icon: Package,      label: 'Inventory'  },
     { href: '/shopping-list', icon: ShoppingCart, label: 'Shopping'   },
     ...(!isRestricted ? [

@@ -89,7 +89,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
             if (errBody && errBody.error) {
               errorMessage = errBody.error;
             }
-          } catch (e) {
+          } catch {
             // ignore
           }
         }
@@ -122,9 +122,9 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
         setErrorText('Could not parse receipt. Please add manually.');
         setStep('pick');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[ReceiptScanModal] processImage catch block error:', err);
-      const msg = err?.message || 'Unknown error occurred.';
+      const msg = err instanceof Error ? err.message : 'Unknown error occurred.';
       setErrorText(`Failed to analyze receipt: ${msg}`);
       setStep('pick');
     }
@@ -260,6 +260,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
         {step === 'processing' && (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
             {imageUri && (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img src={imageUri} alt="receipt" className="w-64 max-h-64 object-contain opacity-50 mb-8 rounded-lg shadow-sm" />
             )}
             <Loader2 className="animate-spin text-primary-blue mb-4" size={40} />
