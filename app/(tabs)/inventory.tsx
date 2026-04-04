@@ -111,7 +111,18 @@ export default function InventoryScreen() {
   const householdId = profile?.household_id ?? '';
 
   const {data: items = [], isLoading: loading} = useInventory(householdId);
-  const filterCategories: FilterCategory[] = ['All', ...getUniqueCategories(items)];
+
+  // RBAC: restricted users only see their allowed categories
+  const allowedCategories: string[] | null =
+    profile?.role === 'restricted' && profile.restricted_categories && profile.restricted_categories.length > 0
+      ? profile.restricted_categories
+      : null;
+
+  const visibleItems = allowedCategories
+    ? items.filter(item => allowedCategories.includes(item.category))
+    : items;
+
+  const filterCategories: FilterCategory[] = ['All', ...getUniqueCategories(visibleItems)];
 
   const [activeCategory, setActiveCategory] = useState<FilterCategory>('All');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -126,15 +137,15 @@ export default function InventoryScreen() {
   useRealtimeHousehold(householdId);
 
   const filtered = activeCategory === 'All'
-    ? items
-    : items.filter(i => i.category === activeCategory);
+    ? visibleItems
+    : visibleItems.filter(i => i.category === activeCategory);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Inventory</Text>
-        <Text style={styles.headerCount}>{items.length} items</Text>
+        <Text style={styles.headerCount}>{visibleItems.length} items</Text>
       </View>
 
       {/* Filter pills */}

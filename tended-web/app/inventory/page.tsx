@@ -11,6 +11,15 @@ export default function InventoryPage() {
 
   const { data: items = [], isLoading } = useInventory(householdId);
 
+  const allowedCategories: string[] | null =
+    profile?.role === 'restricted' && profile.restricted_categories && profile.restricted_categories.length > 0
+      ? profile.restricted_categories
+      : null;
+
+  const visibleItems = allowedCategories
+    ? items.filter(item => item.category != null && allowedCategories.includes(item.category))
+    : items;
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="bg-surface-elevated border-b border-border shadow-sm px-6 py-4 flex items-center justify-between sticky top-0 z-10">
@@ -27,7 +36,7 @@ export default function InventoryPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map(item => {
+            {visibleItems.map(item => {
               const pct = Math.min(100, Math.max(0, (item.quantity / item.max_quantity) * 100));
               const isLow = (item.quantity / item.max_quantity) <= item.threshold;
               

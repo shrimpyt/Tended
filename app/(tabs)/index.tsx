@@ -9,12 +9,12 @@ import {
   Modal,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {useRouter} from 'expo-router';
 import {Colors, Typography, Spacing, Radius, Border, Shadows} from '../../constants/theme';
 import {useAuthStore} from '../../store/authStore';
 import {useInventory, useSpendingEntries, useShoppingList, useToggleShoppingListItem} from '../../hooks/queries';
 import {useRealtimeHousehold} from '../../hooks/useRealtimeHousehold';
 import ShoppingListScreen from '../../screens/ShoppingListScreen';
-import ProfileScreen from '../../screens/ProfileScreen';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -87,6 +87,7 @@ function StockBar({stockLevel, threshold}: {stockLevel: number; threshold: numbe
 
 export default function DashboardScreen() {
   const {profile} = useAuthStore();
+  const router = useRouter();
   const householdId = profile?.household_id ?? '';
   const now = new Date();
 
@@ -98,7 +99,6 @@ export default function DashboardScreen() {
   const loadingAll = loadingItems || loadingEntries || loadingShopping;
 
   const [showShoppingList, setShowShoppingList] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
 
   useRealtimeHousehold(householdId);
 
@@ -127,7 +127,7 @@ export default function DashboardScreen() {
   }, [entries, thisWeek, lastWeek]);
 
   const lowStockItems = useMemo(
-    () => items.filter(i => i.stock_level < i.threshold),
+    () => items.filter(i => (i.quantity / i.max_quantity) * 100 < (i.threshold / i.max_quantity) * 100),
     [items],
   );
 
@@ -186,7 +186,7 @@ export default function DashboardScreen() {
             <Text style={styles.name}>{displayName}</Text>
           </View>
           <TouchableOpacity
-            onPress={() => setShowProfile(true)}
+            onPress={() => router.push('/settings')}
             activeOpacity={0.7}
             style={styles.profileButton}>
             <Text style={styles.profileButtonText}>⚙</Text>
@@ -261,11 +261,11 @@ export default function DashboardScreen() {
                       <Text
                         style={[
                           styles.alertLevel,
-                          {color: item.stock_level === 0 ? Colors.red : Colors.amber},
+                          {color: item.quantity === 0 ? Colors.red : Colors.amber},
                         ]}>
-                        {item.stock_level === 0 ? 'Out' : `${item.stock_level}%`}
+                        {item.quantity === 0 ? 'Out' : `${Math.round((item.quantity / item.max_quantity) * 100)}%`}
                       </Text>
-                      <StockBar stockLevel={item.stock_level} threshold={item.threshold} />
+                      <StockBar stockLevel={Math.round((item.quantity / item.max_quantity) * 100)} threshold={Math.round((item.threshold / item.max_quantity) * 100)} />
                     </View>
                   </View>
                   {idx < lowStockItems.length - 1 && <View style={styles.separator} />}
@@ -339,14 +339,6 @@ export default function DashboardScreen() {
         <ShoppingListScreen onClose={() => setShowShoppingList(false)} />
       </Modal>
 
-      {/* Profile / household settings modal */}
-      <Modal
-        visible={showProfile}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowProfile(false)}>
-        <ProfileScreen onClose={() => setShowProfile(false)} />
-      </Modal>
     </SafeAreaView>
   );
 }

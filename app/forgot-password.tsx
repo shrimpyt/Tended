@@ -14,38 +14,63 @@ import {useRouter} from 'expo-router';
 import {supabase} from '../lib/supabase';
 import {Colors, Typography, Spacing, Radius, Border, Shadows} from '../constants/theme';
 
-export default function SignInScreen() {
+export default function ForgotPasswordScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
 
-  const handleSignIn = async () => {
-    if (!email || !password) {
-      setError('Please enter your email and password.');
+  const handleReset = async () => {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError('Please enter your email address.');
       return;
     }
     setError(null);
     setLoading(true);
 
-    const {error: signInError} = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    const {error: resetError} = await supabase.auth.resetPasswordForEmail(trimmed);
 
     setLoading(false);
-    if (signInError) setError(signInError.message);
+    if (resetError) {
+      setError(resetError.message);
+    } else {
+      setSent(true);
+    }
   };
+
+  if (sent) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.inner}>
+          <Text style={styles.successTitle}>Check your email</Text>
+          <Text style={styles.successBody}>
+            We sent a password reset link to{'\n'}{email.trim()}.{'\n\n'}
+            Click the link in the email to set a new password, then sign in.
+          </Text>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => router.replace('/sign-in')}
+            activeOpacity={0.85}>
+            <Text style={styles.buttonText}>Back to sign in</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.inner}>
+
         <View style={styles.header}>
-          <Text style={styles.appName}>Tended</Text>
-          <Text style={styles.tagline}>Your home, tended to.</Text>
+          <Text style={styles.title}>Reset your password</Text>
+          <Text style={styles.subtitle}>
+            Enter the email you signed up with and we'll send you a reset link.
+          </Text>
         </View>
 
         <View style={styles.form}>
@@ -56,44 +81,35 @@ export default function SignInScreen() {
             placeholder="Email"
             placeholderTextColor={Colors.textSecondary}
             value={email}
-            onChangeText={setEmail}
+            onChangeText={text => {
+              setEmail(text);
+              setError(null);
+            }}
             autoCapitalize="none"
             keyboardType="email-address"
             autoComplete="email"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={Colors.textSecondary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password"
+            autoFocus
           />
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSignIn}
+            onPress={handleReset}
             disabled={loading}
-            activeOpacity={0.8}>
+            activeOpacity={0.85}>
             {loading
               ? <ActivityIndicator color={Colors.textPrimary} />
-              : <Text style={styles.buttonText}>Sign in</Text>
+              : <Text style={styles.buttonText}>Send reset link</Text>
             }
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push('/forgot-password')} style={styles.link}>
-            <Text style={styles.linkAccent}>Forgot password?</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => router.push('/sign-up')} style={styles.link}>
-            <Text style={styles.linkText}>
-              Don't have an account?{' '}
-              <Text style={styles.linkAccent}>Sign up</Text>
-            </Text>
+          <TouchableOpacity
+            style={styles.backLink}
+            onPress={() => router.back()}
+            activeOpacity={0.7}>
+            <Text style={styles.backLinkText}>← Back to sign in</Text>
           </TouchableOpacity>
         </View>
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -108,22 +124,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
+    gap: Spacing.xxl,
   },
   header: {
-    alignItems: 'center',
-    marginBottom: Spacing.xxl * 2,
+    gap: Spacing.sm,
   },
-  appName: {
+  title: {
     color: Colors.textPrimary,
-    fontSize: 42,
-    fontWeight: Typography.weights.bold,
-    letterSpacing: -1,
+    fontSize: Typography.sizes.xxl,
+    fontWeight: Typography.weights.medium,
+    letterSpacing: -0.5,
   },
-  tagline: {
+  subtitle: {
     color: Colors.textSecondary,
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
-    marginTop: Spacing.sm,
+    fontWeight: Typography.weights.regular,
+    lineHeight: 22,
   },
   form: {
     gap: Spacing.lg,
@@ -144,7 +160,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     paddingVertical: Spacing.lg,
     alignItems: 'center',
-    marginTop: Spacing.md,
     ...Shadows.glow,
   },
   buttonDisabled: {
@@ -154,24 +169,35 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontSize: Typography.sizes.lg,
     fontWeight: Typography.weights.bold,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
-  link: {
+  backLink: {
     alignItems: 'center',
-    marginTop: Spacing.sm,
+    paddingVertical: Spacing.sm,
   },
-  linkText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.regular,
-  },
-  linkAccent: {
+  backLinkText: {
     color: Colors.blue,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
   },
   errorText: {
     color: Colors.red,
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.regular,
     textAlign: 'center',
+  },
+  successTitle: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.xxl,
+    fontWeight: Typography.weights.medium,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  successBody: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.regular,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });

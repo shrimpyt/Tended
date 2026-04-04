@@ -3,6 +3,7 @@ import {Tabs} from 'expo-router';
 import {Text, Platform} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Colors, Typography, Shadows} from '../../constants/theme';
+import {useAuthStore} from '../../store/authStore';
 
 const TAB_ICONS: Record<string, string> = {
   index: '⊞',
@@ -14,6 +15,8 @@ const TAB_ICONS: Record<string, string> = {
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const bottomPadding = insets.bottom > 0 ? insets.bottom - 10 : 16;
+  const {profile} = useAuthStore();
+  const isRestricted = profile?.role === 'restricted';
 
   return (
     <Tabs
@@ -55,17 +58,19 @@ export default function TabsLayout() {
           title: 'Inventory',
         }} 
       />
-      <Tabs.Screen 
-        name="spending" 
+      <Tabs.Screen
+        name="spending"
         options={{
           title: 'Spending',
-        }} 
+          href: isRestricted ? null : undefined,
+        }}
       />
-      <Tabs.Screen 
-        name="meals" 
+      <Tabs.Screen
+        name="meals"
         options={{
           title: 'Meals',
-        }} 
+          href: isRestricted ? null : undefined,
+        }}
       />
     </Tabs>
   );
