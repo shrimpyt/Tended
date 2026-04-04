@@ -102,8 +102,7 @@ export default function DashboardPage() {
   const { data: entries = [], isLoading: loadingEntries } = useSpendingEntries(householdId, now.getFullYear(), now.getMonth() + 1);
   const { mutateAsync: addItem } = useAddInventoryItem();
 
-  const handleBarcodeScan = async (code: string) => {
-    setQuickFeedback('Identifying product...');
+  const handleBarcodeScan = async (code: string): Promise<boolean> => {
     try {
       console.log('[Dashboard] Scanned barcode, invoking AI:', code);
       const { data, error } = await supabase.functions.invoke('analyze-image', {
@@ -112,9 +111,7 @@ export default function DashboardPage() {
 
       if (error) {
         console.error('[Dashboard] Edge function error:', error);
-        setQuickFeedback('Lookup failed. Please try again.');
-        setTimeout(() => setQuickFeedback(null), 3000);
-        return;
+        return false;
       }
 
       let parsedData = data;
@@ -128,11 +125,11 @@ export default function DashboardPage() {
           parsedData = JSON.parse(cleanData);
         } catch (e) {
           console.error('[Dashboard] Failed to parse barcode JSON response:', e);
+          return false;
         }
       }
 
       if (parsedData && parsedData.name && parsedData.name !== "Unknown") {
-        setQuickFeedback(`Adding ${parsedData.name}...`);
         await addItem({
           householdId,
           userId: profile?.id ?? '',
@@ -147,14 +144,13 @@ export default function DashboardPage() {
         });
         setQuickFeedback(`Added ${parsedData.name}!`);
         setTimeout(() => setQuickFeedback(null), 3000);
+        return true;
       } else {
-        setQuickFeedback('Product not identified.');
-        setTimeout(() => setQuickFeedback(null), 3000);
+        return false;
       }
     } catch (err) {
       console.error('[Dashboard] Barcode handle error:', err);
-      setQuickFeedback('An error occurred.');
-      setTimeout(() => setQuickFeedback(null), 3000);
+      return false;
     }
   };
   const { data: shoppingItems = [], isLoading: loadingShopping } = useShoppingList(householdId);
