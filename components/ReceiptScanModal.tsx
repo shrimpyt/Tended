@@ -129,7 +129,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
             <label className="w-full py-4 bg-primary-blue hover:bg-opacity-90 text-white rounded-xl font-medium tracking-wide shadow-md cursor-pointer flex items-center justify-center gap-2 transition-all">
               <Upload size={20} />
               Choose Photo
-              <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+              <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
             </label>
             
             {/* Note: Web requires HTTPS for camera, a standard file input triggers camera on mobile devices natively */}
