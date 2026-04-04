@@ -51,11 +51,27 @@
 }
 
 [data-theme='iris'] {
-  --primary:      #8B5CF6;
-  --primary-glow: rgba(139, 92, 246, 0.5);
-  --accent-glow:  rgba(139, 92, 246, 0.15);
   --ring:         var(--primary);
 }
+
+[data-theme='forest'] {
+  --primary:      #059669; /* Rich Emerald */
+  --primary-glow: rgba(5, 150, 105, 0.5);
+  --accent-glow:  rgba(5, 150, 105, 0.15);
+  --background:   #022c22; /* Very dark green */
+  --card:         #01241c; /* Even darker card */
+  --ring:         var(--primary);
+}
+
+[data-theme='space'] {
+  --primary:      #60A5FA; /* Brighter blue for contrast */
+  --primary-glow: rgba(96, 165, 250, 0.5);
+  --accent-glow:  rgba(96, 165, 250, 0.15);
+  --background:   #020617; /* Deepest Navy/Space Blue */
+  --card:         #01040f; /* Even darker card */
+  --ring:         var(--primary);
+}
+
 
 /* ─── Tailwind v4 @theme blocks ────────────────────────────────────── */
 @theme inline {
