@@ -2,14 +2,11 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
-  X, Camera, Barcode, Receipt, MessageSquare,
-  Zap, Send, Upload, ChevronRight,
+  X, Camera, Barcode, Receipt,
+  Zap, Send,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/store/authStore';
-import BarcodeScanModal from './BarcodeScanModal';
-import ReceiptScanModal from './ReceiptScanModal';
-import CameraInventoryModal from './CameraInventoryModal';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -24,7 +21,7 @@ interface Message {
 interface AIDialogProps {
   open: boolean;
   onClose: () => void;
-  initialAction?: 'camera' | 'barcode' | 'receipt' | null;
+  onTriggerScanner: (action: 'camera' | 'barcode' | 'receipt') => void;
 }
 
 // ── Scanner actions ────────────────────────────────────────────────
@@ -55,21 +52,16 @@ const SCANNER_ACTIONS = [
 
 // ── Component ──────────────────────────────────────────────────────
 
-export default function AIDialog({ open, onClose, initialAction }: AIDialogProps) {
+export default function AIDialog({ open, onClose, onTriggerScanner }: AIDialogProps) {
   const { profile } = useAuthStore();
-  const householdId = profile?.household_id ?? '';
-
+  
   const [mode, setMode] = useState<Mode>('scanner');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    { id: '1', role: 'assistant', content: 'Scan items or tell me what you bought today!' },
+  ]);
   const [input, setInput] = useState('');
   const [isDragging, setIsDragging] = useState(false);
 
-  // Scanner modal visibility
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [barcodeOpen, setBarcodeOpen] = useState(false);
-  const [receiptOpen, setReceiptOpen] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -95,16 +87,6 @@ export default function AIDialog({ open, onClose, initialAction }: AIDialogProps
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  // Handle initialAction when opened from Dashboard
-  useEffect(() => {
-    if (open && initialAction) {
-      console.log('[AIDialog] initialAction triggered:', initialAction);
-      if (initialAction === 'camera') openCamera();
-      else if (initialAction === 'barcode') openBarcode();
-      else if (initialAction === 'receipt') openReceipt();
-    }
-  }, [open, initialAction]);
-
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed) return;
@@ -113,7 +95,6 @@ export default function AIDialog({ open, onClose, initialAction }: AIDialogProps
       { id: `${Date.now()}`, role: 'user', content: trimmed },
     ]);
     setInput('');
-    // TODO: wire up AI response
   }, [input]);
 
   const handleKeyDown = useCallback(
@@ -126,267 +107,108 @@ export default function AIDialog({ open, onClose, initialAction }: AIDialogProps
     [handleSend]
   );
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    // TODO: handle dropped image/file
-  }, []);
+  const openCamera  = useCallback(() => { onClose(); onTriggerScanner('camera'); }, [onClose, onTriggerScanner]);
+  const openBarcode = useCallback(() => { onClose(); onTriggerScanner('barcode'); }, [onClose, onTriggerScanner]);
+  const openReceipt = useCallback(() => { onClose(); onTriggerScanner('receipt'); }, [onClose, onTriggerScanner]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback(() => setIsDragging(false), []);
-
-  // Close AIDialog before opening a scanner modal so they don't stack
-  const openCamera  = useCallback(() => { 
-    console.log('[AIDialog] Opening camera scanner');
-    onClose(); 
-    setCameraOpen(true); 
-  }, [onClose]);
-  
-  const openBarcode = useCallback(() => { 
-    console.log('[AIDialog] Opening barcode scanner');
-    onClose(); 
-    setBarcodeOpen(true); 
-  }, [onClose]);
-  
-  const openReceipt = useCallback(() => { 
-    console.log('[AIDialog] Opening receipt scanner');
-    onClose(); 
-    setReceiptOpen(true); 
-  }, [onClose]);
-
-  // Ordered to match SCANNER_ACTIONS indices: Camera, Barcode, Receipt
   const MODAL_OPENERS = [openCamera, openBarcode, openReceipt] as const;
 
-  // Surface a scanned barcode as a chat message for visibility
-  const handleBarcodeScan = useCallback((barcode: string) => {
-    setMessages(prev => [
-      ...prev,
-      { id: `${Date.now()}`, role: 'assistant', content: `Scanned barcode: ${barcode}` },
-    ]);
-  }, []);
-
-  // Render nothing when all panels are closed
-  console.log('[AIDialog] Render:', { open, cameraOpen, barcodeOpen, receiptOpen });
-  
-  if (!open && !cameraOpen && !barcodeOpen && !receiptOpen) return null;
+  if (!open) return null;
 
   return (
-    <>
-      {/* ── Main AI dialog ──────────────────────────────────────────── */}
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="AI Assistant"
-        >
-          <div
-            className="absolute inset-0 bg-black/55 backdrop-blur-sm"
-            onClick={onClose}
-            aria-hidden="true"
-          />
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
+        onClick={onClose}
+      />
 
-          {/* ── Dialog panel ──────────────────────────────────────── */}
-          <div className="relative w-full md:max-w-md glass rounded-2xl overflow-hidden flex flex-col">
+      {/* Dialog container */}
+      <div className="relative w-full max-w-lg bg-background rounded-3xl shadow-2xl overflow-hidden border border-white/10 animate-in fade-in zoom-in slide-in-from-bottom-5 duration-300">
+        
+        {/* Header */}
+        <div className="px-5 py-4 flex items-center justify-between border-b border-white/5 bg-white/2">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-blue/15 flex items-center justify-center">
+              <Zap size={13} className="text-blue" />
+            </div>
+            <span className="text-sm font-semibold text-foreground">AI Assistant</span>
+          </div>
 
-            {/* Header */}
-            <div
-              className="flex items-center justify-between px-4 py-3 border-b"
-              style={{ borderColor: 'var(--glass-border)' }}
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-blue/15 flex items-center justify-center">
-                  <Zap size={13} className="text-blue" />
-                </div>
-                <span className="text-sm font-semibold text-foreground">AI Assistant</span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {/* Mode toggle pill */}
-                <div
-                  className="flex items-center gap-0.5 rounded-full p-0.5 text-xs"
-                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)' }}
-                >
-                  {(['scanner', 'chat'] as Mode[]).map(m => (
-                    <button
-                      key={m}
-                      onClick={() => setMode(m)}
-                      className={clsx(
-                        'px-3 py-1 rounded-full font-medium capitalize transition-all duration-150',
-                        mode === m
-                          ? 'bg-blue text-white shadow-sm'
-                          : 'text-text-secondary hover:text-foreground'
-                      )}
-                    >
-                      {m === 'scanner' ? 'Scanner' : 'Chat'}
-                    </button>
-                  ))}
-                </div>
-
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-0.5 rounded-full p-0.5 text-xs bg-white/5 border border-white/5">
+              {(['scanner', 'chat'] as Mode[]).map(m => (
                 <button
-                  onClick={onClose}
-                  className="w-6 h-6 flex items-center justify-center rounded-lg text-text-secondary hover:text-foreground hover:bg-white/8 transition-all"
-                  aria-label="Close dialog"
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={clsx(
+                    'px-3 py-1 rounded-full font-medium capitalize transition-all duration-150',
+                    mode === m ? 'bg-blue text-white' : 'text-text-secondary hover:text-foreground'
+                  )}
                 >
-                  <X size={15} />
+                  {m === 'scanner' ? 'Scanner' : 'Chat'}
+                </button>
+              ))}
+            </div>
+
+            <button onClick={onClose} className="text-text-secondary hover:text-foreground">
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        {mode === 'scanner' ? (
+          <div className="p-4 space-y-2">
+            <p className="text-xs text-text-secondary text-center pb-1">Choose how to add inventory</p>
+            {SCANNER_ACTIONS.map(({ icon: Icon, label, description, color, bg }, idx) => (
+              <button
+                key={label}
+                onClick={MODAL_OPENERS[idx]}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 transition-all text-left group"
+              >
+                <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center transition-colors', bg)}>
+                  <Icon size={20} className={color} />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-foreground">{label}</div>
+                  <div className="text-xs text-text-secondary">{description}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col h-[400px]">
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {messages.map(m => (
+                <div key={m.id} className={clsx('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
+                  <div className={clsx('max-w-[85%] rounded-2xl px-4 py-2 text-sm', m.role === 'user' ? 'bg-blue text-white' : 'bg-white/10 text-foreground')}>
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <div className="p-4 border-t border-white/5 bg-white/2">
+              <div className="flex items-center gap-2 bg-white/5 rounded-2xl px-4 py-2 border border-white/5">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask Tend anything..."
+                  className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-text-secondary"
+                />
+                <button onClick={handleSend} disabled={!input.trim()} className="text-blue disabled:opacity-30">
+                  <Send size={18} />
                 </button>
               </div>
             </div>
-
-            {/* ── Mode A: Subtle Scanner ─────────────────────────── */}
-            {mode === 'scanner' && (
-              <div className="p-4 space-y-2">
-                <p className="text-xs text-text-secondary text-center pb-1">
-                  Choose how to add or update inventory items
-                </p>
-
-                {SCANNER_ACTIONS.map(({ icon: Icon, label, description, color, bg }, idx) => (
-                  <button
-                    key={label}
-                    onClick={MODAL_OPENERS[idx]}
-                    className="w-full flex items-center gap-3 p-3.5 rounded-xl hover:bg-white/6 transition-all group text-left"
-                    style={{ border: '1px solid var(--glass-border)' }}
-                  >
-                    <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors', bg)}>
-                      <Icon size={18} className={color} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-foreground">{label}</div>
-                      <div className="text-xs text-text-secondary truncate">{description}</div>
-                    </div>
-                    <ChevronRight
-                      size={14}
-                      className="text-text-secondary flex-shrink-0 group-hover:translate-x-0.5 transition-transform"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* ── Mode B: Conversational Chat ────────────────────── */}
-            {mode === 'chat' && (
-              <div className="flex flex-col" style={{ height: '22rem' }}>
-
-                {/* Message list */}
-                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
-                  {messages.length === 0 && (
-                    <div className="h-full flex flex-col items-center justify-center text-center gap-2 text-text-secondary select-none">
-                      <MessageSquare size={30} className="opacity-20" />
-                      <p className="text-xs leading-relaxed">
-                        Ask about your inventory, request restocks,<br />
-                        or drop an image to analyze
-                      </p>
-                    </div>
-                  )}
-
-                  {messages.map(msg => (
-                    <div
-                      key={msg.id}
-                      className={clsx('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}
-                    >
-                      <div
-                        className={clsx(
-                          'max-w-[75%] px-3 py-2 rounded-2xl text-sm leading-relaxed',
-                          msg.role === 'user'
-                            ? 'bg-blue text-white rounded-br-sm'
-                            : 'text-foreground rounded-bl-sm'
-                        )}
-                        style={
-                          msg.role === 'assistant'
-                            ? { background: 'rgba(255,255,255,0.08)', border: '1px solid var(--glass-border)' }
-                            : undefined
-                        }
-                      >
-                        {msg.content}
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Input bar with file drop */}
-                <div
-                  className={clsx(
-                    'px-3 pb-3 pt-2 border-t transition-colors duration-150',
-                    isDragging && 'bg-blue/6'
-                  )}
-                  style={{ borderColor: 'var(--glass-border)' }}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  {isDragging && (
-                    <div className="flex items-center justify-center gap-1.5 text-xs text-blue pb-2">
-                      <Upload size={13} />
-                      Drop image to analyze
-                    </div>
-                  )}
-
-                  <div
-                    className="flex items-center gap-2 rounded-xl px-3 py-2"
-                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)' }}
-                  >
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-text-secondary hover:text-foreground transition-colors flex-shrink-0"
-                      aria-label="Attach image"
-                    >
-                      <Upload size={15} />
-                    </button>
-
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                    />
-
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      value={input}
-                      onChange={e => setInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Ask about your inventory…"
-                      className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-text-secondary min-w-0"
-                    />
-
-                    <button
-                      onClick={handleSend}
-                      disabled={!input.trim()}
-                      className="flex-shrink-0 text-blue disabled:opacity-25 hover:opacity-80 transition-opacity"
-                      aria-label="Send message"
-                    >
-                      <Send size={15} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
-        </div>
-      )}
-
-      {/* ── Scanner modals — rendered outside the dialog overlay ───── */}
-      <CameraInventoryModal
-        visible={cameraOpen}
-        householdId={householdId}
-        onClose={() => setCameraOpen(false)}
-      />
-      <BarcodeScanModal
-        visible={barcodeOpen}
-        onClose={() => setBarcodeOpen(false)}
-        onScan={handleBarcodeScan}
-      />
-      <ReceiptScanModal
-        visible={receiptOpen}
-        householdId={householdId}
-        onClose={() => setReceiptOpen(false)}
-      />
-    </>
+        )}
+      </div>
+    </div>
   );
 }

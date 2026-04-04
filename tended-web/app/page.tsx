@@ -20,6 +20,9 @@ import {
 } from '@/hooks/queries';
 import { useRealtimeHousehold } from '@/hooks/useRealtimeHousehold';
 import AIDialog from '@/components/AIDialog';
+import BarcodeScanModal from '@/components/BarcodeScanModal';
+import ReceiptScanModal from '@/components/ReceiptScanModal';
+import CameraInventoryModal from '@/components/CameraInventoryModal';
 import { parseItem } from '@/utils/nlpParser';
 import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
 
@@ -84,7 +87,9 @@ export default function DashboardPage() {
   const householdId = profile?.household_id ?? '';
   const now = new Date();
   const [aiOpen, setAiOpen] = useState(false);
-  const [aiAction, setAiAction] = useState<'camera' | 'barcode' | 'receipt' | null>(null);
+  const [cameraOpen, setCameraOpen]   = useState(false);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   // Quick Add state
   const [quickAdd, setQuickAdd] = useState('');
@@ -517,17 +522,14 @@ export default function DashboardPage() {
 
               <div className="relative mt-5 flex flex-wrap gap-2">
                 {[
-                  { label: 'Scan pantry with camera', action: 'camera' as const },
-                  { label: 'Scan a barcode', action: 'barcode' as const },
-                  { label: 'Upload receipt', action: 'receipt' as const },
-                  { label: 'Chat with AI', action: null },
+                  { label: 'Scan pantry with camera', action: () => setCameraOpen(true) },
+                  { label: 'Scan a barcode', action: () => setBarcodeOpen(true) },
+                  { label: 'Upload receipt', action: () => setReceiptOpen(true) },
+                  { label: 'Chat with AI', action: () => setAiOpen(true) },
                 ].map(({ label, action }) => (
                   <button
                     key={label}
-                    onClick={() => {
-                      setAiAction(action);
-                      setAiOpen(true);
-                    }}
+                    onClick={action}
                     className="text-xs px-3 py-1.5 rounded-full text-text-secondary hover:text-blue transition-all"
                     style={{ border: '1px solid var(--glass-border)' }}
                   >
@@ -542,11 +544,30 @@ export default function DashboardPage() {
 
       <AIDialog 
         open={aiOpen} 
-        onClose={() => {
-          setAiOpen(false);
-          setAiAction(null);
-        }} 
-        initialAction={aiAction}
+        onClose={() => setAiOpen(false)} 
+        onTriggerScanner={(type) => {
+          if (type === 'camera') setCameraOpen(true);
+          else if (type === 'barcode') setBarcodeOpen(true);
+          else if (type === 'receipt') setReceiptOpen(true);
+        }}
+      />
+
+      <CameraInventoryModal
+        visible={cameraOpen}
+        householdId={householdId}
+        onClose={() => setCameraOpen(false)}
+      />
+
+      <BarcodeScanModal
+        visible={barcodeOpen}
+        onScan={(code) => console.log('[Dashboard] Scanned barcode:', code)}
+        onClose={() => setBarcodeOpen(false)}
+      />
+
+      <ReceiptScanModal
+        visible={receiptOpen}
+        householdId={householdId}
+        onClose={() => setReceiptOpen(false)}
       />
     </div>
   );
