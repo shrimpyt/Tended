@@ -78,9 +78,14 @@ export default function SignInPage() {
           </button>
         </form>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 text-center space-y-3">
           <p className="text-sm text-text-secondary">
-            Don't have an account?{' '}
+            <Link href="/forgot-password" className="text-primary-blue font-medium hover:underline">
+              Forgot password?
+            </Link>
+          </p>
+          <p className="text-sm text-text-secondary">
+            Don&#39;t have an account?{' '}
             <Link href="/sign-up" className="text-primary-blue font-medium hover:underline">
               Sign up
             </Link>

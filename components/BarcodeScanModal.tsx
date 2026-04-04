@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/library';
-import { X, Camera } from 'lucide-react';
+import { X, Camera, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onScan: (barcode: string) => void;
+  onScan: (barcode: string) => Promise<boolean>;
 }
 
 export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
@@ -16,18 +16,30 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasCamera, setHasCamera] = useState<boolean>(true);
+  const [status, setStatus] = useState<'scanning' | 'loading' | 'success' | 'error'>('scanning');
+  const statusRef = useRef(status);
+  const [statusMessage, setStatusMessage] = useState<string>('');
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   // Initialize Scanner when modal opens
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      // Defer resetting status
+      return;
+    }
 
     const codeReader = new BrowserMultiFormatReader();
     readerRef.current = codeReader;
 
     // Camera requires a secure context on most browsers
     if (!window.isSecureContext) {
-      setHasCamera(false);
-      setError('Camera requires a secure (HTTPS) connection.');
+      setTimeout(() => {
+        setHasCamera(false);
+        setError('Camera requires a secure (HTTPS) connection.');
+      }, 0);
       return;
     }
 
@@ -57,13 +69,31 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
 
         if (videoRef.current) {
           console.log('[BarcodeScanModal] Starting decode from device:', selectedDeviceId);
-          codeReader.decodeFromVideoDevice(selectedDeviceId, videoRef.current, (result, err) => {
-            if (result) {
+          codeReader.decodeFromVideoDevice(selectedDeviceId, videoRef.current, async (result, err) => {
+            // Only process if we are currently in scanning state
+            if (result && statusRef.current === 'scanning') {
               console.log('[BarcodeScanModal] Scan success:', result.getText());
-              onScan(result.getText());
-              // Auto-stop after successful scan
-              codeReader.reset();
-              onClose();
+              codeReader.reset(); // Stop scanning
+
+              setStatus('loading');
+              setStatusMessage('Identifying product...');
+
+              try {
+                const success = await onScan(result.getText());
+                if (success) {
+                  setStatus('success');
+                  setStatusMessage('Product added successfully!');
+                  setTimeout(() => onClose(), 1500);
+                } else {
+                  setStatus('error');
+                  setStatusMessage('Product not found.');
+                  setTimeout(() => setStatus('scanning'), 2500);
+                }
+              } catch (scanErr) {
+                setStatus('error');
+                setStatusMessage('Failed to add product.');
+                setTimeout(() => setStatus('scanning'), 2500);
+              }
             }
             if (err && !(err.name === 'NotFoundException')) {
               // Only log real errors, not the "no barcode found in this frame" exception
@@ -119,15 +149,44 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
           <>
             <video 
               ref={videoRef}
-              className="absolute inset-0 w-full h-full object-cover"
+              className={`absolute inset-0 w-full h-full object-cover ${status !== 'scanning' ? 'opacity-30' : ''}`}
               autoPlay
               playsInline
               muted
             />
-            {/* Scan guides overlay */}
-            <div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none z-10" />
-            <div className="absolute inset-x-12 inset-y-32 border-2 border-white/50 rounded-xl pointer-events-none z-10" />
-            <div className="absolute w-full h-0.5 bg-red-500/50 pointer-events-none z-10 top-1/2 -translate-y-1/2" />
+
+            {status === 'scanning' && (
+              <>
+                {/* Scan guides overlay */}
+                <div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none z-10" />
+                <div className="absolute inset-x-12 inset-y-32 border-2 border-white/50 rounded-xl pointer-events-none z-10" />
+                <div className="absolute w-full h-0.5 bg-red-500/50 pointer-events-none z-10 top-1/2 -translate-y-1/2 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+              </>
+            )}
+
+            {status !== 'scanning' && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-black/60 backdrop-blur-sm text-white">
+                {status === 'loading' && (
+                  <>
+                    <Loader2 size={48} className="animate-spin text-primary-blue mb-4" />
+                    <p className="text-lg font-medium">{statusMessage}</p>
+                  </>
+                )}
+                {status === 'success' && (
+                  <>
+                    <CheckCircle2 size={56} className="text-green-500 mb-4" />
+                    <p className="text-lg font-medium text-center">{statusMessage}</p>
+                  </>
+                )}
+                {status === 'error' && (
+                  <>
+                    <AlertCircle size={56} className="text-red-500 mb-4" />
+                    <p className="text-lg font-medium text-center">{statusMessage}</p>
+                    <p className="text-sm opacity-70 mt-2">Retrying shortly...</p>
+                  </>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -135,10 +194,10 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
       {/* Footer / Instructions */}
       <div className="bg-surface-elevated p-6 pb-8 border-t border-border">
         <p className="text-center text-text-primary font-medium tracking-wide">
-          Center the barcode in the frame
+          {status === 'scanning' ? 'Center the barcode in the frame' : statusMessage}
         </p>
         <p className="text-center text-text-secondary text-sm mt-1">
-          It will scan automatically when focused
+          {status === 'scanning' ? 'It will scan automatically when focused' : 'Please wait...'}
         </p>
       </div>
     </div>

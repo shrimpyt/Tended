@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
 import { X, Upload, Camera, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { Item } from '@/types/models';
+import { compressImage } from '@/utils/imageCompressor';
 
 interface FoundItem {
   name: string;
@@ -32,7 +33,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
   const [saving, setSaving] = useState(false);
   const [errorText, setErrorText] = useState('');
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) {
       console.log('[CameraInventoryModal] No files selected');
       return;
@@ -41,40 +42,79 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
     console.log('[CameraInventoryModal] File selected:', file.name, file.size, file.type);
     const uri = URL.createObjectURL(file);
     setImageUri(uri);
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64Str = (reader.result as string).split(',')[1];
-      console.log('[CameraInventoryModal] Image read as base64, starting processImage');
-      processImage(base64Str);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const processImage = async (base64: string) => {
     setStep('processing');
     setErrorText('');
 
     try {
+      console.log('[CameraInventoryModal] Compressing image...');
+      const base64Str = await compressImage(file, 1); // target 1MB
+      console.log('[CameraInventoryModal] Image compressed, starting processImage');
+      processImage(base64Str);
+    } catch (err) {
+      console.error('[CameraInventoryModal] Image compression error:', err);
+      setErrorText('Failed to process image file. Please try another.');
+      setStep('pick');
+    }
+  };
+
+  const processImage = async (base64: string) => {
+    try {
+      console.log('[CameraInventoryModal] Invoking analyze-image function...');
       const { data, error } = await supabase.functions.invoke('analyze-image', {
         body: { action: 'inventory', image: base64 },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[CameraInventoryModal] Supabase function error:', error);
+        let errorMessage = error.message || 'Error invoking Supabase edge function';
+        // Attempt to extract the inner JSON error if available
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errBody = await error.context.json();
+            if (errBody && errBody.error) {
+              errorMessage = errBody.error;
+            }
+          } catch {
+            // ignore JSON parse error
+          }
+        }
+        throw new Error(errorMessage);
+      }
 
-      if (data && data.items) {
-        const enrichedItems = data.items.map((item: any) => {
+      console.log('[CameraInventoryModal] Response data:', data);
+
+      let parsedData = data;
+      if (typeof data === 'string') {
+        try {
+          // Strip potential markdown code blocks like ```json ... ```
+          let cleanData = data.trim();
+          if (cleanData.startsWith('```')) {
+            cleanData = cleanData.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+          }
+          parsedData = JSON.parse(cleanData);
+        } catch (e) {
+          console.error('[CameraInventoryModal] Failed to parse JSON response:', e);
+          throw new Error('Invalid JSON response from AI');
+        }
+      }
+
+      if (parsedData && parsedData.items && Array.isArray(parsedData.items)) {
+        console.log(`[CameraInventoryModal] Successfully parsed ${parsedData.items.length} items`);
+        const enrichedItems = parsedData.items.map((item: {name: string, quantity: number, unit?: string, category: string}) => {
           const match = fuzzyMatchInventory(item.name, inventoryItems);
           return { ...item, matched_item: match };
         });
         setFoundItems(enrichedItems);
+        setStep('review');
       } else {
+        console.warn('[CameraInventoryModal] No items array found in parsed data:', parsedData);
         setErrorText('Could not detect items. Please try a clearer photo.');
+        setStep('pick');
       }
-      setStep('review');
-    } catch (err) {
-      console.error(err);
-      setErrorText('Failed to analyze pantry.');
+    } catch (err: unknown) {
+      console.error('[CameraInventoryModal] processImage catch block error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error occurred.';
+      setErrorText(`Failed to analyze pantry: ${msg}`);
       setStep('pick');
     }
   };
@@ -157,6 +197,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
         {step === 'processing' && (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
             {imageUri && (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img src={imageUri} alt="pantry" className="w-64 max-h-64 object-contain opacity-50 mb-8 rounded-lg shadow-sm" />
             )}
             <Loader2 className="animate-spin text-primary-blue mb-4" size={40} />

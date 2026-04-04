@@ -86,7 +86,7 @@ export default function ShoppingListPage() {
                     </button>
                   </div>
                 )) : (
-                  <div className="p-8 text-center text-text-secondary">You're all caught up!</div>
+                  <div className="p-8 text-center text-text-secondary">You&#39;re all caught up!</div>
                 )}
               </div>
             </div>

@@ -1,25 +1,35 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Package, ShoppingCart, Trash2, Sparkles } from 'lucide-react';
+import { Home, Package, ShoppingCart, Trash2, ChefHat, Settings } from 'lucide-react';
+import Image from 'next/image';
 import { clsx } from 'clsx';
-
-const NAV_ITEMS = [
-  { href: '/',              icon: Home,         label: 'Dashboard' },
-  { href: '/inventory',     icon: Package,      label: 'Inventory'  },
-  { href: '/shopping-list', icon: ShoppingCart, label: 'Shopping'   },
-  { href: '/graveyard',     icon: Trash2,       label: 'Graveyard'  },
-] as const;
+import { useAuthStore } from '@/store/authStore';
 
 // Routes that should not render the navigation shell
-const AUTH_ROUTES = new Set(['/sign-in', '/sign-up', '/household']);
+const HIDDEN_ROUTES = new Set([
+  '/', '/sign-in', '/sign-up', '/forgot-password',
+  '/household', '/onboarding', '/landing', '/design-lab',
+]);
 
 export default function NavShell() {
   const pathname = usePathname();
+  const { profile } = useAuthStore();
+  const isRestricted = profile?.role === 'restricted';
 
-  if (AUTH_ROUTES.has(pathname)) return null;
+  if (HIDDEN_ROUTES.has(pathname)) return null;
+
+  const NAV_ITEMS = [
+    { href: '/dashboard',     icon: Home,         label: 'Dashboard' },
+    { href: '/inventory',     icon: Package,      label: 'Inventory'  },
+    { href: '/shopping-list', icon: ShoppingCart, label: 'Shopping'   },
+    ...(!isRestricted ? [
+      { href: '/meals',     icon: ChefHat, label: 'Meals'     },
+      { href: '/graveyard', icon: Trash2,  label: 'Graveyard' },
+    ] : []),
+    { href: '/settings', icon: Settings, label: 'Settings' },
+  ] as const;
 
   return (
     <>
@@ -35,8 +45,14 @@ export default function NavShell() {
         }}
       >
         {/* Logo mark */}
-        <div className="w-9 h-9 rounded-xl bg-blue/15 flex items-center justify-center mb-5 flex-shrink-0">
-          <Sparkles size={15} className="text-blue" />
+        <div className="w-10 h-10 mb-6 flex items-center justify-center flex-shrink-0">
+          <Image
+            src="/icons/icon.svg"
+            alt="Tended Logo"
+            width={32}
+            height={32}
+            className="w-8 h-8 select-none"
+          />
         </div>
 
         <div className="flex flex-col items-center gap-1 w-full px-2">
@@ -50,7 +66,7 @@ export default function NavShell() {
                 className={clsx(
                   'w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-150',
                   active
-                    ? 'bg-blue/20 text-blue'
+                    ? 'bg-primary/20 text-primary'
                     : 'text-text-secondary hover:text-foreground hover:bg-white/5'
                 )}
               >
@@ -80,9 +96,9 @@ export default function NavShell() {
               key={href}
               href={href}
               className={clsx(
-                'flex flex-col items-center gap-0.5 px-5 py-2 rounded-xl transition-all duration-150',
+                'flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-150',
                 active
-                  ? 'text-blue'
+                  ? 'text-primary'
                   : 'text-text-secondary hover:text-foreground'
               )}
             >

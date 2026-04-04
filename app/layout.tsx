@@ -5,6 +5,7 @@ import ClientProvider from "@/components/ClientProvider";
 import NavShell from "@/components/NavShell";
 import { cn } from "@/lib/utils";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -49,6 +50,7 @@ export default function RootLayout({
           </div>
         </ClientProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
