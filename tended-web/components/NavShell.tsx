@@ -26,7 +26,6 @@ export default function NavShell() {
     { href: '/shopping-list', icon: ShoppingCart, label: 'Shopping'   },
     ...(!isRestricted ? [
       { href: '/meals',     icon: ChefHat, label: 'Meals'     },
-      { href: '/graveyard', icon: Trash2,  label: 'Graveyard' },
     ] : []),
     { href: '/settings', icon: Settings, label: 'Settings' },
   ] as const;
@@ -80,7 +79,7 @@ export default function NavShell() {
       {/* ── Mobile: floating bottom bar ──────────────────────────── */}
       <nav
         aria-label="Main navigation"
-        className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center justify-between px-4 py-2 rounded-full w-[90%] max-w-sm"
+        className="md:hidden fixed bottom-6 left-0 right-0 mx-auto z-40 flex items-center justify-between px-4 py-2 rounded-full w-[90%] max-w-sm"
         style={{
           background: 'rgba(24, 24, 27, 0.8)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
