@@ -76,8 +76,12 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
   const processImage = async (base64: string) => {
     try {
       console.log('[ReceiptScanModal] Invoking analyze-image function...');
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
       const { data, error } = await supabase.functions.invoke('analyze-image', {
         body: { action: 'receipt', image: base64 },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
       if (error) {
