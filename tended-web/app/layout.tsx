@@ -4,6 +4,7 @@ import "./globals.css";
 import ClientProvider from "@/components/ClientProvider";
 import NavShell from "@/components/NavShell";
 import { cn } from "@/lib/utils";
+import { Analytics } from "@vercel/analytics/next";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -47,6 +48,7 @@ export default function RootLayout({
             {children}
           </div>
         </ClientProvider>
+        <Analytics />
       </body>
     </html>
   );
