@@ -119,7 +119,7 @@ export default function InventoryScreen() {
       : null;
 
   const visibleItems = allowedCategories
-    ? items.filter(item => item.category && allowedCategories.includes(item.category))
+    ? items.filter(item => allowedCategories.includes(item.category))
     : items;
 
   const filterCategories: FilterCategory[] = ['All', ...getUniqueCategories(visibleItems)];
