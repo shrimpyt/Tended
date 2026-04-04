@@ -127,7 +127,7 @@ export default function DashboardScreen() {
   }, [entries, thisWeek, lastWeek]);
 
   const lowStockItems = useMemo(
-    () => items.filter(i => i.stock_level < i.threshold),
+    () => items.filter(i => (i.quantity / i.max_quantity) * 100 < (i.threshold / i.max_quantity) * 100),
     [items],
   );
 
@@ -261,11 +261,11 @@ export default function DashboardScreen() {
                       <Text
                         style={[
                           styles.alertLevel,
-                          {color: item.stock_level === 0 ? Colors.red : Colors.amber},
+                          {color: item.quantity === 0 ? Colors.red : Colors.amber},
                         ]}>
-                        {item.stock_level === 0 ? 'Out' : `${item.stock_level}%`}
+                        {item.quantity === 0 ? 'Out' : `${Math.round((item.quantity / item.max_quantity) * 100)}%`}
                       </Text>
-                      <StockBar stockLevel={item.stock_level} threshold={item.threshold} />
+                      <StockBar stockLevel={Math.round((item.quantity / item.max_quantity) * 100)} threshold={Math.round((item.threshold / item.max_quantity) * 100)} />
                     </View>
                   </View>
                   {idx < lowStockItems.length - 1 && <View style={styles.separator} />}

@@ -210,7 +210,7 @@ export default function SpendingScreen() {
     }
 
     if (item.type === 'empty') {
-      return <Text style={styles.emptyText}>No entries this month. Tap + to add one.</Text>;
+      return <Text style={styles.emptyText}>No entries this month. Tap Add Manually to add one.</Text>;
     }
 
     if (item.type === 'entry') {
@@ -275,18 +275,18 @@ export default function SpendingScreen() {
       {/* Action buttons */}
       <View style={[styles.actionRow, {paddingBottom: insets.bottom + 90}]}>
         <TouchableOpacity
-          style={styles.actionBtn}
+          style={[styles.actionBtn, styles.actionBtnPrimary]}
           activeOpacity={0.8}
           onPress={() => setShowAddModal(true)}>
-          <Text style={styles.actionBtnIcon}>✏️</Text>
-          <Text style={styles.actionBtnText}>Add Manually</Text>
+          <Text style={styles.actionBtnIcon}>+</Text>
+          <Text style={[styles.actionBtnText, styles.actionBtnTextPrimary]}>Add Manually</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionBtn, styles.actionBtnPrimary]}
+          style={styles.actionBtn}
           activeOpacity={0.8}
           onPress={() => setShowScanModal(true)}>
           <Text style={styles.actionBtnIcon}>📷</Text>
-          <Text style={[styles.actionBtnText, styles.actionBtnTextPrimary]}>Scan Receipt</Text>
+          <Text style={styles.actionBtnText}>Scan Receipt</Text>
         </TouchableOpacity>
       </View>
 

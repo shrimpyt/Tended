@@ -155,8 +155,9 @@ export default function Dashboard() {
          household_id: householdId,
          name,
          category,
-         stock_level: 100,
-         threshold: 20,
+         quantity: 1,
+         max_quantity: 1,
+         threshold: 0.2,
       });
 
       await supabase.from('inbox_scans').update({ status: 'parsed' }).eq('id', id);

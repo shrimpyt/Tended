@@ -253,7 +253,7 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
 
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose}>
+            <TouchableOpacity onPress={handleClose} hitSlop={{top: 15, bottom: 15, left: 15, right: 15}}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Scan Receipt</Text>
