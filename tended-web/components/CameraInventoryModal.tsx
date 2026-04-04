@@ -66,7 +66,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
 
       if (error) {
         console.error('[CameraInventoryModal] Supabase function error:', error);
-        throw error;
+        throw new Error(error.message || 'Error invoking Supabase edge function');
       }
 
       console.log('[CameraInventoryModal] Response data:', data);
@@ -99,9 +99,10 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
         setErrorText('Could not detect items. Please try a clearer photo.');
         setStep('pick');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[CameraInventoryModal] processImage catch block error:', err);
-      setErrorText('Failed to analyze pantry. Please try again.');
+      const msg = err?.message || 'Unknown error occurred.';
+      setErrorText(`Failed to analyze pantry: ${msg}`);
       setStep('pick');
     }
   };
