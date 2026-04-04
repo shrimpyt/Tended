@@ -21,6 +21,7 @@ interface RestockProposal {
   inventoryItem?: Item;
   newItemName?: string;
   newItemCategory?: string;
+  newItemUnit?: string;
   addQuantity: number;
   approved: boolean;
 }
@@ -161,12 +162,13 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
       }
 
       // 2. Prepare Inventory Matches (propose all for restock/add)
-      const proposals: RestockProposal[] = lineItems.map(li => {
+      const proposals: RestockProposal[] = lineItems.map((li: any) => {
         const match = fuzzyMatchInventory(li.item, inventoryItems);
         return {
           inventoryItem: match as Item | undefined,
           newItemName: li.item,
           newItemCategory: li.category,
+          newItemUnit: li.unit || 'pc',
           addQuantity: 1, // Default restock/add qty
           approved: true // Default to adding all, user can opt out
         };
@@ -216,7 +218,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
             quantity: proposal.addQuantity,
             max_quantity: 1, // Deprecated but required by DB constraints for now
             threshold: 0,
-            unit: 'pc'
+            unit: proposal.newItemUnit || 'pc'
           }
         });
       }

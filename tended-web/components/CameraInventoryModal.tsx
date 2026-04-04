@@ -13,6 +13,7 @@ interface FoundItem {
   name: string;
   category: string;
   stock_level: number; // 0-100
+  unit?: string;
   matched_item?: Item;
 }
 
@@ -95,9 +96,9 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
 
       if (parsedData && parsedData.items && Array.isArray(parsedData.items)) {
         console.log(`[CameraInventoryModal] Successfully parsed ${parsedData.items.length} items`);
-        const enrichedItems = parsedData.items.map((item: {name: string, quantity: number, unit?: string, category: string}) => {
+        const enrichedItems = parsedData.items.map((item: {name: string, quantity: number, stock_level?: number, unit?: string, category: string}) => {
           const match = fuzzyMatchInventory(item.name, inventoryItems);
-          return { ...item, matched_item: match };
+          return { ...item, stock_level: item.stock_level ?? 50, matched_item: match };
         });
         setFoundItems(enrichedItems);
         setStep('review');
@@ -142,7 +143,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
               quantity: 1, // Default 1 for new visual items
               max_quantity: 1,
               threshold: 0,
-              unit: 'pc'
+              unit: item.unit || 'pc'
             },
           });
         }

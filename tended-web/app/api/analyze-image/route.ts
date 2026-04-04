@@ -33,19 +33,19 @@ export async function POST(req: Request) {
     const formattedImageUrl = image ? (image.startsWith('data:image/') ? image : `data:image/jpeg;base64,${image.replace(/[\n\r]/g, '')}`) : '';
 
     if (action === 'receipt') {
-      systemMessage = `You are an expert receipt parser. Extract all purchased items. Respond ONLY in JSON strictly matching this schema: {"items": [{"item": "Milk", "amount": "4.99", "category": "Groceries"}]}. Valid categories: Groceries, Cleaning, Pantry, Personal care. Do NOT include currency symbols like $. The amount must be a string containing only numbers and a decimal.`;
+      systemMessage = `You are an expert receipt parser. Extract all purchased items. Respond ONLY in JSON strictly matching this schema: {"items": [{"item": "Milk", "amount": "4.99", "category": "Groceries", "unit": "gal"}]}. Valid categories: Groceries, Cleaning, Pantry, Personal care. For "unit", guess the most accurate standard unit for the item (e.g., "oz", "fl oz", "gal", "lb", "g", "L", "pc", "box", "roll"). Do not default to "pc" unless it is genuinely a single discrete item like an apple or a sponge. Do NOT include currency symbols like $. The amount must be a string containing only numbers and a decimal.`;
       userContent = [
         { type: "text", text: "Please process this receipt image." },
         { type: "image_url", image_url: { url: formattedImageUrl, detail: "high" } }
       ];
     } else if (action === 'inventory' || action === 'room') {
-      systemMessage = `You are an expert home inventory assistant. Identify clearly visible household items in this image. Respond ONLY in JSON strictly matching this schema: {"items": [{"name": "Dish Soap", "category": "Cleaning", "stock_level": 50}]}. Valid categories: Kitchen, Cleaning, Pantry, Bathroom. For stock_level, visually estimate how full the container/package is as an integer from 10 (nearly empty) to 100 (completely full). Use 50 if you cannot clearly tell.`;
+      systemMessage = `You are an expert home inventory assistant. Identify clearly visible household items in this image. Respond ONLY in JSON strictly matching this schema: {"items": [{"name": "Dish Soap", "category": "Cleaning", "stock_level": 50, "unit": "fl oz"}]}. Valid categories: Kitchen, Cleaning, Pantry, Bathroom. For stock_level, visually estimate how full the container/package is as an integer from 10 (nearly empty) to 100 (completely full). Use 50 if you cannot clearly tell. For "unit", guess the most accurate standard unit for the item (e.g., "oz", "fl oz", "lb", "g", "L", "pc", "box", "roll"). Do not default to "pc" unless it is a single discrete item.`;
       userContent = [
         { type: "text", text: "Please process this pantry/shelf image." },
         { type: "image_url", image_url: { url: formattedImageUrl, detail: "high" } }
       ];
     } else if (action === 'barcode') {
-      systemMessage = `You are a product database expert. Given a barcode number, identify the product name and its category. Respond ONLY in JSON strictly matching this schema: {"name": "Product Name", "category": "Pantry"}. Valid categories: Pantry, Cleaning, Fridge, Bathroom, Other. If you are unsure, provide a best guess based on common product codes. Barcode: ${barcode}`;
+      systemMessage = `You are a product database expert. Given a barcode number, identify the product name, its category, and its standard unit. Respond ONLY in JSON strictly matching this schema: {"name": "Product Name", "category": "Pantry", "unit": "oz"}. Valid categories: Pantry, Cleaning, Fridge, Bathroom, Other. For "unit", guess the most accurate standard unit (e.g., "oz", "fl oz", "lb", "g", "L", "pc", "box", "roll"). Barcode: ${barcode}`;
       userContent = [{ type: "text", text: `Identify this barcode: ${barcode}` }];
     } else {
       return NextResponse.json({ error: "Invalid action type" }, { status: 400 });

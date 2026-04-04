@@ -215,7 +215,7 @@ export default function Dashboard() {
             name: name,
             category: mapOFFCategory(p.categories),
             quantity: 1,
-            unit: parseUnit(p.quantity) || 'pc',
+              unit: parseUnit(p.quantity),
             max_quantity: 1,
             threshold: 1,
           }

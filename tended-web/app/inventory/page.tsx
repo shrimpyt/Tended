@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { useInventory, useAddInventoryItem, useDeleteInventoryItem } from '@/hooks/queries';
+import { useInventory, useAddInventoryItem, useDeleteInventoryItem, useUpdateQuantity } from '@/hooks/queries';
 import Link from 'next/link';
-import { Zap, Plus, X, Edit, Trash2 } from 'lucide-react';
+import { Zap, Plus, X, Edit, Trash2, ClipboardList } from 'lucide-react';
 import AIDialog from '@/components/AIDialog';
 import BarcodeScanModal from '@/components/BarcodeScanModal';
 import ReceiptScanModal from '@/components/ReceiptScanModal';
@@ -96,8 +96,12 @@ export default function InventoryPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  // Quick Take Inventory State
+  const [isTakeInventoryOpen, setIsTakeInventoryOpen] = useState(false);
+
   const { mutateAsync: addItem } = useAddInventoryItem();
   const { mutateAsync: deleteItem } = useDeleteInventoryItem();
+  const { mutate: updateQuantity } = useUpdateQuantity();
 
   const handleBarcodeScan = async (code: string): Promise<boolean> => {
     try {
@@ -128,7 +132,7 @@ export default function InventoryPage() {
             name: name,
             category: mapOFFCategory(p.categories),
             quantity: 1,
-            unit: parseUnit(p.quantity) || 'pc',
+              unit: parseUnit(p.quantity),
             max_quantity: 1,
             threshold: 1,
           }
@@ -218,6 +222,10 @@ export default function InventoryPage() {
           <div className="font-bold text-xl text-text-primary tracking-tight">Inventory</div>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setIsTakeInventoryOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text-primary rounded-md text-sm font-medium hover:bg-white/5 transition-colors">
+            <ClipboardList size={16} />
+            <span className="hidden sm:inline">Take Inventory</span>
+          </button>
           <button onClick={openManualAdd} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text-primary rounded-md text-sm font-medium hover:bg-white/5 transition-colors">
             <Plus size={16} />
             <span className="hidden sm:inline">Add Item</span>
@@ -404,6 +412,63 @@ export default function InventoryPage() {
           </div>
         </div>
       )}
+      {/* Quick Take Inventory Modal */}
+      {isTakeInventoryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-surface-elevated rounded-xl p-6 w-full max-w-lg max-h-[85vh] border border-border relative flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-text-primary">Take Inventory</h2>
+                <p className="text-sm text-text-secondary mt-1">Quickly update your current stock levels.</p>
+              </div>
+              <button
+                onClick={() => setIsTakeInventoryOpen(false)}
+                className="p-2 text-text-secondary hover:text-text-primary rounded-full hover:bg-surface transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+              {items.map(item => (
+                <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface">
+                  <div className="flex-1 min-w-0 pr-4">
+                    <p className="font-semibold text-text-primary text-sm truncate">{item.name}</p>
+                    <p className="text-xs text-text-secondary truncate">{item.category}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => updateQuantity({ itemId: item.id, userId: profile?.id ?? '', oldQuantity: item.quantity, newQuantity: item.quantity - 1, item })}
+                      className="w-8 h-8 flex items-center justify-center rounded-md bg-surface-elevated border border-border text-text-primary hover:bg-white/5 transition-colors"
+                    >
+                      -
+                    </button>
+                    <span className="w-12 text-center font-medium text-text-primary">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => updateQuantity({ itemId: item.id, userId: profile?.id ?? '', oldQuantity: item.quantity, newQuantity: item.quantity + 1, item })}
+                      className="w-8 h-8 flex items-center justify-center rounded-md bg-surface-elevated border border-border text-text-primary hover:bg-white/5 transition-colors"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-border">
+              <button
+                onClick={() => setIsTakeInventoryOpen(false)}
+                className="w-full py-3 bg-primary-blue text-white rounded-xl font-medium hover:bg-primary-blue/90 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
