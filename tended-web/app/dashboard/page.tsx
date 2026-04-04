@@ -83,6 +83,12 @@ export default function Dashboard() {
     queryClient.invalidateQueries({ queryKey: ['inventory'] });
   };
 
+  const handleUpdateName = async (item: any, newName: string) => {
+    if (!newName.trim()) return;
+    await supabase.from('items').update({ name: newName.trim() }).eq('id', item.id);
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+  };
+
   const handleDelete = async (itemId: string) => {
     if (confirm('Are you sure you want to delete this item?')) {
       await deleteItem(itemId);
