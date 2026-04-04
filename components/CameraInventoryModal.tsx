@@ -88,7 +88,16 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
 
       if (error) {
         console.error("Supabase Edge Function Error:", error);
-        throw new Error(error.message ?? 'Edge function failed');
+        let errorMessage = error.message ?? 'Edge function failed';
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errBody = await error.context.json();
+            if (errBody && errBody.error) {
+              errorMessage = errBody.error;
+            }
+          } catch (e) {}
+        }
+        throw new Error(errorMessage);
       }
 
       if (data && data.items) {
@@ -120,7 +129,9 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
     }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 0.4,
+      allowsEditing: true,
+      aspect: [4, 3],
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
@@ -131,7 +142,9 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
   const handleChoosePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 0.4,
+      allowsEditing: true,
+      aspect: [4, 3],
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
