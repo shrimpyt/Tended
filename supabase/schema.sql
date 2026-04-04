@@ -26,9 +26,10 @@ create table public.items (
   id           uuid primary key default gen_random_uuid(),
   household_id uuid not null references public.households(id) on delete cascade,
   name         text not null,
-  category     text not null check (category in ('Kitchen', 'Cleaning', 'Pantry', 'Bathroom')),
-  stock_level  integer not null default 100 check (stock_level >= 0 and stock_level <= 100),
-  threshold    integer not null default 25 check (threshold >= 0 and threshold <= 100),
+  category     text,
+  quantity     float not null check (quantity >= 0),
+  max_quantity float not null check (max_quantity > 0) check (quantity <= max_quantity),
+  threshold    float not null default 0.2 check (threshold >= 0),
   unit         text,
   barcode      text,
   photo_url    text,
@@ -39,8 +40,8 @@ create table public.items (
 create table public.stock_events (
   id          uuid primary key default gen_random_uuid(),
   item_id     uuid not null references public.items(id) on delete cascade,
-  old_level   integer not null check (old_level >= 0 and old_level <= 100),
-  new_level   integer not null check (new_level >= 0 and new_level <= 100),
+  old_quantity   float not null check (old_quantity >= 0),
+  new_quantity   float not null check (new_quantity >= 0),
   updated_by  uuid references public.profiles(id) on delete set null,
   updated_at  timestamptz not null default now()
 );
@@ -73,6 +74,15 @@ create table public.recipes (
   name         text not null,
   ingredients  jsonb not null default '[]'::jsonb,
   instructions text,
+  created_at   timestamptz not null default now()
+);
+
+create table public.inbox_scans (
+  id           uuid primary key default gen_random_uuid(),
+  household_id uuid not null references public.households(id) on delete cascade,
+  raw_barcode  text not null,
+  status       text not null default 'unparsed' check (status in ('unparsed', 'parsed', 'rejected')),
+  scanned_by   uuid references public.profiles(id) on delete set null,
   created_at   timestamptz not null default now()
 );
 
@@ -125,6 +135,7 @@ alter table public.stock_events    enable row level security;
 alter table public.shopping_list   enable row level security;
 alter table public.spending_entries enable row level security;
 alter table public.recipes         enable row level security;
+alter table public.inbox_scans     enable row level security;
 
 
 -- ============================================================
@@ -308,3 +319,40 @@ create policy "authenticated users can read recipes"
   on public.recipes for select
   to authenticated
   using (true);
+
+-- inbox_scans
+create policy "household members can read inbox scans"
+  on public.inbox_scans for select
+  using (
+    household_id in (
+      select household_id from public.profiles
+      where id = auth.uid() and household_id is not null
+    )
+  );
+
+create policy "household members can insert inbox scans"
+  on public.inbox_scans for insert
+  with check (
+    household_id in (
+      select household_id from public.profiles
+      where id = auth.uid() and household_id is not null
+    )
+  );
+
+create policy "household members can update inbox scans"
+  on public.inbox_scans for update
+  using (
+    household_id in (
+      select household_id from public.profiles
+      where id = auth.uid() and household_id is not null
+    )
+  );
+
+create policy "household members can delete inbox scans"
+  on public.inbox_scans for delete
+  using (
+    household_id in (
+      select household_id from public.profiles
+      where id = auth.uid() and household_id is not null
+    )
+  );

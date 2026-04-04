@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Package, ShoppingCart, Trash2, Sparkles } from 'lucide-react';
+import { Home, Package, ShoppingCart, Trash2, Sparkles, ChefHat } from 'lucide-react';
 import Image from 'next/image';
 
 import { clsx } from 'clsx';
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/',              icon: Home,         label: 'Dashboard' },
   { href: '/inventory',     icon: Package,      label: 'Inventory'  },
   { href: '/shopping-list', icon: ShoppingCart, label: 'Shopping'   },
+  { href: '/meals',         icon: ChefHat,      label: 'Meals'      },
   { href: '/graveyard',     icon: Trash2,       label: 'Graveyard'  },
 ] as const;
 
@@ -38,10 +39,10 @@ export default function NavShell() {
       >
         {/* Logo mark */}
         <div className="w-10 h-10 mb-6 flex items-center justify-center flex-shrink-0">
-          <Image 
-            src="/icons/icon.svg" 
-            alt="Tended Logo" 
-            width={32} 
+          <Image
+            src="/icons/icon.svg"
+            alt="Tended Logo"
+            width={32}
             height={32}
             className="w-8 h-8 select-none"
           />

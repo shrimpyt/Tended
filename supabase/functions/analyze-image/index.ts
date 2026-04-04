@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -40,17 +40,20 @@ Deno.serve(async (req) => {
     let systemMessage = "";
     let userContent: any[] = [];
 
+    // Determine image format (ensure it includes data URI prefix for OpenAI)
+    const formattedImageUrl = image ? (image.startsWith('data:image/') ? image : `data:image/jpeg;base64,${image.replace(/[\n\r]/g, '')}`) : '';
+
     if (action === 'receipt') {
       systemMessage = `You are an expert receipt parser. Extract all purchased items. Respond ONLY in JSON strictly matching this schema: {"items": [{"item": "Milk", "amount": "4.99", "category": "Groceries"}]}. Valid categories: Groceries, Cleaning, Pantry, Personal care. Do NOT include currency symbols like $. The amount must be a string containing only numbers and a decimal.`;
       userContent = [
         { type: "text", text: "Please process this receipt image." },
-        { type: "image_url", image_url: { url: `data:image/jpeg;base64,${image}`, detail: "high" } }
+        { type: "image_url", image_url: { url: formattedImageUrl, detail: "high" } }
       ];
     } else if (action === 'inventory' || action === 'room') {
       systemMessage = `You are an expert home inventory assistant. Identify clearly visible household items in this image. Respond ONLY in JSON strictly matching this schema: {"items": [{"name": "Dish Soap", "category": "Cleaning", "stock_level": 50}]}. Valid categories: Kitchen, Cleaning, Pantry, Bathroom. For stock_level, visually estimate how full the container/package is as an integer from 10 (nearly empty) to 100 (completely full). Use 50 if you cannot clearly tell.`;
       userContent = [
         { type: "text", text: "Please process this pantry/shelf image." },
-        { type: "image_url", image_url: { url: `data:image/jpeg;base64,${image}`, detail: "high" } }
+        { type: "image_url", image_url: { url: formattedImageUrl, detail: "high" } }
       ];
     } else if (action === 'barcode') {
       systemMessage = `You are a product database expert. Given a barcode number, identify the product name and its category. Respond ONLY in JSON strictly matching this schema: {"name": "Product Name", "category": "Pantry"}. Valid categories: Pantry, Cleaning, Fridge, Bathroom, Other. If you are unsure, provide a best guess based on common product codes. Barcode: ${barcode}`;

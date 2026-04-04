@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
 import {useAddSpendingEntry, useInventory, useRestockFromReceipt} from '../hooks/queries';
 import {SpendingCategory, NewSpendingEntry, Item} from '../types/models';
@@ -68,11 +69,13 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
     }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 0.4,
+      allowsEditing: true,
+      aspect: [3, 4],
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      processImage(result.assets[0].uri, result.assets[0].base64);
+      resizeAndProcess(result.assets[0].uri, result.assets[0].base64);
     }
   };
 
@@ -84,11 +87,27 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 0.4,
+      allowsEditing: true,
+      aspect: [3, 4],
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      processImage(result.assets[0].uri, result.assets[0].base64);
+      resizeAndProcess(result.assets[0].uri, result.assets[0].base64);
+    }
+  };
+
+  const resizeAndProcess = async (uri: string, originalBase64?: string | null) => {
+    try {
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 800 } }], // Compress width down to 800px max
+        { compress: 0.4, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      processImage(manipResult.uri, manipResult.base64);
+    } catch (e) {
+      console.error("Failed to manipulate receipt image:", e);
+      processImage(uri, originalBase64);
     }
   };
 
@@ -101,7 +120,19 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
         body: {action: 'receipt', image: base64},
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase Edge Function Error:", error);
+        let errorMessage = error.message ?? 'Edge function failed';
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errBody = await error.context.json();
+            if (errBody && errBody.error) {
+              errorMessage = errBody.error;
+            }
+          } catch (e) {}
+        }
+        throw new Error(errorMessage);
+      }
 
       if (data && data.items) {
         setLineItems(data.items);
@@ -110,8 +141,8 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
         setLineItems([]);
       }
       setStep('review');
-    } catch {
-      Alert.alert('Error', 'Failed to analyze receipt.');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to analyze receipt.');
       setStep('pick');
     }
   };
@@ -222,7 +253,7 @@ export default function ReceiptScanModal({visible, householdId, onClose}: Props)
 
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose}>
+            <TouchableOpacity onPress={handleClose} hitSlop={{top: 15, bottom: 15, left: 15, right: 15}}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Scan Receipt</Text>

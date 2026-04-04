@@ -70,6 +70,11 @@ export default function UpdateStockModal({item, onClose}: Props) {
 
   const handleExactChange = (text: string) => {
     setExactInput(text);
+    // Allow ending with decimal, don't update pending quantity if it's invalid or empty.
+    if (text === '') {
+        setPendingQuantity(0);
+        return;
+    }
     const num = parseFloat(text);
     if (!isNaN(num)) {
       setPendingQuantity(clamp(num));
