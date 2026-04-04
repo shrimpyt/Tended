@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Package, ShoppingCart, Trash2, Sparkles } from 'lucide-react';
+import { Home, Package, ShoppingCart, Trash2, Sparkles, ChefHat } from 'lucide-react';
 import Image from 'next/image';
 
 import { clsx } from 'clsx';
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/',              icon: Home,         label: 'Dashboard' },
   { href: '/inventory',     icon: Package,      label: 'Inventory'  },
   { href: '/shopping-list', icon: ShoppingCart, label: 'Shopping'   },
+  { href: '/meals',         icon: ChefHat,      label: 'Meals'      },
   { href: '/graveyard',     icon: Trash2,       label: 'Graveyard'  },
 ] as const;
 
