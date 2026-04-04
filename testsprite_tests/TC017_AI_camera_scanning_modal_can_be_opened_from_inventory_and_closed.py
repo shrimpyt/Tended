@@ -32,47 +32,47 @@ async def run_test():
         # Interact with the page elements to simulate user flow
         # -> Navigate to http://localhost:8081
         await page.goto("http://localhost:8081", wait_until="commit", timeout=10000)
-        
+
         # -> Enter credentials into the Email and Password fields and submit the sign-in form.
         frame = context.pages[-1]
         # Input text
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/input').nth(0)
         await page.wait_for_timeout(3000); await elem.fill('trystan@tryolive.dev')
-        
+
         frame = context.pages[-1]
         # Input text
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/input[2]').nth(0)
         await page.wait_for_timeout(3000); await elem.fill('S3@hawks')
-        
+
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/div/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Click the Inventory tab to open the Inventory list (element index 142).
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div[2]/div[2]/div[2]/a').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Open the camera inventory modal from the Inventory screen (tap the add/camera button).
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div/div[2]/div/div/div/div[4]').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Click the 'Scan Barcode' / camera option to open the camera scanning UI and verify the scanning interface appears.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div/div[2]/div/div/div/div[5]/div[2]/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Click the Cancel button to close the scanning modal and confirm the app returns to the Inventory list.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div[7]/div/div[2]/div/div/div/div/div/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # --> Test passed — verified by AI agent
         frame = context.pages[-1]
         current_url = await frame.evaluate("() => window.location.href")
@@ -88,4 +88,3 @@ async def run_test():
             await pw.stop()
 
 asyncio.run(run_test())
-    

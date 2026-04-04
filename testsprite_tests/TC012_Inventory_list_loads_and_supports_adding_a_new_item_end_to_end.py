@@ -32,75 +32,75 @@ async def run_test():
         # Interact with the page elements to simulate user flow
         # -> Navigate to http://localhost:8081
         await page.goto("http://localhost:8081", wait_until="commit", timeout=10000)
-        
+
         # -> Fill the email and password fields and submit the Sign in form to authenticate the test account.
         frame = context.pages[-1]
         # Input text
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/input').nth(0)
         await page.wait_for_timeout(3000); await elem.fill('trystan@tryolive.dev')
-        
+
         frame = context.pages[-1]
         # Input text
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/input[2]').nth(0)
         await page.wait_for_timeout(3000); await elem.fill('S3@hawks')
-        
+
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/div/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Click the Inventory tab to open the Inventory page and then inspect the inventory list and controls.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div[2]/div[2]/div[2]/a').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Apply a category filter (Kitchen) to the inventory list and then extract the visible items to confirm filtering succeeded.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div/div[2]/div/div/div/div[2]/div/div[2]/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Open the add-item form by clicking the Add (+) button on the Inventory page.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div/div[2]/div/div/div/div[2]/div/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Click the Add (+) button to open the add-item form.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div/div[2]/div/div/div/div[4]').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Click the 'Add Manually' option from the Add (+) menu to open the add-item form.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div/div[2]/div/div/div/div[5]/div[3]/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Fill the add-item form with 'Test Item Alpha' (name), Category 'Kitchen', Starting stock 'Full', set threshold to 25 (if needed), save the item, wait for the inventory to update, then extract the visible inventory list and confirm 'Test Item Alpha' appears with its location.
         frame = context.pages[-1]
         # Input text
         elem = frame.locator('xpath=/html/body/div[6]/div/div[2]/div/div/div/div/div[2]/div/input').nth(0)
         await page.wait_for_timeout(3000); await elem.fill('Test Item Alpha')
-        
+
         frame = context.pages[-1]
         # Input text
         elem = frame.locator('xpath=/html/body/div[6]/div/div[2]/div/div/div/div/div[2]/div/input[3]').nth(0)
         await page.wait_for_timeout(3000); await elem.fill('Kitchen')
-        
+
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div[6]/div/div[2]/div/div/div/div/div[2]/div/div[6]/div/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Click the Save button to submit the new item and then verify the item appears in the inventory list.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div[6]/div/div[2]/div/div/div/div/div/div[3]/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # --> Test passed — verified by AI agent
         frame = context.pages[-1]
         current_url = await frame.evaluate("() => window.location.href")
@@ -116,4 +116,3 @@ async def run_test():
             await pw.stop()
 
 asyncio.run(run_test())
-    
