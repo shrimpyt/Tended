@@ -214,8 +214,8 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
             name: proposal.newItemName || 'Unknown Item',
             category: proposal.newItemCategory || 'Pantry',
             quantity: proposal.addQuantity,
-            max_quantity: proposal.addQuantity, // Set initial max to match purchased
-            threshold: Math.max(1, Math.round(proposal.addQuantity * 0.2)),
+            max_quantity: 1, // Deprecated but required by DB constraints for now
+            threshold: 0,
             unit: 'pc'
           }
         });

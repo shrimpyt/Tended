@@ -237,8 +237,7 @@ export default function InventoryPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {visibleItems.map(item => {
-              const pct = Math.min(100, Math.max(0, (item.quantity / item.max_quantity) * 100));
-              const isLow = (item.quantity / item.max_quantity) <= item.threshold;
+              const isLow = item.quantity <= item.threshold;
               
               return (
                 <div key={item.id} className="bg-surface-elevated rounded-xl p-5 border border-border shadow-sm relative">
@@ -263,16 +262,11 @@ export default function InventoryPage() {
                     )}
                   </div>
                   
-                  <div className="flex justify-between items-center text-sm mb-2">
+                  <div className="flex justify-between items-center text-sm">
                     <span className="text-text-secondary">Level</span>
-                    <span className="font-medium text-text-primary">{item.quantity} / {item.max_quantity} {item.unit}</span>
-                  </div>
-                  
-                  <div className="h-2.5 w-full bg-border rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full ${isLow ? 'bg-danger-red' : 'bg-success-green'}`}
-                      style={{ width: `${pct}%` }}
-                    />
+                    <span className={`font-medium ${isLow ? 'text-danger-red' : 'text-success-green'}`}>
+                      {item.quantity} {item.unit}
+                    </span>
                   </div>
                 </div>
               );
@@ -351,31 +345,17 @@ export default function InventoryPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Current Qty</label>
-                  <input
-                    required
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={formData.quantity}
-                    onChange={e => setFormData({...formData, quantity: parseFloat(e.target.value) || 0})}
-                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Max Qty</label>
-                  <input
-                    required
-                    type="number"
-                    min="0.1"
-                    step="0.1"
-                    value={formData.max_quantity}
-                    onChange={e => setFormData({...formData, max_quantity: parseFloat(e.target.value) || 1})}
-                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-text-secondary">Current Qty</label>
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.quantity}
+                  onChange={e => setFormData({...formData, quantity: parseFloat(e.target.value) || 0})}
+                  className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

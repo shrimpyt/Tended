@@ -70,7 +70,7 @@ export function useUpdateQuantity() {
       const qk = queryKeys.inventory(item.household_id);
       await queryClient.cancelQueries({ queryKey: qk });
       const previous = queryClient.getQueryData<Item[]>(qk);
-      const clamped = Math.max(0, Math.min(newQuantity, item.max_quantity));
+      const clamped = Math.max(0, newQuantity);
       queryClient.setQueryData<Item[]>(qk, old =>
         old?.map(i => i.id === item.id ? { ...i, quantity: clamped } : i) ?? []
       );
@@ -89,7 +89,7 @@ export function useUpdateQuantity() {
       newQuantity: number;
       item: Item;
     }) => {
-      const clamped = Math.max(0, Math.min(newQuantity, item.max_quantity));
+      const clamped = Math.max(0, newQuantity);
 
       const {error} = await supabase
         .from('items')
@@ -133,7 +133,7 @@ export function useRestockFromReceipt() {
       householdId: string;
     }) => {
       for (const p of args.proposals) {
-        const newQty = Math.min(p.item.quantity + p.addQuantity, p.item.max_quantity);
+        const newQty = Math.max(0, p.item.quantity + p.addQuantity);
         await supabase.from('items').update({quantity: newQty}).eq('id', p.item.id);
         supabase.from('stock_events').insert({
           item_id: p.item.id,
@@ -145,6 +145,19 @@ export function useRestockFromReceipt() {
     },
     onSuccess: (_, args) => {
       queryClient.invalidateQueries({queryKey: queryKeys.inventory(args.householdId)});
+    },
+  });
+}
+
+export function useUpdateItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ itemId, updates }: { itemId: string; updates: Partial<Item> }) => {
+      const { error } = await supabase.from('items').update(updates).eq('id', itemId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
   });
 }

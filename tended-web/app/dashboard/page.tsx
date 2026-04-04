@@ -18,6 +18,7 @@ import {
   useAddShoppingListItem,
   useAddWasteEvent,
   useAddInventoryItem,
+  useUpdateItem,
 } from '@/hooks/queries';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRealtimeHousehold } from '@/hooks/useRealtimeHousehold';
@@ -183,6 +184,7 @@ export default function Dashboard() {
   const { mutate: updateQuantity }  = useUpdateQuantity();
   const { mutate: addWasteEvent }   = useAddWasteEvent();
   const { mutateAsync: addItem } = useAddInventoryItem();
+  const { mutate: updateItem } = useUpdateItem();
 
   const handleBarcodeScan = async (code: string): Promise<boolean> => {
     try {
@@ -248,7 +250,7 @@ export default function Dashboard() {
   const monthSpend = useMemo(() => entries.reduce((s, e) => s + e.amount, 0), [entries]);
 
   const lowStockItems    = useMemo(
-    () => items.filter(i => i.max_quantity > 0 && (i.quantity / i.max_quantity) <= i.threshold),
+    () => items.filter(i => i.quantity <= i.threshold),
     [items]
   );
   const wellStockedCount = items.length - lowStockItems.length;
@@ -381,7 +383,6 @@ export default function Dashboard() {
               ) : (
                 <div className="flex-1 flex flex-col gap-3">
                   {lowStockItems.slice(0, 10).map(item => {
-                    const pct = Math.min(100, Math.max(0, (item.quantity / item.max_quantity) * 100));
                     const isEmpty = item.quantity === 0;
 
                     const nudge = (delta: number) => {
@@ -438,7 +439,6 @@ export default function Dashboard() {
                             </span>
                             <button
                               onClick={() => nudge(1)}
-                              disabled={item.quantity >= item.max_quantity}
                               className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-green hover:bg-green/10 disabled:opacity-20"
                             >
                               <Plus size={10} />
@@ -454,12 +454,6 @@ export default function Dashboard() {
                           </div>
                         </div>
 
-                        <div className="h-1 w-full rounded-full overflow-hidden bg-white/6">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${isEmpty ? 'bg-red' : 'bg-amber'}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
                       </div>
                     );
                   })}
@@ -579,8 +573,8 @@ export default function Dashboard() {
                            <tr className="border-b border-border">
                               <th className="py-2 font-medium text-text-secondary">Name</th>
                               <th className="py-2 font-medium text-text-secondary">Category</th>
-                              <th className="py-2 font-medium text-text-secondary">Stock %</th>
-                              <th className="py-2 font-medium text-text-secondary">Target</th>
+                              <th className="py-2 font-medium text-text-secondary">Quantity</th>
+                              <th className="py-2 font-medium text-text-secondary">Reorder At</th>
                            </tr>
                         </thead>
                         <tbody>
@@ -589,21 +583,60 @@ export default function Dashboard() {
                                  <td className="py-3 pr-4">
                                     <input
                                        defaultValue={item.name}
+                                       onBlur={(e) => {
+                                         if (e.target.value !== item.name) {
+                                           updateItem({ itemId: item.id, updates: { name: e.target.value }});
+                                         }
+                                       }}
                                        className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-full"
                                     />
                                  </td>
-                                 <td className="py-3 pr-4 text-text-secondary">{item.category}</td>
                                  <td className="py-3 pr-4">
-                                    <input
-                                      type="number"
-                                      defaultValue={Math.round((item.quantity / item.max_quantity) * 100)}
-                                      className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-16"
-                                    />
+                                    <select
+                                       defaultValue={item.category || 'Kitchen'}
+                                       onChange={(e) => {
+                                         if (e.target.value !== item.category) {
+                                           updateItem({ itemId: item.id, updates: { category: e.target.value }});
+                                         }
+                                       }}
+                                       className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 text-text-secondary cursor-pointer"
+                                    >
+                                       <option value="Pantry" className="bg-surface text-text-primary">Pantry</option>
+                                       <option value="Kitchen" className="bg-surface text-text-primary">Kitchen</option>
+                                       <option value="Cleaning" className="bg-surface text-text-primary">Cleaning</option>
+                                       <option value="Bathroom" className="bg-surface text-text-primary">Bathroom</option>
+                                    </select>
+                                 </td>
+                                 <td className="py-3 pr-4">
+                                    <div className="flex items-center">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        defaultValue={item.quantity}
+                                        onBlur={(e) => {
+                                          const val = parseFloat(e.target.value);
+                                          if (!isNaN(val) && val !== item.quantity) {
+                                            updateItem({ itemId: item.id, updates: { quantity: Math.max(0, val) }});
+                                          }
+                                        }}
+                                        className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-16"
+                                      />
+                                      <span className="text-text-secondary text-xs ml-1">{item.unit || 'pc'}</span>
+                                    </div>
                                  </td>
                                  <td className="py-3">
                                     <input
                                       type="number"
-                                      defaultValue={item.max_quantity}
+                                      min="0"
+                                      step="0.1"
+                                      defaultValue={item.threshold}
+                                      onBlur={(e) => {
+                                          const val = parseFloat(e.target.value);
+                                          if (!isNaN(val) && val !== item.threshold) {
+                                            updateItem({ itemId: item.id, updates: { threshold: Math.max(0, val) }});
+                                          }
+                                      }}
                                       className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-16"
                                     />
                                  </td>

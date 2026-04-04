@@ -120,8 +120,10 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
     try {
       for (const item of foundItems) {
         if (item.matched_item) {
-          // Convert stock_level (0-100) to quantity
-          const newQty = Math.round((item.stock_level / 100) * (item.matched_item.max_quantity || 10));
+          // Add standard 1 unit if matched (assuming mostly adding to existing stock visually)
+          // Visual stock_level (0-100%) isn't as useful anymore without max_quantity,
+          // so default to incrementing by 1 or setting it to a nominal value.
+          const newQty = item.matched_item.quantity + 1;
           await updateQuantity({
             itemId: item.matched_item.id,
             userId: profile.id,
@@ -131,17 +133,15 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
           });
         } else {
           // Add new item
-          const maxQty = 10; // Default max quantity for visual scans
-          const newQty = Math.round((item.stock_level / 100) * maxQty);
           await addItem({
             householdId,
             userId: profile.id,
             item: {
               name: item.name,
               category: item.category || 'Pantry',
-              quantity: newQty || 1, // Avoid 0 if possible on first add
-              max_quantity: maxQty,
-              threshold: Math.max(1, Math.round(maxQty * 0.2)),
+              quantity: 1, // Default 1 for new visual items
+              max_quantity: 1,
+              threshold: 0,
               unit: 'pc'
             },
           });
