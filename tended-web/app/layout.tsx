@@ -41,11 +41,11 @@ export default function RootLayout({
 
         <ClientProvider>
           {/*
-            md:pl-14  → offset for the 56 px (w-14) fixed sidebar on desktop
+            md:pl-64  → offset for the 256px (w-64) expanded sidebar on desktop
             pb-24     → space for the floating bottom bar on mobile
             md:pb-0   → no bottom padding needed on desktop
           */}
-          <div className="md:pl-14 pb-24 md:pb-0">
+          <div className="md:pl-64 pb-24 md:pb-0">
             {children}
           </div>
         </ClientProvider>
