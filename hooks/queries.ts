@@ -137,6 +137,8 @@ export function useDeleteInventoryItem() {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
+      // Invalidate the generic inventory query, as well as any specific ones if needed.
+      // queryClient.invalidateQueries({queryKey: ['inventory']}) matches all keys starting with 'inventory'
       queryClient.invalidateQueries({queryKey: ['inventory']});
     },
   });
