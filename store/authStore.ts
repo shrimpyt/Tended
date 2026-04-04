@@ -2,11 +2,17 @@ import {create} from 'zustand';
 import {Session, User} from '@supabase/supabase-js';
 import {supabase} from '../lib/supabase';
 
+export type ProfileRole = 'creator' | 'admin' | 'member' | 'restricted';
+
 export interface Profile {
   id: string;
   email: string;
   display_name: string;
   household_id: string | null;
+  role: ProfileRole;
+  dietary_restrictions: string[];
+  restricted_categories: string[] | null;
+  has_onboarded: boolean;
   expo_push_token?: string | null;
 }
 

@@ -55,17 +55,25 @@ export default function HouseholdScreen() {
       return;
     }
 
+    // Set household_id + creator role on profile
     const {error: updateError} = await supabase
       .from('profiles')
-      .update({household_id: householdId})
+      .update({household_id: householdId, role: 'creator'})
       .eq('id', userId);
 
-    setLoading(false);
     if (updateError) {
+      setLoading(false);
       setError(updateError.message);
       return;
     }
 
+    // Set owner_id on household (requires profile to have household_id first)
+    await supabase
+      .from('households')
+      .update({owner_id: userId})
+      .eq('id', householdId);
+
+    setLoading(false);
     await fetchProfile();
   };
 
