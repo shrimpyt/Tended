@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { useInventory } from '@/hooks/queries';
+import { useInventory, useSpendingEntries, useAddInventoryItem } from '@/hooks/queries';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import {
@@ -191,6 +191,10 @@ export default function Dashboard() {
         setItemName("");
         setItemCategory("Pantry");
         setModalOpen(true);
+      }
+    }
+  };
+
   const now = new Date();
   const [aiOpen, setAiOpen] = useState(false);
   const [cameraOpen, setCameraOpen]   = useState(false);
@@ -247,6 +251,9 @@ export default function Dashboard() {
       } else {
         return false;
       }
+    } catch (err) {
+      console.error(err);
+      return false;
     }
   };
 
