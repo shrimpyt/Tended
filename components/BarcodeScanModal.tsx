@@ -91,11 +91,22 @@ function parseUnit(quantity: string | undefined): string {
 
 async function lookupBarcode(barcode: string): Promise<ProductDraft | null> {
   try {
-    const res = await fetch(
+    // 1. Try OpenFoodFacts (food)
+    let res = await fetch(
       `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`,
       {headers: {'User-Agent': 'TendedApp/1.0'}},
     );
-    const json = await res.json();
+    let json = await res.json();
+
+    // 2. Fallback to OpenProductsFacts (non-food)
+    if (json.status !== 1 || !json.product) {
+      res = await fetch(
+        `https://world.openproductsfacts.org/api/v0/product/${barcode}.json`,
+        {headers: {'User-Agent': 'TendedApp/1.0'}},
+      );
+      json = await res.json();
+    }
+
     if (json.status !== 1 || !json.product) return null;
 
     const p = json.product;

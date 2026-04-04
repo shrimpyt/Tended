@@ -66,7 +66,19 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
 
       if (error) {
         console.error('[CameraInventoryModal] Supabase function error:', error);
-        throw new Error(error.message || 'Error invoking Supabase edge function');
+        let errorMessage = error.message || 'Error invoking Supabase edge function';
+        // Attempt to extract the inner JSON error if available
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errBody = await error.context.json();
+            if (errBody && errBody.error) {
+              errorMessage = errBody.error;
+            }
+          } catch (e) {
+            // ignore JSON parse error
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       console.log('[CameraInventoryModal] Response data:', data);

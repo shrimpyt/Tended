@@ -44,14 +44,15 @@ export default function ClientProvider({ children }: { children: React.ReactNode
 
     const isAuthRoute = pathname === '/sign-in' || pathname === '/sign-up';
     const isHouseholdRoute = pathname === '/household';
+    const isDesignLab = pathname === '/design-lab';
 
     if (!session) {
-      if (!isAuthRoute) {
+      if (!isAuthRoute && !isDesignLab) {
         router.replace('/sign-in');
       }
     } else {
       if (!profile?.household_id) {
-        if (!isHouseholdRoute) {
+        if (!isHouseholdRoute && !isDesignLab) {
           router.replace('/household');
         }
       } else {
