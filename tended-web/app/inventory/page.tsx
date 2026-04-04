@@ -241,19 +241,19 @@ export default function InventoryPage() {
               const isLow = (item.quantity / item.max_quantity) <= item.threshold;
               
               return (
-                <div key={item.id} className="bg-surface-elevated rounded-xl p-5 border border-border shadow-sm relative group">
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-surface-elevated/80 backdrop-blur-sm p-1 rounded-md border border-border">
-                    <button onClick={() => openManualEdit(item)} className="p-1.5 text-text-secondary hover:text-primary-blue rounded-md hover:bg-white/10 transition-colors">
-                      <Edit size={14} />
+                <div key={item.id} className="bg-surface-elevated rounded-xl p-5 border border-border shadow-sm relative">
+                  <div className="absolute top-2 right-2 flex gap-1 bg-surface-elevated p-1 rounded-md">
+                    <button onClick={() => openManualEdit(item)} className="p-1.5 text-text-secondary hover:text-primary-blue rounded-md hover:bg-white/5 transition-colors">
+                      <Edit size={16} />
                     </button>
                     <button onClick={() => handleDelete(item.id)} className="p-1.5 text-text-secondary hover:text-danger-red rounded-md hover:bg-danger-red/10 transition-colors">
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
 
-                  <div className="flex justify-between items-start mb-4 pr-10">
-                    <div>
-                      <h3 className="font-semibold text-text-primary text-lg">{item.name}</h3>
+                  <div className="flex justify-between items-start mb-4 pr-16">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-text-primary text-lg truncate">{item.name}</h3>
                       <p className="text-sm text-text-secondary">{item.category}</p>
                     </div>
                     {isLow && (

@@ -83,9 +83,11 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
       if (error) {
         console.error('[ReceiptScanModal] Supabase function error:', error);
         let errorMessage = error.message || 'Error invoking Supabase edge function';
+        let rawDetails = '';
         if (error.context && typeof error.context.json === 'function') {
           try {
             const errBody = await error.context.json();
+            rawDetails = JSON.stringify(errBody, null, 2);
             if (errBody && errBody.error) {
               errorMessage = errBody.error;
             }
@@ -93,7 +95,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
             // ignore
           }
         }
-        throw new Error(errorMessage);
+        throw new Error(`${errorMessage} | RAW_DETAILS: ${rawDetails}`);
       }
 
       console.log('[ReceiptScanModal] Response data:', data);
@@ -244,8 +246,8 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
             </p>
             
             {errorText && (
-              <div className="mb-6 p-4 rounded-lg bg-red-100 border border-red-200 text-red-600 w-full text-sm">
-                {errorText}
+              <div className="mb-6 p-4 rounded-lg bg-red-100 border border-red-200 text-red-600 w-full text-sm text-left max-h-48 overflow-y-auto overflow-x-hidden break-words whitespace-pre-wrap">
+                {errorText.replace(' | RAW_DETAILS: ', '\n\nDetails:\n')}
               </div>
             )}
 
