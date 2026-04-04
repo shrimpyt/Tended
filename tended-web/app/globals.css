@@ -14,10 +14,13 @@
   --surface-elevated: rgba(255, 255, 255, 0.08);
   --border:           rgba(255, 255, 255, 0.10);
 
-  /* Default Blue */
-  --primary:            #3B82F6;
-  --primary-glow:       rgba(59, 130, 246, 0.5);
-  --accent-glow:        rgba(59, 130, 246, 0.15);
+  /* Default: Forest Navy (Hybrid) */
+  --primary:            #059669;
+  --primary-glow:       rgba(5, 150, 105, 0.5);
+  --accent-glow:        rgba(5, 150, 105, 0.15);
+  --background:         #020617;
+  --card:               #01040f;
+
 
   /* Shadcn standard variables mapped to Deep Ink */
   --card:               #0E0E10;
@@ -67,10 +70,12 @@
   --primary:      #60A5FA; /* Brighter blue for contrast */
   --primary-glow: rgba(96, 165, 250, 0.5);
   --accent-glow:  rgba(96, 165, 250, 0.15);
-  --background:   #020617; /* Deepest Navy/Space Blue */
-  --card:         #01040f; /* Even darker card */
   --ring:         var(--primary);
 }
+
+
+
+
 
 
 /* ─── Tailwind v4 @theme blocks ────────────────────────────────────── */
