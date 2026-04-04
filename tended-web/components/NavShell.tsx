@@ -38,10 +38,10 @@ export default function NavShell() {
       >
         {/* Logo mark */}
         <div className="w-10 h-10 mb-6 flex items-center justify-center flex-shrink-0">
-          <Image 
-            src="/icons/icon.svg" 
-            alt="Tended Logo" 
-            width={32} 
+          <Image
+            src="/icons/icon.svg"
+            alt="Tended Logo"
+            width={32}
             height={32}
             className="w-8 h-8 select-none"
           />
