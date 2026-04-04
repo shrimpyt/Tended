@@ -44,6 +44,14 @@
   --glass-bg:     rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.10);
   --glass-hover:  rgba(255, 255, 255, 0.09);
+
+  /* Brand Colors */
+  --primary-blue:       #3b82f6;
+  --primary-blue-light: #eff6ff;
+  --amber:              #f59e0b;
+  --red:                #ef4444;
+  --green:              #22c55e;
+  --blue:               #3b82f6;
 }
 
 [data-theme='emerald'] {
@@ -94,6 +102,14 @@
   --color-destructive: var(--destructive);
   --color-popover:     var(--popover);
   --color-card:        var(--card);
+
+  /* Specific brand/semantic colors used in components */
+  --color-primary-blue:       var(--primary-blue);
+  --color-primary-blue-light: var(--primary-blue-light);
+  --color-amber:              var(--amber);
+  --color-red:                var(--red);
+  --color-green:              var(--green);
+  --color-blue:               var(--blue);
 
   --font-sans:    var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
