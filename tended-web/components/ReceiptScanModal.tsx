@@ -162,7 +162,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
       }
 
       // 2. Prepare Inventory Matches (propose all for restock/add)
-      const proposals: RestockProposal[] = lineItems.map((li: any) => {
+      const proposals: RestockProposal[] = lineItems.map((li: {item: string; category: string; unit?: string; amount: string}) => {
         const match = fuzzyMatchInventory(li.item, inventoryItems);
         return {
           inventoryItem: match as Item | undefined,

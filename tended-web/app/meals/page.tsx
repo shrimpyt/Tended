@@ -100,6 +100,7 @@ export default function MealsPage() {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     setIsClient(true);
   }, []);
 
