@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Package, ShoppingCart, DollarSign, Users } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
 
 const FEATURES = [
   {
@@ -29,6 +31,18 @@ const FEATURES = [
 ];
 
 export default function LandingPage() {
+  const { profile, loading } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && profile) {
+      router.push('/dashboard');
+    }
+  }, [profile, loading, router]);
+
+  if (loading) return null;
+  if (profile) return null;
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-text-primary">
       {/* Header */}
