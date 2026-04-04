@@ -80,10 +80,10 @@ export default function NavShell() {
       {/* ── Mobile: floating bottom bar ──────────────────────────── */}
       <nav
         aria-label="Main navigation"
-        className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-0.5 px-2 py-2 rounded-2xl"
+        className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center justify-between px-4 py-2 rounded-full w-[90%] max-w-sm"
         style={{
-          background: 'rgba(14, 14, 17, 0.92)',
-          border: '1px solid rgba(255, 255, 255, 0.10)',
+          background: 'rgba(24, 24, 27, 0.8)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
@@ -95,15 +95,15 @@ export default function NavShell() {
             <Link
               key={href}
               href={href}
+              aria-label={label}
               className={clsx(
-                'flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-150',
+                'flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200',
                 active
-                  ? 'text-primary'
-                  : 'text-text-secondary hover:text-foreground'
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-text-secondary hover:text-foreground hover:bg-white/5'
               )}
             >
-              <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
-              <span className="text-[10px] font-medium leading-none">{label}</span>
+              <Icon size={24} strokeWidth={active ? 2.5 : 2} />
             </Link>
           );
         })}

@@ -143,7 +143,11 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
               quantity: 1, // Default 1 for new visual items
               max_quantity: 1,
               threshold: 0,
+
               unit: item.unit || 'pc'
+
+
+
             },
           });
         }
@@ -169,7 +173,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
     <div className="fixed inset-0 z-50 flex flex-col bg-background overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-elevated flex-shrink-0">
-        <button onClick={handleClose} className="text-text-secondary hover:text-text-primary font-medium px-2 py-1">
+        <button onClick={handleClose} aria-label="Cancel Scan Pantry" className="text-text-secondary hover:text-text-primary font-medium px-2 py-1 rounded-md focus-visible:ring-2 focus-visible:ring-primary-blue">
           Cancel
         </button>
         <h2 className="text-lg font-bold text-text-primary">Scan Pantry</h2>
