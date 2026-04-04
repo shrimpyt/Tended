@@ -42,21 +42,27 @@ export default function ClientProvider({ children }: { children: React.ReactNode
   useEffect(() => {
     if (loading) return;
 
-    const isAuthRoute = pathname === '/sign-in' || pathname === '/sign-up';
+    const isAuthRoute = pathname === '/sign-in' || pathname === '/sign-up' || pathname === '/forgot-password';
+    const isLandingRoute = pathname === '/landing';
     const isHouseholdRoute = pathname === '/household';
+    const isOnboardingRoute = pathname === '/onboarding';
     const isDesignLab = pathname === '/design-lab';
 
     if (!session) {
-      if (!isAuthRoute && !isDesignLab) {
-        router.replace('/sign-in');
+      if (!isAuthRoute && !isLandingRoute && !isDesignLab) {
+        router.replace('/landing');
       }
     } else {
       if (!profile?.household_id) {
         if (!isHouseholdRoute && !isDesignLab) {
           router.replace('/household');
         }
+      } else if (!profile?.has_onboarded) {
+        if (!isOnboardingRoute && !isDesignLab) {
+          router.replace('/onboarding');
+        }
       } else {
-        if (isAuthRoute || isHouseholdRoute) {
+        if (isAuthRoute || isLandingRoute || isHouseholdRoute || isOnboardingRoute) {
           router.replace('/');
         }
       }
