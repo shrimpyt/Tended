@@ -17,84 +17,6 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import Link from 'next/link';
-import AIDialog from '@/components/AIDialog';
-import BarcodeScanModal from '@/components/BarcodeScanModal';
-import ReceiptScanModal from '@/components/ReceiptScanModal';
-import CameraInventoryModal from '@/components/CameraInventoryModal';
-import { parseItem } from '@/utils/nlpParser';
-import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
-
-// ── Helpers ────────────────────────────────────────────────────────
-
-// Map Open Food Facts category strings → a sensible default string category
-function mapOFFCategory(categoriesStr: string | undefined): string {
-  if (!categoriesStr) return 'Kitchen';
-  const cats = categoriesStr.toLowerCase();
-  if (
-    cats.includes('cleaning') ||
-    cats.includes('household') ||
-    cats.includes('detergent') ||
-    cats.includes('dishwash') ||
-    cats.includes('laundry') ||
-    cats.includes('trash') ||
-    cats.includes('paper-towel') ||
-    cats.includes('toilet-paper')
-  ) return 'Cleaning';
-  if (
-    cats.includes('hygiene') ||
-    cats.includes('beauty') ||
-    cats.includes('personal-care') ||
-    cats.includes('shampoo') ||
-    cats.includes('soap') ||
-    cats.includes('toothpaste') ||
-    cats.includes('deodorant') ||
-    cats.includes('cosmetic')
-  ) return 'Bathroom';
-  if (
-    cats.includes('pasta') ||
-    cats.includes('rice') ||
-    cats.includes('cereal') ||
-    cats.includes('flour') ||
-    cats.includes('sugar') ||
-    cats.includes('oil') ||
-    cats.includes('sauce') ||
-    cats.includes('condiment') ||
-    cats.includes('canned') ||
-    cats.includes('spice') ||
-    cats.includes('coffee') ||
-    cats.includes('tea') ||
-    cats.includes('pantry')
-  ) return 'Pantry';
-  return 'Kitchen';
-}
-
-// Extract a clean unit from the quantity field
-function parseUnit(quantity: string | undefined): string {
-  if (!quantity) return '';
-  const match = quantity.match(/\b(ml|l|g|kg|oz|lb|fl oz|count|rolls|sheets|pack)\b/i);
-  return match ? match[1].toLowerCase() : '';
-}
-
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
-function isoWeek(offset = 0): { start: string; end: string } {
-  const now = new Date();
-  const day = now.getDay();
-  const diffToMon = day === 0 ? -6 : 1 - day;
-  const mon = new Date(now);
-  mon.setDate(now.getDate() + diffToMon + offset * 7);
-  const sun = new Date(mon);
-  sun.setDate(mon.getDate() + 6);
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  return { start: fmt(mon), end: fmt(sun) };
-}
 
 interface InboxItem {
   id: string;
@@ -191,61 +113,6 @@ export default function Dashboard() {
         setItemName("");
         setItemCategory("Pantry");
         setModalOpen(true);
-  const now = new Date();
-  const [aiOpen, setAiOpen] = useState(false);
-  const [cameraOpen, setCameraOpen]   = useState(false);
-  const [barcodeOpen, setBarcodeOpen] = useState(false);
-  const [receiptOpen, setReceiptOpen] = useState(false);
-
-  // Quick Add state
-  const [quickAdd, setQuickAdd] = useState('');
-  const [quickFeedback, setQuickFeedback] = useState<string | null>(null);
-  const quickInputRef = useRef<HTMLInputElement>(null);
-
-  const { data: items = [], isLoading: loadingItems }     = useInventory(householdId);
-  const { data: entries = [], isLoading: loadingEntries } = useSpendingEntries(householdId, now.getFullYear(), now.getMonth() + 1);
-  const { mutateAsync: addItem } = useAddInventoryItem();
-
-  const handleBarcodeScan = async (code: string): Promise<boolean> => {
-    try {
-      console.log('[Dashboard] Scanned barcode, looking up on OpenFoodFacts:', code);
-      const res = await fetch(
-        `https://world.openfoodfacts.org/api/v0/product/${code}.json`,
-        {headers: {'User-Agent': 'TendedWebApp/1.0'}},
-      );
-      const json = await res.json();
-
-      if (json.status !== 1 || !json.product) {
-        setQuickFeedback(`Error: Product not found.`);
-        setTimeout(() => setQuickFeedback(null), 4000);
-        return false;
-      }
-
-      const p = json.product;
-      const name =
-        p.product_name_en?.trim() ||
-        p.product_name?.trim() ||
-        p.abbreviated_product_name?.trim() ||
-        '';
-
-      if (name) {
-        await addItem({
-          householdId,
-          userId: profile?.id ?? '',
-          item: {
-            name: name,
-            category: mapOFFCategory(p.categories),
-            quantity: 1,
-            unit: parseUnit(p.quantity) || 'pc',
-            max_quantity: 1,
-            threshold: 1,
-          }
-        });
-        setQuickFeedback(`Added ${name}!`);
-        setTimeout(() => setQuickFeedback(null), 3000);
-        return true;
-      } else {
-        return false;
       }
     }
   };
@@ -270,15 +137,11 @@ export default function Dashboard() {
       <div className="flex-1 p-6 grid grid-cols-[200px_300px_1fr] gap-6 max-w-[1400px] mx-auto w-full">
         {/* Sidebar */}
         <aside className="border-r border-border pr-4">
-          <nav className="flex flex-col gap-2 text-sm font-medium mb-8">
+          <nav className="flex flex-col gap-2 text-sm font-medium">
              <div className="px-3 py-2 bg-primary-blue/10 text-primary-blue rounded-md">Command Center</div>
              <div className="px-3 py-2 text-text-secondary hover:text-text-primary">Reports</div>
              <div className="px-3 py-2 text-text-secondary hover:text-text-primary">Family Settings</div>
           </nav>
-
-          <Link href="/scan" className="block w-full bg-primary-blue text-white text-center py-2 rounded-md font-medium text-sm hover:bg-primary-blue/90 transition-colors">
-            + Quick Capture
-          </Link>
         </aside>
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

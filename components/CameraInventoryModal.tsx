@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import {useCameraPermissions} from 'expo-image-picker';
 import {Colors, Typography, Spacing, Radius, Border, Shadows} from '../constants/theme';
 import {useInventory, useAddInventoryItem} from '../hooks/queries';
@@ -88,7 +89,16 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
 
       if (error) {
         console.error("Supabase Edge Function Error:", error);
-        throw new Error(error.message ?? 'Edge function failed');
+        let errorMessage = error.message ?? 'Edge function failed';
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errBody = await error.context.json();
+            if (errBody && errBody.error) {
+              errorMessage = errBody.error;
+            }
+          } catch (e) {}
+        }
+        throw new Error(errorMessage);
       }
 
       if (data && data.items) {
@@ -107,9 +117,25 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
         setIdentified([]);
       }
       setStep('review');
-    } catch (err) {
-      setError('Failed to analyze image.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to analyze image.');
       setStep('pick');
+    }
+  };
+
+  const resizeAndProcess = async (uri: string, originalBase64?: string | null) => {
+    try {
+      // Use expo-image-manipulator to aggressively compress the image and ensure format
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 800 } }], // Resize largest dimension to 800
+        { compress: 0.4, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      processImage(manipResult.uri, manipResult.base64);
+    } catch (e) {
+      console.error("Failed to manipulate image:", e);
+      // Fallback
+      processImage(uri, originalBase64);
     }
   };
 
@@ -120,22 +146,26 @@ export default function CameraInventoryModal({visible, onClose}: Props) {
     }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 0.4,
+      allowsEditing: true,
+      aspect: [4, 3],
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      processImage(result.assets[0].uri, result.assets[0].base64);
+      resizeAndProcess(result.assets[0].uri, result.assets[0].base64);
     }
   };
 
   const handleChoosePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 0.4,
+      allowsEditing: true,
+      aspect: [4, 3],
       base64: true,
     });
     if (!result.canceled && result.assets.length > 0) {
-      processImage(result.assets[0].uri, result.assets[0].base64);
+      resizeAndProcess(result.assets[0].uri, result.assets[0].base64);
     }
   };
 

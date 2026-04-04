@@ -1,4 +1,4 @@
-export async function compressImage(file: File, maxSizeMB: number = 1): Promise<string> {
+export async function compressImage(file: File, maxSizeMB: number = 0.4): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -8,8 +8,9 @@ export async function compressImage(file: File, maxSizeMB: number = 1): Promise<
         let width = img.width;
         let height = img.height;
 
-        // Max dimension for the longest side to keep sizes reasonable (e.g., 1024px)
-        const maxDimension = 1024;
+        // Max dimension for the longest side to keep sizes reasonable
+        // 800px ensures small payloads (<500KB) to avoid Edge Function limits and timeouts
+        const maxDimension = 800;
         if (width > height) {
           if (width > maxDimension) {
             height = Math.round((height * maxDimension) / width);
