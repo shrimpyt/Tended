@@ -208,12 +208,21 @@ export default function Dashboard() {
 
   const handleBarcodeScan = async (code: string): Promise<boolean> => {
     try {
-      console.log('[Dashboard] Scanned barcode, looking up on OpenFoodFacts:', code);
-      const res = await fetch(
+      console.log('[Dashboard] Scanned barcode, looking up on OpenFoodFacts/OpenProductsFacts:', code);
+      let res = await fetch(
         `https://world.openfoodfacts.org/api/v0/product/${code}.json`,
         {headers: {'User-Agent': 'TendedWebApp/1.0'}},
       );
-      const json = await res.json();
+      let json = await res.json();
+
+      // Fallback to OpenProductsFacts for non-food items
+      if (json.status !== 1 || !json.product) {
+        res = await fetch(
+          `https://world.openproductsfacts.org/api/v0/product/${code}.json`,
+          {headers: {'User-Agent': 'TendedWebApp/1.0'}},
+        );
+        json = await res.json();
+      }
 
       if (json.status !== 1 || !json.product) {
         setQuickFeedback(`Error: Product not found.`);
