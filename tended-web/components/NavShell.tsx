@@ -14,7 +14,7 @@ const NAV_ITEMS = [
 ] as const;
 
 // Routes that should not render the navigation shell
-const AUTH_ROUTES = new Set(['/sign-in', '/sign-up', '/household']);
+const AUTH_ROUTES = new Set(['/sign-in', '/sign-up', '/household', '/design-lab']);
 
 export default function NavShell() {
   const pathname = usePathname();
