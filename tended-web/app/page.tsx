@@ -30,6 +30,55 @@ import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
 
 // ── Helpers ────────────────────────────────────────────────────────
 
+// Map Open Food Facts category strings → a sensible default string category
+function mapOFFCategory(categoriesStr: string | undefined): string {
+  if (!categoriesStr) return 'Kitchen';
+  const cats = categoriesStr.toLowerCase();
+  if (
+    cats.includes('cleaning') ||
+    cats.includes('household') ||
+    cats.includes('detergent') ||
+    cats.includes('dishwash') ||
+    cats.includes('laundry') ||
+    cats.includes('trash') ||
+    cats.includes('paper-towel') ||
+    cats.includes('toilet-paper')
+  ) return 'Cleaning';
+  if (
+    cats.includes('hygiene') ||
+    cats.includes('beauty') ||
+    cats.includes('personal-care') ||
+    cats.includes('shampoo') ||
+    cats.includes('soap') ||
+    cats.includes('toothpaste') ||
+    cats.includes('deodorant') ||
+    cats.includes('cosmetic')
+  ) return 'Bathroom';
+  if (
+    cats.includes('pasta') ||
+    cats.includes('rice') ||
+    cats.includes('cereal') ||
+    cats.includes('flour') ||
+    cats.includes('sugar') ||
+    cats.includes('oil') ||
+    cats.includes('sauce') ||
+    cats.includes('condiment') ||
+    cats.includes('canned') ||
+    cats.includes('spice') ||
+    cats.includes('coffee') ||
+    cats.includes('tea') ||
+    cats.includes('pantry')
+  ) return 'Pantry';
+  return 'Kitchen';
+}
+
+// Extract a clean unit from the quantity field
+function parseUnit(quantity: string | undefined): string {
+  if (!quantity) return '';
+  const match = quantity.match(/\b(ml|l|g|kg|oz|lb|fl oz|count|rolls|sheets|pack)\b/i);
+  return match ? match[1].toLowerCase() : '';
+}
+
 function getGreeting(): string {
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
@@ -104,45 +153,38 @@ export default function DashboardPage() {
 
   const handleBarcodeScan = async (code: string): Promise<boolean> => {
     try {
-      console.log('[Dashboard] Scanned barcode, invoking AI:', code);
-      const { data, error } = await supabase.functions.invoke('analyze-image', {
-        body: { action: 'barcode', barcode: code },
-      });
+      console.log('[Dashboard] Scanned barcode, looking up on OpenFoodFacts:', code);
+      const res = await fetch(
+        `https://world.openfoodfacts.org/api/v0/product/${code}.json`,
+        {headers: {'User-Agent': 'TendedWebApp/1.0'}},
+      );
+      const json = await res.json();
 
-      if (error) {
-        console.error('[Dashboard] Edge function error:', error);
+      if (json.status !== 1 || !json.product) {
         return false;
       }
 
-      let parsedData = data;
-      if (typeof data === 'string') {
-        try {
-          // Strip markdown blocks if returned by the LLM
-          let cleanData = data.trim();
-          if (cleanData.startsWith('```')) {
-            cleanData = cleanData.replace(/^```(json)?/, '').replace(/```$/, '').trim();
-          }
-          parsedData = JSON.parse(cleanData);
-        } catch (e) {
-          console.error('[Dashboard] Failed to parse barcode JSON response:', e);
-          return false;
-        }
-      }
+      const p = json.product;
+      const name =
+        p.product_name_en?.trim() ||
+        p.product_name?.trim() ||
+        p.abbreviated_product_name?.trim() ||
+        '';
 
-      if (parsedData && parsedData.name && parsedData.name !== "Unknown") {
+      if (name) {
         await addItem({
           householdId,
           userId: profile?.id ?? '',
           item: {
-            name: parsedData.name,
-            category: parsedData.category || 'Pantry',
+            name: name,
+            category: mapOFFCategory(p.categories),
             quantity: 1,
-            unit: 'pc',
+            unit: parseUnit(p.quantity) || 'pc',
             max_quantity: 1,
             threshold: 1,
           }
         });
-        setQuickFeedback(`Added ${parsedData.name}!`);
+        setQuickFeedback(`Added ${name}!`);
         setTimeout(() => setQuickFeedback(null), 3000);
         return true;
       } else {
