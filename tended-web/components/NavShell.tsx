@@ -76,16 +76,15 @@ export default function NavShell() {
         </div>
       </nav>
 
-      {/* ── Mobile: floating bottom bar ──────────────────────────── */}
+      {/* ── Mobile: full-width bottom bar ──────────────────────────── */}
       <nav
         aria-label="Main navigation"
-        className="md:hidden fixed bottom-6 left-0 right-0 mx-auto z-40 flex items-center justify-between px-4 py-2 rounded-full w-[90%] max-w-sm"
+        className="md:hidden fixed bottom-0 left-0 w-full z-40 flex items-center justify-around px-2 pt-2 pb-6 border-t"
         style={{
-          background: 'rgba(24, 24, 27, 0.8)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'rgba(14, 14, 17, 0.98)',
+          borderColor: 'rgba(255, 255, 255, 0.05)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
         }}
       >
         {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
@@ -94,15 +93,20 @@ export default function NavShell() {
             <Link
               key={href}
               href={href}
-              aria-label={label}
               className={clsx(
-                'flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200',
+                'flex flex-col items-center gap-1 p-2 min-w-[64px] transition-all duration-200',
                 active
-                  ? 'bg-primary/20 text-primary'
-                  : 'text-text-secondary hover:text-foreground hover:bg-white/5'
+                  ? 'text-primary'
+                  : 'text-text-secondary hover:text-foreground'
               )}
             >
-              <Icon size={24} strokeWidth={active ? 2.5 : 2} />
+              <Icon size={24} strokeWidth={active ? 2.5 : 2} className={clsx(active && "drop-shadow-sm")} />
+              <span className={clsx(
+                "text-[10px] tracking-wide leading-none",
+                active ? "font-semibold" : "font-medium"
+              )}>
+                {label}
+              </span>
             </Link>
           );
         })}
