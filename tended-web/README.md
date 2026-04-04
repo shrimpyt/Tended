@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tended Web Dashboard 🌐🏠
 
-## Getting Started
+**Tended Web Dashboard** is the powerful companion web application to the Tended Expo Mobile App. Built with **Next.js 15**, it provides a seamless cross-platform experience for managing your household inventory, shopping lists, and spending from any browser.
 
-First, run the development server:
+## 🌟 Key Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+*   **Intelligent Inventory Management**: View, add, edit, and organize your household items with ease.
+*   **Real-time Shopping List**: Collaborate and sync your shopping list with household members in real-time.
+*   **Spending Insights**: Track your expenses and view categorized monthly spending breakdowns.
+*   **Cross-Platform Sync**: Every action taken on the web dashboard instantly syncs with the mobile app via our Supabase backend.
+
+## 🛠️ Tech Stack
+
+*   **Framework**: Next.js 15 (App Router)
+*   **Styling**: Tailwind CSS + Shadcn/UI
+*   **State Management**: Zustand + React Query
+*   **Database & Auth**: Supabase (Postgres + Realtime)
+*   **Deployment**: Vercel
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+Ensure you have the following installed:
+- [Node.js](https://nodejs.org/) (LTS recommended)
+- `npm`, `yarn`, `pnpm`, or `bun`
+- [Supabase CLI](https://supabase.com/docs/guides/cli) (optional, for local backend development)
+
+### Environment Setup
+
+Create a `.env.local` (or `.env`) file in the `tended-web` directory with your Supabase credentials:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+*(These keys are shared with the mobile app and can be found in your Supabase project settings.)*
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Installation & Running
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1.  **Install dependencies:**
+    ```bash
+    npm install
+    # or
+    yarn install
+    # or
+    pnpm install
+    ```
 
-## Learn More
+2.  **Run the development server:**
+    ```bash
+    npm run dev
+    # or
+    yarn dev
+    # or
+    pnpm dev
+    ```
 
-To learn more about Next.js, take a look at the following resources:
+3.  **Open your browser:**
+    Navigate to [http://localhost:3000](http://localhost:3000) to see the dashboard in action!
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📂 Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+*   `app/`: Next.js App Router pages and layouts.
+*   `components/`: Reusable React components (including Shadcn UI).
+*   `hooks/`: Custom React hooks (e.g., for data fetching and real-time updates).
+*   `store/`: Zustand global state management.
+*   `lib/`: Utility functions and shared clients (e.g., Supabase client).
+*   `types/`: TypeScript interfaces and type definitions.
 
-## Deploy on Vercel
+## 🔗 Related Resources
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+*   [Next.js Documentation](https://nextjs.org/docs)
+*   [Supabase Documentation](https://supabase.com/docs)
+*   [Tailwind CSS](https://tailwindcss.com/docs)
+*   [Shadcn UI](https://ui.shadcn.com/)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+**Built with ❤️ for better living.**
