@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useInventory, useAddInventoryItem, useDeleteInventoryItem } from '@/hooks/queries';
 import Link from 'next/link';
-import { Zap, Plus, X, Edit, Trash2, Package, AlertTriangle, Clock, MoreHorizontal } from 'lucide-react';
+import { Zap, Plus, X, Edit, Trash2, Package, AlertTriangle, Clock } from 'lucide-react';
 import AIDialog from '@/components/AIDialog';
 import BarcodeScanModal from '@/components/BarcodeScanModal';
 import ReceiptScanModal from '@/components/ReceiptScanModal';
