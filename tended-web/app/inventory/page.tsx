@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useInventory, useAddInventoryItem, useDeleteInventoryItem } from '@/hooks/queries';
 import Link from 'next/link';
-import { Zap, Plus, X, Edit, Trash2, Search, Package, Clock, AlertTriangle, MoreHorizontal } from 'lucide-react';
+import { Zap, Plus, X, Edit, Trash2, Package, AlertTriangle, Clock, MoreHorizontal } from 'lucide-react';
 import AIDialog from '@/components/AIDialog';
 import BarcodeScanModal from '@/components/BarcodeScanModal';
 import ReceiptScanModal from '@/components/ReceiptScanModal';
@@ -210,80 +210,66 @@ export default function InventoryPage() {
     }
   };
 
-  const lowStockCount = visibleItems.filter(item => item.quantity <= item.threshold).length;
-
   return (
-    <div className="flex flex-col min-h-screen bg-[#11131A]">
-      <main className="flex-1 w-full max-w-6xl mx-auto px-6 py-8">
-
-        {/* Header Section */}
-        <div className="flex items-center justify-between mb-8">
-           <h1 className="text-2xl font-bold text-white">Inventory Dashboard</h1>
-
-           <div className="flex items-center gap-4">
-              <div className="relative">
-                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
-                 <input
-                    type="text"
-                    placeholder="Search"
-                    className="bg-[#1A1C23] border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-64"
-                 />
-              </div>
-              <button
-                 onClick={openManualAdd}
-                 className="w-9 h-9 bg-blue-500 hover:bg-blue-600 rounded-lg flex items-center justify-center text-white transition-colors"
-              >
-                 <Plus size={20} />
-              </button>
-              <button
-                 onClick={() => setAiOpen(true)}
-                 className="w-9 h-9 bg-[#1A1C23] border border-white/10 hover:bg-white/5 rounded-lg flex items-center justify-center text-white transition-colors"
-                 title="Quick Capture"
-              >
-                 <Zap size={18} />
-              </button>
-           </div>
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="bg-background/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-text-secondary hover:text-primary-blue">&larr; Back</Link>
+          <div className="font-bold text-xl text-text-primary tracking-tight">Inventory</div>
         </div>
+        <div className="flex items-center gap-2">
+          <button onClick={openManualAdd} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text-primary rounded-md text-sm font-medium hover:bg-white/5 transition-colors">
+            <Plus size={16} />
+            <span className="hidden sm:inline">Add Item</span>
+          </button>
+          <button onClick={() => setAiOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-primary-blue text-white rounded-md text-sm font-medium hover:bg-primary-blue/90 transition-colors">
+            <Zap size={16} />
+            <span className="hidden sm:inline">Quick Capture</span>
+          </button>
+        </div>
+      </header>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-           {/* Card 1 */}
-           <div className="bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
+        {/* Stats Row - Scrollable horizontally on mobile */}
+        <div className="flex overflow-x-auto pb-6 gap-4 hide-scrollbar snap-x">
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
                  <Package size={24} />
               </div>
-              <div>
+              <div className="min-w-0">
                  <p className="text-sm text-text-secondary font-medium">Total Items</p>
-                 <p className="text-2xl font-bold text-white">{visibleItems.length} items</p>
+                 <p className="text-2xl font-bold text-white truncate">{visibleItems.length}</p>
               </div>
            </div>
 
-           {/* Card 2 */}
-           <div className="bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
                  <AlertTriangle size={24} />
               </div>
-              <div>
+              <div className="min-w-0">
                  <p className="text-sm text-text-secondary font-medium">Low Stock</p>
-                 <p className="text-2xl font-bold text-white">{lowStockCount} items</p>
+                 <p className="text-2xl font-bold text-white truncate">
+                   {visibleItems.filter(i => i.quantity <= i.threshold).length}
+                 </p>
               </div>
            </div>
 
-           {/* Card 3 */}
-           <div className="bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
                  <Clock size={24} />
               </div>
-              <div>
-                 <p className="text-sm text-text-secondary font-medium">Expired</p>
-                 <p className="text-2xl font-bold text-white">0 items</p>
+              <div className="min-w-0">
+                 <p className="text-sm text-text-secondary font-medium">Recently Added</p>
+                 <p className="text-2xl font-bold text-white truncate">-- items</p>
               </div>
            </div>
         </div>
 
         {/* Inventory List */}
         <div>
-           <h2 className="text-lg font-bold text-white mb-4">Recent Inventory</h2>
+           <div className="flex items-center justify-between mb-4">
+             <h2 className="text-lg font-bold text-white">Recent Inventory</h2>
+           </div>
 
            <div className="bg-[#1A1C23] rounded-2xl border border-white/5 overflow-hidden">
              {isLoading ? (
@@ -296,46 +282,54 @@ export default function InventoryPage() {
                     <div className="p-8 text-center text-text-secondary">No items found in inventory.</div>
                  ) : (
                     visibleItems.map(item => {
-                      // Calculate a mock percentage based on threshold/quantity just for the UI
-                      // Since user said progress bars aren't relevant, we'll just fake a 50% or calculate loosely
                       let percentage = 50;
                       if (item.quantity > 0 && item.threshold > 0) {
                          percentage = Math.min(100, (item.quantity / (item.threshold * 2)) * 100);
                       }
 
                       return (
-                         <div key={item.id} className="flex items-center px-6 py-4 hover:bg-white/[0.02] transition-colors">
-                            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary mr-4">
-                               <Package size={20} />
+                         <div key={item.id} className="flex flex-col sm:flex-row sm:items-center p-4 sm:px-6 sm:py-4 hover:bg-white/[0.02] transition-colors gap-4">
+                            {/* Mobile: Icon & Title Row */}
+                            <div className="flex items-center gap-4 w-full sm:w-auto">
+                              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary shrink-0">
+                                 <Package size={20} />
+                              </div>
+                              <div className="flex-1 min-w-0 sm:w-48">
+                                 <h3 className="font-semibold text-white text-sm truncate">{item.name}</h3>
+                                 <p className="text-xs text-text-secondary mt-0.5 truncate">{item.category}</p>
+                              </div>
+                              {/* Mobile: Actions */}
+                              <div className="flex sm:hidden shrink-0 gap-1">
+                                <button onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors">
+                                   <Edit size={18} />
+                                </button>
+                                <button onClick={() => handleDelete(item.id)} className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors">
+                                   <Trash2 size={18} />
+                                </button>
+                              </div>
                             </div>
 
-                            <div className="flex-1 grid grid-cols-12 gap-4 items-center">
-                               <div className="col-span-4">
-                                  <h3 className="font-semibold text-white text-sm truncate">{item.name}</h3>
-                                  <p className="text-xs text-text-secondary mt-0.5">{item.category}</p>
+                            {/* Progress bar */}
+                            <div className="flex-1 w-full min-w-0">
+                               <div className="flex justify-between text-xs text-text-secondary mb-1.5">
+                                  <span>{Math.round(percentage)}% remaining</span>
                                </div>
+                               <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                  <div
+                                     className="h-full bg-blue-500 rounded-full"
+                                     style={{ width: `${percentage}%` }}
+                                  />
+                               </div>
+                            </div>
 
-                               <div className="col-span-4">
-                                  <div className="flex justify-between text-xs text-text-secondary mb-1.5">
-                                     <span>{Math.round(percentage)}% remaining</span>
-                                  </div>
-                                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                     <div
-                                        className="h-full bg-blue-500 rounded-full"
-                                        style={{ width: `${percentage}%` }}
-                                     />
-                                  </div>
-                               </div>
-
-                               <div className="col-span-3 text-right">
-                                  <span className="text-xs text-text-secondary">Expires: N/A</span>
-                               </div>
-
-                               <div className="col-span-1 flex justify-end">
-                                  <button onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors">
-                                     <MoreHorizontal size={18} />
-                                  </button>
-                               </div>
+                            {/* Actions - Desktop right side */}
+                            <div className="hidden sm:flex items-center gap-2 shrink-0 justify-end">
+                               <button onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors">
+                                  <Edit size={18} />
+                               </button>
+                               <button onClick={() => handleDelete(item.id)} className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors">
+                                  <Trash2 size={18} />
+                               </button>
                             </div>
                          </div>
                       );

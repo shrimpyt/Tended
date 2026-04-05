@@ -244,7 +244,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
     <div className="fixed inset-0 z-50 flex flex-col bg-background overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-elevated flex-shrink-0">
-        <button onClick={handleClose} aria-label="Cancel Scan Receipt" className="text-text-secondary hover:text-text-primary font-medium px-2 py-1 rounded-md focus-visible:ring-2 focus-visible:ring-primary-blue">
+        <button onClick={handleClose} className="text-text-secondary hover:text-text-primary font-medium px-2 py-1">
           Cancel
         </button>
         <h2 className="text-lg font-bold text-text-primary">
@@ -314,7 +314,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
                         value={li.amount}
                         onChange={(e) => handleUpdateItem(idx, { amount: e.target.value })}
                       />
-                      <button onClick={() => handleRemoveItem(idx)} aria-label="Remove item" className="ml-2 text-text-secondary opacity-0 group-hover:opacity-100 hover:text-red-500 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-red-500 rounded-sm">
+                      <button onClick={() => handleRemoveItem(idx)} className="ml-2 text-text-secondary opacity-0 group-hover:opacity-100 hover:text-red-500">
                         <X size={14} />
                       </button>
                     </div>
@@ -387,8 +387,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
                         next[idx].addQuantity = Math.max(1, next[idx].addQuantity - 1);
                         setRestockProposals(next);
                       }}
-                      aria-label="Decrease quantity"
-                      className="w-6 h-6 flex items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:ring-primary-blue"
+                      className="w-6 h-6 flex items-center justify-center"
                     >
                       <Minus size={14} />
                     </button>
@@ -399,8 +398,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
                         next[idx].addQuantity += 1;
                         setRestockProposals(next);
                       }}
-                      aria-label="Increase quantity"
-                      className="w-6 h-6 flex items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:ring-primary-blue"
+                      className="w-6 h-6 flex items-center justify-center"
                     >
                       <Plus size={14} />
                     </button>

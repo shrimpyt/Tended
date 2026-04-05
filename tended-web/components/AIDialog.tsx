@@ -151,7 +151,7 @@ export default function AIDialog({ open, onClose, onTriggerScanner }: AIDialogPr
               ))}
             </div>
 
-            <button onClick={onClose} aria-label="Close AI Assistant" className="text-text-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-blue rounded-md">
+            <button onClick={onClose} className="text-text-secondary hover:text-foreground">
               <X size={18} />
             </button>
           </div>
@@ -201,7 +201,7 @@ export default function AIDialog({ open, onClose, onTriggerScanner }: AIDialogPr
                   placeholder="Ask Tend anything..."
                   className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-text-secondary"
                 />
-                <button onClick={handleSend} disabled={!input.trim()} aria-label="Send message" className="text-blue disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-blue rounded-md">
+                <button onClick={handleSend} disabled={!input.trim()} className="text-blue disabled:opacity-30">
                   <Send size={18} />
                 </button>
               </div>
