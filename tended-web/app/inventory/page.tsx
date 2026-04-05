@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useInventory, useAddInventoryItem, useDeleteInventoryItem } from '@/hooks/queries';
 import Link from 'next/link';
-import { Zap, Plus, X, Edit, Trash2, Package, AlertTriangle, Clock, MoreHorizontal } from 'lucide-react';
+import { Zap, Plus, X, Edit, Trash2, Search, Package, Clock, AlertTriangle, MoreHorizontal } from 'lucide-react';
 import AIDialog from '@/components/AIDialog';
 import BarcodeScanModal from '@/components/BarcodeScanModal';
 import ReceiptScanModal from '@/components/ReceiptScanModal';
@@ -13,53 +13,7 @@ import { Item, NewItem } from '@/types/models';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/queries';
-
-// Map Open Food Facts category strings → a sensible default string category
-function mapOFFCategory(categoriesStr: string | undefined): string {
-  if (!categoriesStr) return 'Kitchen';
-  const cats = categoriesStr.toLowerCase();
-  if (
-    cats.includes('cleaning') ||
-    cats.includes('household') ||
-    cats.includes('detergent') ||
-    cats.includes('dishwash') ||
-    cats.includes('laundry') ||
-    cats.includes('trash') ||
-    cats.includes('paper')
-  ) return 'Cleaning';
-
-  if (
-    cats.includes('cosmetics') ||
-    cats.includes('bathroom') ||
-    cats.includes('toilet') ||
-    cats.includes('soap') ||
-    cats.includes('shampoo') ||
-    cats.includes('hygiene')
-  ) return 'Bathroom';
-
-  if (
-    cats.includes('pantry') ||
-    cats.includes('groceries') ||
-    cats.includes('snack') ||
-    cats.includes('canned') ||
-    cats.includes('dry') ||
-    cats.includes('baking')
-  ) return 'Pantry';
-
-  return 'Kitchen'; // default
-}
-
-function parseUnit(quantityStr: string | undefined): string {
-  if (!quantityStr) return 'pc';
-  const lower = quantityStr.toLowerCase();
-  if (lower.includes('ml')) return 'ml';
-  if (lower.includes(' l')) return 'L';
-  if (lower.includes('g')) return 'g';
-  if (lower.includes('kg')) return 'kg';
-  if (lower.includes('oz')) return 'oz';
-  if (lower.includes('lb')) return 'lb';
-  return 'pc';
-}
+import { mapOFFCategory, parseUnit } from '@/utils/productParsers';
 
 export default function InventoryPage() {
   const { profile } = useAuthStore();
@@ -210,24 +164,76 @@ export default function InventoryPage() {
     }
   };
 
+  const lowStockCount = visibleItems.filter(item => item.quantity <= item.threshold).length;
+
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <header className="bg-background/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-text-secondary hover:text-primary-blue">&larr; Back</Link>
-          <div className="font-bold text-xl text-text-primary tracking-tight">Inventory</div>
+    <div className="flex flex-col min-h-screen bg-[#11131A]">
+      <main className="flex-1 w-full max-w-6xl mx-auto px-6 py-8">
+
+        {/* Header Section */}
+        <div className="flex items-center justify-between mb-8">
+           <h1 className="text-2xl font-bold text-white">Inventory Dashboard</h1>
+
+           <div className="flex items-center gap-4">
+              <div className="relative">
+                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+                 <input
+                    type="text"
+                    placeholder="Search"
+                    className="bg-[#1A1C23] border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-64"
+                 />
+              </div>
+              <button
+                 onClick={openManualAdd}
+                 className="w-9 h-9 bg-blue-500 hover:bg-blue-600 rounded-lg flex items-center justify-center text-white transition-colors"
+              >
+                 <Plus size={20} />
+              </button>
+              <button
+                 onClick={() => setAiOpen(true)}
+                 className="w-9 h-9 bg-[#1A1C23] border border-white/10 hover:bg-white/5 rounded-lg flex items-center justify-center text-white transition-colors"
+                 title="Quick Capture"
+              >
+                 <Zap size={18} />
+              </button>
+           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={openManualAdd} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text-primary rounded-md text-sm font-medium hover:bg-white/5 transition-colors">
-            <Plus size={16} />
-            <span className="hidden sm:inline">Add Item</span>
-          </button>
-          <button onClick={() => setAiOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-primary-blue text-white rounded-md text-sm font-medium hover:bg-primary-blue/90 transition-colors">
-            <Zap size={16} />
-            <span className="hidden sm:inline">Quick Capture</span>
-          </button>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+           {/* Card 1 */}
+           <div className="bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                 <Package size={24} />
+              </div>
+              <div>
+                 <p className="text-sm text-text-secondary font-medium">Total Items</p>
+                 <p className="text-2xl font-bold text-white">{visibleItems.length} items</p>
+              </div>
+           </div>
+
+           {/* Card 2 */}
+           <div className="bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                 <AlertTriangle size={24} />
+              </div>
+              <div>
+                 <p className="text-sm text-text-secondary font-medium">Low Stock</p>
+                 <p className="text-2xl font-bold text-white">{lowStockCount} items</p>
+              </div>
+           </div>
+
+           {/* Card 3 */}
+           <div className="bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                 <Clock size={24} />
+              </div>
+              <div>
+                 <p className="text-sm text-text-secondary font-medium">Expired</p>
+                 <p className="text-2xl font-bold text-white">0 items</p>
+              </div>
+           </div>
         </div>
-      </header>
 
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
         {/* Stats Row - Scrollable horizontally on mobile */}
@@ -282,6 +288,8 @@ export default function InventoryPage() {
                     <div className="p-8 text-center text-text-secondary">No items found in inventory.</div>
                  ) : (
                     visibleItems.map(item => {
+                      // Calculate a mock percentage based on threshold/quantity just for the UI
+                      // Since user said progress bars aren't relevant, we'll just fake a 50% or calculate loosely
                       let percentage = 50;
                       if (item.quantity > 0 && item.threshold > 0) {
                          percentage = Math.min(100, (item.quantity / (item.threshold * 2)) * 100);

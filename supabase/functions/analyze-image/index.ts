@@ -2,13 +2,23 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get('origin');
+  const allowedOrigins = Deno.env.get('ALLOWED_ORIGINS')?.split(',').map(o => o.trim()) || [];
+
+  const responseHeaders = { ...corsHeaders };
+
+  if (origin && allowedOrigins.includes(origin)) {
+    responseHeaders['Access-Control-Allow-Origin'] = origin;
+  } else if (allowedOrigins.includes('*')) {
+    responseHeaders['Access-Control-Allow-Origin'] = '*';
+  }
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: responseHeaders });
   }
 
   try {
@@ -20,7 +30,7 @@ Deno.serve(async (req: Request) => {
       console.error("[analyze-image] Error parsing request JSON:", parseError);
       return new Response(
         JSON.stringify({ error: "Failed to parse request data. Image might be too large or malformed." }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { headers: { ...responseHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
@@ -33,7 +43,7 @@ Deno.serve(async (req: Request) => {
       console.error("[analyze-image] Error: OPENAI_API_KEY is not set in environment variables.");
       return new Response(
         JSON.stringify({ error: "OpenAI API key missing on server. Please set it in Supabase secrets." }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: { ...responseHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
@@ -100,11 +110,11 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(`[analyze-image] Success! Result: ${result}`);
-    return new Response(result, { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(result, { headers: { ...responseHeaders, 'Content-Type': 'application/json' } });
   } catch (error: any) {
     console.error("[analyze-image] Fatal Error:", error);
     return new Response(JSON.stringify({ error: error.message || "An unknown error occurred" }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...responseHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });
   }
