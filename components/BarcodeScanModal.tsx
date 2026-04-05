@@ -17,6 +17,7 @@ import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
 import {useInventory, useAddInventoryItem} from '../hooks/queries';
 import {NewItem} from '../types/models';
 import {useAuthStore} from '../store/authStore';
+import {mapOFFCategory, parseUnit} from '../utils/productParsers';
 
 function getUniqueCategories(items: any[]): string[] {
   const seen = new Set<string>();
@@ -39,55 +40,6 @@ interface ProductDraft {
 }
 
 const DEFAULT_CATEGORY_SUGGESTIONS = ['Kitchen', 'Bathroom', 'Cleaning', 'Pantry'];
-
-// Map Open Food Facts category strings → a sensible default string category
-function mapOFFCategory(categoriesStr: string | undefined): string {
-  if (!categoriesStr) return 'Kitchen';
-  const cats = categoriesStr.toLowerCase();
-  if (
-    cats.includes('cleaning') ||
-    cats.includes('household') ||
-    cats.includes('detergent') ||
-    cats.includes('dishwash') ||
-    cats.includes('laundry') ||
-    cats.includes('trash') ||
-    cats.includes('paper-towel') ||
-    cats.includes('toilet-paper')
-  ) return 'Cleaning';
-  if (
-    cats.includes('hygiene') ||
-    cats.includes('beauty') ||
-    cats.includes('personal-care') ||
-    cats.includes('shampoo') ||
-    cats.includes('soap') ||
-    cats.includes('toothpaste') ||
-    cats.includes('deodorant') ||
-    cats.includes('cosmetic')
-  ) return 'Bathroom';
-  if (
-    cats.includes('pasta') ||
-    cats.includes('rice') ||
-    cats.includes('cereal') ||
-    cats.includes('flour') ||
-    cats.includes('sugar') ||
-    cats.includes('oil') ||
-    cats.includes('sauce') ||
-    cats.includes('condiment') ||
-    cats.includes('canned') ||
-    cats.includes('spice') ||
-    cats.includes('coffee') ||
-    cats.includes('tea') ||
-    cats.includes('pantry')
-  ) return 'Pantry';
-  return 'Kitchen';
-}
-
-// Extract a clean unit from the quantity field
-function parseUnit(quantity: string | undefined): string {
-  if (!quantity) return '';
-  const match = quantity.match(/\b(ml|l|g|kg|oz|lb|fl oz|count|rolls|sheets|pack)\b/i);
-  return match ? match[1].toLowerCase() : '';
-}
 
 async function lookupBarcode(barcode: string): Promise<ProductDraft | null> {
   try {
