@@ -5,7 +5,7 @@ export async function POST(req: Request) {
     let body;
     try {
       body = await req.json();
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error("[analyze-image-api] Error parsing request JSON:", parseError);
       return NextResponse.json(
         { error: "Failed to parse request data. Image might be too large or malformed." },
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     }
 
     let systemMessage = "";
-    let userContent: any[] = [];
+    let userContent: unknown[] = [];
 
     // Determine image format (ensure it includes data URI prefix for OpenAI)
     const formattedImageUrl = image ? (image.startsWith('data:image/') ? image : `data:image/jpeg;base64,${image.replace(/[\n\r]/g, '')}`) : '';
@@ -99,10 +99,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Failed to parse OpenAI response as JSON", raw: result }, { status: 500 });
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[analyze-image-api] Fatal Error:", error);
     return NextResponse.json(
-      { error: error.message || "An unknown error occurred" },
+      { error: (error instanceof Error ? error.message : "Unknown error") || "An unknown error occurred" },
       { status: 500 }
     );
   }
