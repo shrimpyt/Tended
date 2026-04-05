@@ -264,6 +264,89 @@ export default function InventoryPage() {
               </div>
            </div>
         </div>
+        <div className="flex items-center gap-2">
+          <button onClick={openManualAdd} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text-primary rounded-md text-sm font-medium hover:bg-white/5 transition-colors">
+            <Plus size={16} />
+            <span className="hidden sm:inline">Add Item</span>
+          </button>
+          <button onClick={() => setAiOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-primary-blue text-white rounded-md text-sm font-medium hover:bg-primary-blue/90 transition-colors">
+            <Zap size={16} />
+            <span className="hidden sm:inline">Quick Capture</span>
+          </button>
+        </div>
+      </header>
+
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
+        {/* Stats Row - Scrollable horizontally on mobile */}
+        <div className="flex overflow-x-auto pb-6 gap-4 hide-scrollbar snap-x">
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+                 <Package size={24} />
+              </div>
+              <div className="min-w-0">
+                 <p className="text-sm text-text-secondary font-medium">Total Items</p>
+                 <p className="text-2xl font-bold text-white truncate">{visibleItems.length}</p>
+              </div>
+           </div>
+
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
+                 <AlertTriangle size={24} />
+              </div>
+              <div className="min-w-0">
+                 <p className="text-sm text-text-secondary font-medium">Low Stock</p>
+                 <p className="text-2xl font-bold text-white truncate">
+                   {visibleItems.filter(i => i.quantity <= i.threshold).length}
+                 </p>
+              </div>
+           </div>
+
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+                 <Clock size={24} />
+              </div>
+              <div className="min-w-0">
+                 <p className="text-sm text-text-secondary font-medium">Recently Added</p>
+                 <p className="text-2xl font-bold text-white truncate">-- items</p>
+              </div>
+           </div>
+        </div>
+
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
+        {/* Stats Row - Scrollable horizontally on mobile */}
+        <div className="flex overflow-x-auto pb-6 gap-4 hide-scrollbar snap-x">
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+                 <Package size={24} />
+              </div>
+              <div className="min-w-0">
+                 <p className="text-sm text-text-secondary font-medium">Total Items</p>
+                 <p className="text-2xl font-bold text-white truncate">{visibleItems.length}</p>
+              </div>
+           </div>
+
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
+                 <AlertTriangle size={24} />
+              </div>
+              <div className="min-w-0">
+                 <p className="text-sm text-text-secondary font-medium">Low Stock</p>
+                 <p className="text-2xl font-bold text-white truncate">
+                   {visibleItems.filter(i => i.quantity <= i.threshold).length}
+                 </p>
+              </div>
+           </div>
+
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+                 <Clock size={24} />
+              </div>
+              <div className="min-w-0">
+                 <p className="text-sm text-text-secondary font-medium">Recently Added</p>
+                 <p className="text-2xl font-bold text-white truncate">-- items</p>
+              </div>
+           </div>
+        </div>
 
         {/* Inventory List */}
         <div>
