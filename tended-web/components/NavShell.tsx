@@ -26,8 +26,7 @@ export default function NavShell() {
     { href: '/shopping-list', icon: ShoppingCart, label: 'Shopping'   },
     ...(!isRestricted ? [
       { href: '/meals',     icon: ChefHat, label: 'Meals'     },
-      { href: '/graveyard', icon: Trash2,  label: 'Graveyard' },
-    ] : []),
+      ] : []),
     { href: '/settings', icon: Settings, label: 'Settings' },
   ] as const;
 
@@ -91,7 +90,7 @@ export default function NavShell() {
       {/* ── Mobile: floating bottom bar ──────────────────────────── */}
       <nav
         aria-label="Main navigation"
-        className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center justify-between px-4 py-2 rounded-full w-[90%] max-w-sm"
+        className="md:hidden fixed bottom-6 left-4 right-4 mx-auto z-40 flex items-center justify-between px-6 py-3 rounded-2xl max-w-sm"
         style={{
           background: 'rgba(24, 24, 27, 0.8)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -108,13 +107,14 @@ export default function NavShell() {
               href={href}
               aria-label={label}
               className={clsx(
-                'flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200',
+                'flex flex-col items-center justify-center gap-1 min-w-[64px] py-1 transition-all duration-200 rounded-xl',
                 active
-                  ? 'bg-primary/20 text-primary'
-                  : 'text-text-secondary hover:text-foreground hover:bg-white/5'
+                  ? 'text-blue-500'
+                  : 'text-text-secondary'
               )}
             >
-              <Icon size={24} strokeWidth={active ? 2.5 : 2} />
+              <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+              <span className="text-[10px] font-medium">{label}</span>
             </Link>
           );
         })}
