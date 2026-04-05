@@ -32,35 +32,35 @@ async def run_test():
         # Interact with the page elements to simulate user flow
         # -> Navigate to http://localhost:8081
         await page.goto("http://localhost:8081", wait_until="commit", timeout=10000)
-        
+
         # -> Fill the Email and Password fields and submit the sign-in form to authenticate.
         frame = context.pages[-1]
         # Input text
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/input').nth(0)
         await page.wait_for_timeout(3000); await elem.fill('trystan@tryolive.dev')
-        
+
         frame = context.pages[-1]
         # Input text
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/input[2]').nth(0)
         await page.wait_for_timeout(3000); await elem.fill('S3@hawks')
-        
+
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div/div/div[2]/div/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Open the Spending tab so the month selector and spending view are visible, then change the month.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div[2]/div[2]/div[3]/a').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # -> Click the previous-month arrow to change the displayed month, wait for the view to update, and extract the month label, total spent amount, and entries text for verification.
         frame = context.pages[-1]
         # Click element
         elem = frame.locator('xpath=/html/body/div/div/div/div[2]/div/div[2]/div/div/div/div/div[2]/div').nth(0)
         await page.wait_for_timeout(3000); await elem.click(timeout=5000)
-        
+
         # --> Test passed — verified by AI agent
         frame = context.pages[-1]
         current_url = await frame.evaluate("() => window.location.href")
@@ -76,4 +76,3 @@ async def run_test():
             await pw.stop()
 
 asyncio.run(run_test())
-    
