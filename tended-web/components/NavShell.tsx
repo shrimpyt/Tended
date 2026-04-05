@@ -23,10 +23,10 @@ export default function NavShell() {
   const NAV_ITEMS = [
     { href: '/dashboard',     icon: Home,         label: 'Dashboard' },
     { href: '/inventory',     icon: Package,      label: 'Inventory'  },
-    { href: '/shopping-list', icon: ShoppingCart, label: 'Shopping'   },
-    ...(!isRestricted ? [
-      { href: '/meals',     icon: ChefHat, label: 'Meals'     },
-      ] : []),
+    // { href: '/shopping-list', icon: ShoppingCart, label: 'Shopping'   },
+    // ...(!isRestricted ? [
+      // { href: '/meals',     icon: ChefHat, label: 'Meals'     },
+      // ] : []),
     { href: '/settings', icon: Settings, label: 'Settings' },
   ] as const;
 
