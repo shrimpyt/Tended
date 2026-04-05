@@ -235,9 +235,47 @@ export default function InventoryPage() {
            </div>
         </div>
 
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
+        {/* Stats Row - Scrollable horizontally on mobile */}
+        <div className="flex overflow-x-auto pb-6 gap-4 hide-scrollbar snap-x">
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+                 <Package size={24} />
+              </div>
+              <div className="min-w-0">
+                 <p className="text-sm text-text-secondary font-medium">Total Items</p>
+                 <p className="text-2xl font-bold text-white truncate">{visibleItems.length}</p>
+              </div>
+           </div>
+
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
+                 <AlertTriangle size={24} />
+              </div>
+              <div className="min-w-0">
+                 <p className="text-sm text-text-secondary font-medium">Low Stock</p>
+                 <p className="text-2xl font-bold text-white truncate">
+                   {visibleItems.filter(i => i.quantity <= i.threshold).length}
+                 </p>
+              </div>
+           </div>
+
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+                 <Clock size={24} />
+              </div>
+              <div className="min-w-0">
+                 <p className="text-sm text-text-secondary font-medium">Recently Added</p>
+                 <p className="text-2xl font-bold text-white truncate">-- items</p>
+              </div>
+           </div>
+        </div>
+
         {/* Inventory List */}
         <div>
-           <h2 className="text-lg font-bold text-white mb-4">Recent Inventory</h2>
+           <div className="flex items-center justify-between mb-4">
+             <h2 className="text-lg font-bold text-white">Recent Inventory</h2>
+           </div>
 
            <div className="bg-[#1A1C23] rounded-2xl border border-white/5 overflow-hidden">
              {isLoading ? (
@@ -258,38 +296,48 @@ export default function InventoryPage() {
                       }
 
                       return (
-                         <div key={item.id} className="flex items-center px-6 py-4 hover:bg-white/[0.02] transition-colors">
-                            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary mr-4">
-                               <Package size={20} />
+                         <div key={item.id} className="flex flex-col sm:flex-row sm:items-center p-4 sm:px-6 sm:py-4 hover:bg-white/[0.02] transition-colors gap-4">
+                            {/* Mobile: Icon & Title Row */}
+                            <div className="flex items-center gap-4 w-full sm:w-auto">
+                              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary shrink-0">
+                                 <Package size={20} />
+                              </div>
+                              <div className="flex-1 min-w-0 sm:w-48">
+                                 <h3 className="font-semibold text-white text-sm truncate">{item.name}</h3>
+                                 <p className="text-xs text-text-secondary mt-0.5 truncate">{item.category}</p>
+                              </div>
+                              {/* Mobile: Actions */}
+                              <div className="flex sm:hidden shrink-0 gap-1">
+                                <button onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors">
+                                   <Edit size={18} />
+                                </button>
+                                <button onClick={() => handleDelete(item.id)} className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors">
+                                   <Trash2 size={18} />
+                                </button>
+                              </div>
                             </div>
 
-                            <div className="flex-1 grid grid-cols-12 gap-4 items-center">
-                               <div className="col-span-4">
-                                  <h3 className="font-semibold text-white text-sm truncate">{item.name}</h3>
-                                  <p className="text-xs text-text-secondary mt-0.5">{item.category}</p>
+                            {/* Progress bar */}
+                            <div className="flex-1 w-full min-w-0">
+                               <div className="flex justify-between text-xs text-text-secondary mb-1.5">
+                                  <span>{Math.round(percentage)}% remaining</span>
                                </div>
+                               <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                  <div
+                                     className="h-full bg-blue-500 rounded-full"
+                                     style={{ width: `${percentage}%` }}
+                                  />
+                               </div>
+                            </div>
 
-                               <div className="col-span-4">
-                                  <div className="flex justify-between text-xs text-text-secondary mb-1.5">
-                                     <span>{Math.round(percentage)}% remaining</span>
-                                  </div>
-                                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                     <div
-                                        className="h-full bg-blue-500 rounded-full"
-                                        style={{ width: `${percentage}%` }}
-                                     />
-                                  </div>
-                               </div>
-
-                               <div className="col-span-3 text-right">
-                                  <span className="text-xs text-text-secondary">Expires: N/A</span>
-                               </div>
-
-                               <div className="col-span-1 flex justify-end">
-                                  <button onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors">
-                                     <MoreHorizontal size={18} />
-                                  </button>
-                               </div>
+                            {/* Actions - Desktop right side */}
+                            <div className="hidden sm:flex items-center gap-2 shrink-0 justify-end">
+                               <button onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors">
+                                  <Edit size={18} />
+                               </button>
+                               <button onClick={() => handleDelete(item.id)} className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors">
+                                  <Trash2 size={18} />
+                               </button>
                             </div>
                          </div>
                       );
