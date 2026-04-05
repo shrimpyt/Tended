@@ -51,13 +51,12 @@ function mapOFFCategory(categoriesStr: string | undefined): string {
 
 function parseUnit(quantityStr: string | undefined): string {
   if (!quantityStr) return 'pc';
-  const lower = quantityStr.toLowerCase();
-  if (lower.includes('ml')) return 'ml';
-  if (lower.includes(' l')) return 'L';
-  if (lower.includes('g')) return 'g';
-  if (lower.includes('kg')) return 'kg';
-  if (lower.includes('oz')) return 'oz';
-  if (lower.includes('lb')) return 'lb';
+  const match = quantityStr.match(/(?:\b|(?<=\d))(ml|l|g|kg|oz|lb|fl oz|count|rolls|sheets|pack)\b/i);
+  if (match && match[1]) {
+    const u = match[1].toLowerCase();
+    if (u === 'l') return 'L';
+    return u;
+  }
   return 'pc';
 }
 
@@ -108,9 +107,11 @@ export default function InventoryPage() {
       const json = await res.json();
 
       if (json.status !== 1 || !json.product) {
-        setQuickFeedback(`Error: Product not found.`);
+        setQuickFeedback(`Product not found. Please add manually.`);
         setTimeout(() => setQuickFeedback(null), 4000);
-        return false;
+        setFormData({ name: '', category: 'Pantry', quantity: 1, max_quantity: 1, threshold: 0, unit: 'pc' });
+        setIsManualModalOpen(true);
+        return true; // Return true to close scanner
       }
 
       const p = json.product;
@@ -137,11 +138,19 @@ export default function InventoryPage() {
         setTimeout(() => setQuickFeedback(null), 3000);
         return true;
       } else {
-        return false;
+        setQuickFeedback(`Product not found. Please add manually.`);
+        setTimeout(() => setQuickFeedback(null), 4000);
+        setFormData({ name: '', category: 'Pantry', quantity: 1, max_quantity: 1, threshold: 0, unit: 'pc' });
+        setIsManualModalOpen(true);
+        return true;
       }
     } catch (err) {
       console.error(err);
-      return false;
+      setQuickFeedback(`Error looking up product. Please add manually.`);
+      setTimeout(() => setQuickFeedback(null), 4000);
+      setFormData({ name: '', category: 'Pantry', quantity: 1, max_quantity: 1, threshold: 0, unit: 'pc' });
+      setIsManualModalOpen(true);
+      return true;
     }
   };
 
@@ -229,88 +238,6 @@ export default function InventoryPage() {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
-        {/* Stats Row - Scrollable horizontally on mobile */}
-        <div className="flex overflow-x-auto pb-6 gap-4 hide-scrollbar snap-x">
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-                 <Package size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Total Items</p>
-                 <p className="text-2xl font-bold text-white truncate">{visibleItems.length}</p>
-              </div>
-           </div>
-
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
-                 <AlertTriangle size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Low Stock</p>
-                 <p className="text-2xl font-bold text-white truncate">
-                   {visibleItems.filter(i => i.quantity <= i.threshold).length}
-                 </p>
-              </div>
-           </div>
-
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-                 <Clock size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Recently Added</p>
-                 <p className="text-2xl font-bold text-white truncate">-- items</p>
-              </div>
-           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={openManualAdd} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text-primary rounded-md text-sm font-medium hover:bg-white/5 transition-colors">
-            <Plus size={16} />
-            <span className="hidden sm:inline">Add Item</span>
-          </button>
-          <button onClick={() => setAiOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-primary-blue text-white rounded-md text-sm font-medium hover:bg-primary-blue/90 transition-colors">
-            <Zap size={16} />
-            <span className="hidden sm:inline">Quick Capture</span>
-          </button>
-        </div>
-      </header>
-
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
-        {/* Stats Row - Scrollable horizontally on mobile */}
-        <div className="flex overflow-x-auto pb-6 gap-4 hide-scrollbar snap-x">
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-                 <Package size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Total Items</p>
-                 <p className="text-2xl font-bold text-white truncate">{visibleItems.length}</p>
-              </div>
-           </div>
-
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
-                 <AlertTriangle size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Low Stock</p>
-                 <p className="text-2xl font-bold text-white truncate">
-                   {visibleItems.filter(i => i.quantity <= i.threshold).length}
-                 </p>
-              </div>
-           </div>
-
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-                 <Clock size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Recently Added</p>
-                 <p className="text-2xl font-bold text-white truncate">-- items</p>
-              </div>
-           </div>
-        </div>
 
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
         {/* Stats Row - Scrollable horizontally on mobile */}
