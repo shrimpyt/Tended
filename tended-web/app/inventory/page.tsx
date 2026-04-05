@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useInventory, useAddInventoryItem, useDeleteInventoryItem } from '@/hooks/queries';
 import Link from 'next/link';
-import { Zap, Plus, X, Edit, Trash2, Package, AlertTriangle, Clock, MoreHorizontal } from 'lucide-react';
+import { Zap, Plus, X, Edit, Trash2, Package, AlertTriangle, Clock, MoreHorizontal, Minus } from 'lucide-react';
+import { motion } from 'framer-motion';
 import AIDialog from '@/components/AIDialog';
 import BarcodeScanModal from '@/components/BarcodeScanModal';
 import ReceiptScanModal from '@/components/ReceiptScanModal';
@@ -171,6 +172,24 @@ export default function InventoryPage() {
     setIsManualModalOpen(true);
   };
 
+  const handleUpdateQuantity = async (item: Item, newQuantity: number) => {
+    if (newQuantity < 0) return;
+    try {
+      const { error } = await supabase
+        .from('items')
+        .update({ quantity: newQuantity })
+        .eq('id', item.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventory(householdId) });
+      setQuickFeedback(`Updated ${item.name} quantity to ${newQuantity}`);
+      setTimeout(() => setQuickFeedback(null), 3000);
+    } catch (err) {
+      console.error("Failed to update quantity", err);
+      setQuickFeedback(`Error updating ${item.name}`);
+      setTimeout(() => setQuickFeedback(null), 3000);
+    }
+  };
+
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile?.id) return;
@@ -212,25 +231,29 @@ export default function InventoryPage() {
 
     return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="bg-background/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+            <header className="bg-background/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <Link href="/" className="text-text-secondary hover:text-primary-blue">&larr; Back</Link>
           <div className="font-bold text-xl text-text-primary tracking-tight">Inventory</div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={openManualAdd} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text-primary rounded-md text-sm font-medium hover:bg-white/5 transition-colors">
+          <motion.button whileTap={{ scale: 0.95 }} whileHover={{ scale: 1.02 }} onClick={openManualAdd} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text-primary rounded-md text-sm font-medium hover:bg-white/5 transition-colors">
             <Plus size={16} />
             <span className="hidden sm:inline">Add Item</span>
-          </button>
-          <button onClick={() => setAiOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-primary-blue text-white rounded-md text-sm font-medium hover:bg-primary-blue/90 transition-colors">
+          </motion.button>
+          <motion.button whileTap={{ scale: 0.95 }} whileHover={{ scale: 1.02 }} onClick={() => setAiOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-primary-blue text-white rounded-md text-sm font-medium hover:bg-primary-blue/90 transition-colors">
             <Zap size={16} />
             <span className="hidden sm:inline">Quick Capture</span>
-          </button>
+          </motion.button>
         </div>
       </header>
-
-      <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
-        {/* Stats Row */}
+      {quickFeedback && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-surface-elevated border border-border px-4 py-2 rounded-full shadow-lg">
+          <p className="text-sm font-medium text-white">{quickFeedback}</p>
+        </div>
+      )}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
+        {/* Stats Row - Scrollable horizontally on mobile */}
         <div className="flex overflow-x-auto pb-6 gap-4 hide-scrollbar snap-x">
            <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
               <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
@@ -265,7 +288,7 @@ export default function InventoryPage() {
            </div>
         </div>
 
-        {/* Inventory List */}
+{/* Inventory List */}
         <div>
            <div className="flex items-center justify-between mb-4">
              <h2 className="text-lg font-bold text-white">Recent Inventory</h2>
@@ -287,8 +310,10 @@ export default function InventoryPage() {
                          percentage = Math.min(100, (item.quantity / (item.threshold * 2)) * 100);
                       }
 
+                      const isLowStock = item.quantity <= item.threshold;
                       return (
-                         <div key={item.id} className="flex flex-col sm:flex-row sm:items-center p-4 sm:px-6 sm:py-4 hover:bg-white/[0.02] transition-colors gap-4">
+                         <div key={item.id} className={`flex flex-col sm:flex-row sm:items-center p-4 sm:px-6 sm:py-4 hover:bg-white/[0.02] transition-colors gap-4 ${isLowStock ? 'bg-red-500/5 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)] animate-pulse-slow' : ''}`}>
+                            {/* Mobile: Icon & Title Row */}
                             <div className="flex items-center gap-4 w-full sm:w-auto">
                               <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary shrink-0">
                                  <Package size={20} />
@@ -307,13 +332,33 @@ export default function InventoryPage() {
                               </div>
                             </div>
 
-                            <div className="flex-1 w-full min-w-0">
+                            {/* Quick Adjust Quantity Controls */}
+                            <div className="flex items-center gap-3">
+                               <motion.button
+                                  whileTap={{ scale: 0.9, transition: { type: 'spring', stiffness: 400, damping: 10 } }}
+                                  onClick={() => handleUpdateQuantity(item, item.quantity - 1)}
+                                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/10 transition-colors"
+                               >
+                                  <Minus size={14} />
+                               </motion.button>
+                               <span className="text-white font-medium min-w-[2ch] text-center">{item.quantity}</span>
+                               <motion.button
+                                  whileTap={{ scale: 0.9, transition: { type: 'spring', stiffness: 400, damping: 10 } }}
+                                  onClick={() => handleUpdateQuantity(item, item.quantity + 1)}
+                                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/10 transition-colors"
+                               >
+                                  <Plus size={14} />
+                               </motion.button>
+                            </div>
+
+                            {/* Progress bar */}
+                            <div className="flex-1 w-full min-w-0 hidden sm:block">
                                <div className="flex justify-between text-xs text-text-secondary mb-1.5">
                                   <span>{Math.round(percentage)}% remaining</span>
                                </div>
                                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                                   <div
-                                     className="h-full bg-blue-500 rounded-full"
+                                     className={`h-full rounded-full ${isLowStock ? 'bg-red-500' : 'bg-blue-500'}`}
                                      style={{ width: `${percentage}%` }}
                                   />
                                </div>
@@ -335,7 +380,7 @@ export default function InventoryPage() {
              )}
            </div>
         </div>
-      </div>
+      </main>
 
       <AIDialog
         open={aiOpen}
@@ -365,6 +410,7 @@ export default function InventoryPage() {
         onClose={() => setReceiptOpen(false)}
       />
 
+      {/* Manual Add/Edit Modal */}
       {isManualModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-surface-elevated rounded-xl p-6 w-full max-w-md border border-border relative">
@@ -406,44 +452,42 @@ export default function InventoryPage() {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium mb-1 text-text-secondary">Current Qty</label>
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.quantity}
+                  onChange={e => setFormData({...formData, quantity: parseFloat(e.target.value) || 0})}
+                  className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Quantity</label>
+                  <label className="block text-sm font-medium mb-1 text-text-secondary">Threshold (reorder at)</label>
                   <input
                     required
                     type="number"
                     min="0"
                     step="0.1"
-                    value={formData.quantity}
-                    onChange={e => setFormData({...formData, quantity: parseFloat(e.target.value) || 0})}
+                    value={formData.threshold}
+                    onChange={e => setFormData({...formData, threshold: parseFloat(e.target.value) || 0})}
                     className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1 text-text-secondary">Threshold</label>
-                    <input
-                      required
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      value={formData.threshold}
-                      onChange={e => setFormData({...formData, threshold: parseFloat(e.target.value) || 0})}
-                      className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1 text-text-secondary">Unit</label>
-                    <input
-                      required
-                      type="text"
-                      value={formData.unit || ''}
-                      onChange={e => setFormData({...formData, unit: e.target.value})}
-                      placeholder="pc, kg, L..."
-                      className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-text-secondary">Unit</label>
+                  <input
+                    required
+                    type="text"
+                    value={formData.unit || ''}
+                    onChange={e => setFormData({...formData, unit: e.target.value})}
+                    placeholder="pc, kg, L..."
+                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
+                  />
                 </div>
               </div>
 
