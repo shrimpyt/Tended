@@ -112,19 +112,16 @@ export function useRestockFromReceipt() {
       userId: string;
       householdId: string;
     }) => {
-      const updates = args.proposals.map((p) => {
+      for (const p of args.proposals) {
         const newQty = Math.min(p.item.quantity + p.addQuantity, p.item.max_quantity);
-        return supabase.from('items').update({quantity: newQty}).eq('id', p.item.id);
-      });
-
-      const stockEvents = args.proposals.map((p) => ({
-        item_id: p.item.id,
-        old_quantity: p.item.quantity,
-        new_quantity: Math.min(p.item.quantity + p.addQuantity, p.item.max_quantity),
-        updated_by: args.userId,
-      }));
-
-      await Promise.all([...updates, supabase.from('stock_events').insert(stockEvents)]);
+        await supabase.from('items').update({quantity: newQty}).eq('id', p.item.id);
+        supabase.from('stock_events').insert({
+          item_id: p.item.id,
+          old_quantity: p.item.quantity,
+          new_quantity: newQty,
+          updated_by: args.userId,
+        }).then();
+      }
     },
     onSuccess: (_, args) => {
       queryClient.invalidateQueries({queryKey: queryKeys.inventory(args.householdId)});

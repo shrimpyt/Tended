@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useInventory, useAddInventoryItem, useDeleteInventoryItem } from '@/hooks/queries';
 import Link from 'next/link';
-import { Zap, Plus, X, Edit, Trash2, Package, AlertTriangle, Clock } from 'lucide-react';
+import { Zap, Plus, X, Edit, Trash2, Package, AlertTriangle, Clock, MoreHorizontal } from 'lucide-react';
 import AIDialog from '@/components/AIDialog';
 import BarcodeScanModal from '@/components/BarcodeScanModal';
 import ReceiptScanModal from '@/components/ReceiptScanModal';
@@ -13,7 +13,53 @@ import { Item, NewItem } from '@/types/models';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/queries';
-import { mapOFFCategory, parseUnit } from '@/utils/productParsers';
+
+// Map Open Food Facts category strings → a sensible default string category
+function mapOFFCategory(categoriesStr: string | undefined): string {
+  if (!categoriesStr) return 'Kitchen';
+  const cats = categoriesStr.toLowerCase();
+  if (
+    cats.includes('cleaning') ||
+    cats.includes('household') ||
+    cats.includes('detergent') ||
+    cats.includes('dishwash') ||
+    cats.includes('laundry') ||
+    cats.includes('trash') ||
+    cats.includes('paper')
+  ) return 'Cleaning';
+
+  if (
+    cats.includes('cosmetics') ||
+    cats.includes('bathroom') ||
+    cats.includes('toilet') ||
+    cats.includes('soap') ||
+    cats.includes('shampoo') ||
+    cats.includes('hygiene')
+  ) return 'Bathroom';
+
+  if (
+    cats.includes('pantry') ||
+    cats.includes('groceries') ||
+    cats.includes('snack') ||
+    cats.includes('canned') ||
+    cats.includes('dry') ||
+    cats.includes('baking')
+  ) return 'Pantry';
+
+  return 'Kitchen'; // default
+}
+
+function parseUnit(quantityStr: string | undefined): string {
+  if (!quantityStr) return 'pc';
+  const lower = quantityStr.toLowerCase();
+  if (lower.includes('ml')) return 'ml';
+  if (lower.includes(' l')) return 'L';
+  if (lower.includes('g')) return 'g';
+  if (lower.includes('kg')) return 'kg';
+  if (lower.includes('oz')) return 'oz';
+  if (lower.includes('lb')) return 'lb';
+  return 'pc';
+}
 
 export default function InventoryPage() {
   const { profile } = useAuthStore();
@@ -164,8 +210,6 @@ export default function InventoryPage() {
     }
   };
 
-  const lowStockCount = visibleItems.filter(item => item.quantity <= item.threshold).length;
-
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="bg-background/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
@@ -221,42 +265,6 @@ export default function InventoryPage() {
            </div>
         </div>
 
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
-        {/* Stats Row - Scrollable horizontally on mobile */}
-        <div className="flex overflow-x-auto pb-6 gap-4 hide-scrollbar snap-x">
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-                 <Package size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Total Items</p>
-                 <p className="text-2xl font-bold text-white truncate">{visibleItems.length}</p>
-              </div>
-           </div>
-
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
-                 <AlertTriangle size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Low Stock</p>
-                 <p className="text-2xl font-bold text-white truncate">
-                   {visibleItems.filter(i => i.quantity <= i.threshold).length}
-                 </p>
-              </div>
-           </div>
-
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-                 <Clock size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Recently Added</p>
-                 <p className="text-2xl font-bold text-white truncate">-- items</p>
-              </div>
-           </div>
-        </div>
-
         {/* Inventory List */}
         <div>
            <div className="flex items-center justify-between mb-4">
@@ -274,8 +282,6 @@ export default function InventoryPage() {
                     <div className="p-8 text-center text-text-secondary">No items found in inventory.</div>
                  ) : (
                     visibleItems.map(item => {
-                      // Calculate a mock percentage based on threshold/quantity just for the UI
-                      // Since user said progress bars aren't relevant, we'll just fake a 50% or calculate loosely
                       let percentage = 50;
                       if (item.quantity > 0 && item.threshold > 0) {
                          percentage = Math.min(100, (item.quantity / (item.threshold * 2)) * 100);
