@@ -23,7 +23,9 @@ export function useRealtimeHousehold(householdId: string) {
           table: 'items',
           filter: `household_id=eq.${householdId}`,
         },
-        () => queryClient.invalidateQueries({queryKey: queryKeys.inventory(householdId)}),
+        () => {
+          void queryClient.invalidateQueries({queryKey: queryKeys.inventory(householdId)});
+        },
       )
       .on(
         'postgres_changes',
@@ -33,7 +35,9 @@ export function useRealtimeHousehold(householdId: string) {
           table: 'shopping_list',
           filter: `household_id=eq.${householdId}`,
         },
-        () => queryClient.invalidateQueries({queryKey: queryKeys.shopping(householdId)}),
+        () => {
+          void queryClient.invalidateQueries({queryKey: queryKeys.shopping(householdId)});
+        },
       )
       .on(
         'postgres_changes',
@@ -43,12 +47,14 @@ export function useRealtimeHousehold(householdId: string) {
           table: 'spending_entries',
           filter: `household_id=eq.${householdId}`,
         },
-        () => queryClient.invalidateQueries({queryKey: ['spending', householdId]}),
+        () => {
+          void queryClient.invalidateQueries({queryKey: ['spending', householdId]});
+        },
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [householdId, queryClient]);
 }
