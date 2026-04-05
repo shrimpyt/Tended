@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useInventory, useAddInventoryItem, useDeleteInventoryItem } from '@/hooks/queries';
 import Link from 'next/link';
-import { Zap, Plus, X, Edit, Trash2, Search, Package, Clock, AlertTriangle, MoreHorizontal } from 'lucide-react';
+import { Zap, Plus, X, Edit, Trash2, Package, AlertTriangle, Clock } from 'lucide-react';
 import AIDialog from '@/components/AIDialog';
 import BarcodeScanModal from '@/components/BarcodeScanModal';
 import ReceiptScanModal from '@/components/ReceiptScanModal';
@@ -167,70 +167,56 @@ export default function InventoryPage() {
   const lowStockCount = visibleItems.filter(item => item.quantity <= item.threshold).length;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#11131A]">
-      <main className="flex-1 w-full max-w-6xl mx-auto px-6 py-8">
-
-        {/* Header Section */}
-        <div className="flex items-center justify-between mb-8">
-           <h1 className="text-2xl font-bold text-white">Inventory Dashboard</h1>
-
-           <div className="flex items-center gap-4">
-              <div className="relative">
-                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
-                 <input
-                    type="text"
-                    placeholder="Search"
-                    className="bg-[#1A1C23] border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-64"
-                 />
-              </div>
-              <button
-                 onClick={openManualAdd}
-                 className="w-9 h-9 bg-blue-500 hover:bg-blue-600 rounded-lg flex items-center justify-center text-white transition-colors"
-              >
-                 <Plus size={20} />
-              </button>
-              <button
-                 onClick={() => setAiOpen(true)}
-                 className="w-9 h-9 bg-[#1A1C23] border border-white/10 hover:bg-white/5 rounded-lg flex items-center justify-center text-white transition-colors"
-                 title="Quick Capture"
-              >
-                 <Zap size={18} />
-              </button>
-           </div>
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="bg-background/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-text-secondary hover:text-primary-blue">&larr; Back</Link>
+          <div className="font-bold text-xl text-text-primary tracking-tight">Inventory</div>
         </div>
+        <div className="flex items-center gap-2">
+          <button onClick={openManualAdd} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text-primary rounded-md text-sm font-medium hover:bg-white/5 transition-colors">
+            <Plus size={16} />
+            <span className="hidden sm:inline">Add Item</span>
+          </button>
+          <button onClick={() => setAiOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-primary-blue text-white rounded-md text-sm font-medium hover:bg-primary-blue/90 transition-colors">
+            <Zap size={16} />
+            <span className="hidden sm:inline">Quick Capture</span>
+          </button>
+        </div>
+      </header>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-           {/* Card 1 */}
-           <div className="bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
+        {/* Stats Row - Scrollable horizontally on mobile */}
+        <div className="flex overflow-x-auto pb-6 gap-4 hide-scrollbar snap-x">
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
                  <Package size={24} />
               </div>
-              <div>
+              <div className="min-w-0">
                  <p className="text-sm text-text-secondary font-medium">Total Items</p>
-                 <p className="text-2xl font-bold text-white">{visibleItems.length} items</p>
+                 <p className="text-2xl font-bold text-white truncate">{visibleItems.length}</p>
               </div>
            </div>
 
-           {/* Card 2 */}
-           <div className="bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
                  <AlertTriangle size={24} />
               </div>
-              <div>
+              <div className="min-w-0">
                  <p className="text-sm text-text-secondary font-medium">Low Stock</p>
-                 <p className="text-2xl font-bold text-white">{lowStockCount} items</p>
+                 <p className="text-2xl font-bold text-white truncate">
+                   {visibleItems.filter(i => i.quantity <= i.threshold).length}
+                 </p>
               </div>
            </div>
 
-           {/* Card 3 */}
-           <div className="bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
                  <Clock size={24} />
               </div>
-              <div>
-                 <p className="text-sm text-text-secondary font-medium">Expired</p>
-                 <p className="text-2xl font-bold text-white">0 items</p>
+              <div className="min-w-0">
+                 <p className="text-sm text-text-secondary font-medium">Recently Added</p>
+                 <p className="text-2xl font-bold text-white truncate">-- items</p>
               </div>
            </div>
         </div>
