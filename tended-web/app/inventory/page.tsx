@@ -231,7 +231,7 @@ export default function InventoryPage() {
 
     return (
     <div className="flex flex-col min-h-screen bg-background">
-            <header className="bg-background/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+      <header className="bg-background/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <Link href="/" className="text-text-secondary hover:text-primary-blue">&larr; Back</Link>
           <div className="font-bold text-xl text-text-primary tracking-tight">Inventory</div>
@@ -288,7 +288,7 @@ export default function InventoryPage() {
            </div>
         </div>
 
-{/* Inventory List */}
+        {/* Inventory List */}
         <div>
            <div className="flex items-center justify-between mb-4">
              <h2 className="text-lg font-bold text-white">Recent Inventory</h2>
