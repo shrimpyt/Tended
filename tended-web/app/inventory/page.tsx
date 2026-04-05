@@ -13,53 +13,7 @@ import { Item, NewItem } from '@/types/models';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/queries';
-
-// Map Open Food Facts category strings → a sensible default string category
-function mapOFFCategory(categoriesStr: string | undefined): string {
-  if (!categoriesStr) return 'Kitchen';
-  const cats = categoriesStr.toLowerCase();
-  if (
-    cats.includes('cleaning') ||
-    cats.includes('household') ||
-    cats.includes('detergent') ||
-    cats.includes('dishwash') ||
-    cats.includes('laundry') ||
-    cats.includes('trash') ||
-    cats.includes('paper')
-  ) return 'Cleaning';
-
-  if (
-    cats.includes('cosmetics') ||
-    cats.includes('bathroom') ||
-    cats.includes('toilet') ||
-    cats.includes('soap') ||
-    cats.includes('shampoo') ||
-    cats.includes('hygiene')
-  ) return 'Bathroom';
-
-  if (
-    cats.includes('pantry') ||
-    cats.includes('groceries') ||
-    cats.includes('snack') ||
-    cats.includes('canned') ||
-    cats.includes('dry') ||
-    cats.includes('baking')
-  ) return 'Pantry';
-
-  return 'Kitchen'; // default
-}
-
-function parseUnit(quantityStr: string | undefined): string {
-  if (!quantityStr) return 'pc';
-  const lower = quantityStr.toLowerCase();
-  if (lower.includes('ml')) return 'ml';
-  if (lower.includes(' l')) return 'L';
-  if (lower.includes('g')) return 'g';
-  if (lower.includes('kg')) return 'kg';
-  if (lower.includes('oz')) return 'oz';
-  if (lower.includes('lb')) return 'lb';
-  return 'pc';
-}
+import { mapOFFCategory, parseUnit } from '@/utils/productParsers';
 
 export default function InventoryPage() {
   const { profile } = useAuthStore();
@@ -210,6 +164,8 @@ export default function InventoryPage() {
     }
   };
 
+  const lowStockCount = visibleItems.filter(item => item.quantity <= item.threshold).length;
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="bg-background/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
@@ -282,6 +238,8 @@ export default function InventoryPage() {
                     <div className="p-8 text-center text-text-secondary">No items found in inventory.</div>
                  ) : (
                     visibleItems.map(item => {
+                      // Calculate a mock percentage based on threshold/quantity just for the UI
+                      // Since user said progress bars aren't relevant, we'll just fake a 50% or calculate loosely
                       let percentage = 50;
                       if (item.quantity > 0 && item.threshold > 0) {
                          percentage = Math.min(100, (item.quantity / (item.threshold * 2)) * 100);

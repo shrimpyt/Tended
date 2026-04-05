@@ -130,7 +130,7 @@ export default function BarcodeScanModal({ visible, onClose, onScan }: Props) {
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-elevated">
-        <button onClick={onClose} className="p-2 -ml-2 text-text-secondary hover:text-text-primary rounded-full hover:bg-surface transition-colors">
+        <button onClick={onClose} aria-label="Close Scan Barcode" className="p-2 -ml-2 text-text-secondary hover:text-text-primary rounded-full hover:bg-surface transition-colors focus-visible:ring-2 focus-visible:ring-primary-blue outline-none">
           <X size={24} />
         </button>
         <h2 className="text-lg font-bold text-text-primary">Scan Barcode</h2>
