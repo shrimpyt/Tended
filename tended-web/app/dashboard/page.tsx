@@ -29,7 +29,6 @@ import ReceiptScanModal from '@/components/ReceiptScanModal';
 import CameraInventoryModal from '@/components/CameraInventoryModal';
 import { parseItem } from '@/utils/nlpParser';
 import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
-import { mapOFFCategory, parseUnit } from '@/utils/productParsers';
 import {
   DndContext,
   closestCenter,
@@ -84,6 +83,53 @@ function CardHeader({
       <h2 className="text-sm font-semibold text-foreground">{label}</h2>
     </div>
   );
+}
+
+// Map Open Food Facts category strings → a sensible default string category
+function mapOFFCategory(categoriesStr: string | undefined): string {
+  if (!categoriesStr) return 'Kitchen';
+  const cats = categoriesStr.toLowerCase();
+  if (
+    cats.includes('cleaning') ||
+    cats.includes('household') ||
+    cats.includes('detergent') ||
+    cats.includes('dishwash') ||
+    cats.includes('laundry') ||
+    cats.includes('trash') ||
+    cats.includes('paper')
+  ) return 'Cleaning';
+
+  if (
+    cats.includes('cosmetics') ||
+    cats.includes('bathroom') ||
+    cats.includes('toilet') ||
+    cats.includes('soap') ||
+    cats.includes('shampoo') ||
+    cats.includes('hygiene')
+  ) return 'Bathroom';
+
+  if (
+    cats.includes('pantry') ||
+    cats.includes('groceries') ||
+    cats.includes('snack') ||
+    cats.includes('canned') ||
+    cats.includes('dry') ||
+    cats.includes('baking')
+  ) return 'Pantry';
+
+  return 'Kitchen'; // default
+}
+
+function parseUnit(quantityStr: string | undefined): string {
+  if (!quantityStr) return 'pc';
+  const lower = quantityStr.toLowerCase();
+  if (lower.includes('ml')) return 'ml';
+  if (lower.includes(' l')) return 'L';
+  if (lower.includes('g')) return 'g';
+  if (lower.includes('kg')) return 'kg';
+  if (lower.includes('oz')) return 'oz';
+  if (lower.includes('lb')) return 'lb';
+  return 'pc';
 }
 
 interface InboxItem {

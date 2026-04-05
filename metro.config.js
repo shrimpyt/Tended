@@ -26,36 +26,17 @@ config.serializer.getModulesRunBeforeMainModule = () => {
 // require() → crash: "Property 'require' doesn't exist".
 //
 // React Native already provides ReadableStream natively on iOS/Android; the polyfill
-// is only needed for web.  We use Object.defineProperty to intercept and wrap
-// any future assignments to getPolyfills (e.g. by @expo/cli) so that we can strip
-// the streams polyfill on native platforms.
-let internalGetPolyfills = config.serializer.getPolyfills;
-Object.defineProperty(config.serializer, 'getPolyfills', {
-  get() {
-    return options => {
-      const polyfills = internalGetPolyfills(options);
-      if (options.platform === 'ios' || options.platform === 'android') {
-        return polyfills.filter(p => !p.includes('expo/virtual/streams'));
-      }
-      return polyfills;
-    };
-  },
-  set(newValue) {
-    internalGetPolyfills = newValue;
-  },
-  configurable: true,
-  enumerable: true,
-});
-
-// We also wrap the customSerializer as a defense-in-depth measure, so that regardless
-// of what getPolyfills produced (or if other parts of the system inject it),
-// we strip the streams polyfill from preModules before the bundle is serialised.
+// is only needed for web.  We wrap the customSerializer so that, regardless of what
+// getPolyfills ultimately produces, we strip the streams polyfill from preModules
+// before the bundle is serialised on native platforms.
 const originalCustomSerializer = config.serializer.customSerializer ?? null;
 
 config.serializer.customSerializer = async (entryPoint, preModules, graph, options) => {
   const platform = graph?.transformOptions?.platform;
 
   // Strip expo/virtual/streams.js from preModules on native platforms.
+  // It is a js/script polyfill that contains require() calls which crash JSC
+  // before the module system is ready.
   let filteredPreModules = preModules;
   if (platform === 'ios' || platform === 'android') {
     filteredPreModules = preModules.filter(
@@ -68,7 +49,8 @@ config.serializer.customSerializer = async (entryPoint, preModules, graph, optio
   }
 
   // Fallback: use the default Metro serializer (bundleToString + baseJSBundle).
-  // This path is only reached if no customSerializer was set by @expo/metro-config.
+  // This path is only reached if no customSerializer was set by @expo/metro-config,
+  // which should not happen in practice.
   const { default: baseJSBundle } = require('@expo/metro/metro/DeltaBundler/Serializers/baseJSBundle');
   const { default: bundleToString } = require('@expo/metro/metro/lib/bundleToString');
   return bundleToString(baseJSBundle(entryPoint, filteredPreModules, graph, options)).code;
