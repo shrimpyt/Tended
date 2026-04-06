@@ -81,12 +81,14 @@ export function useRealtimeHousehold(householdId: string) {
           table: 'spending_entries',
           filter: `household_id=eq.${householdId}`,
         },
-        () => queryClient.invalidateQueries({queryKey: ['spending', householdId]}),
+        () => {
+          void queryClient.invalidateQueries({queryKey: ['spending', householdId]});
+        },
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [householdId, queryClient]);
 }

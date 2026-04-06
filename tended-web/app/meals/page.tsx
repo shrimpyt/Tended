@@ -100,7 +100,7 @@ export default function MealsPage() {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
+    setTimeout(() => setIsClient(true), 0);
   }, []);
 
   // Get list of ingredient names from inventory that are in stock
