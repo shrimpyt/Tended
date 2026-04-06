@@ -52,13 +52,12 @@ function mapOFFCategory(categoriesStr: string | undefined): string {
 
 function parseUnit(quantityStr: string | undefined): string {
   if (!quantityStr) return 'pc';
-  const lower = quantityStr.toLowerCase();
-  if (lower.includes('ml')) return 'ml';
-  if (lower.includes(' l')) return 'L';
-  if (lower.includes('g')) return 'g';
-  if (lower.includes('kg')) return 'kg';
-  if (lower.includes('oz')) return 'oz';
-  if (lower.includes('lb')) return 'lb';
+  const match = quantityStr.match(/(?:\b|(?<=\d))(ml|l|g|kg|oz|lb|fl oz|count|rolls|sheets|pack)\b/i);
+  if (match && match[1]) {
+    const u = match[1].toLowerCase();
+    if (u === 'l') return 'L';
+    return u;
+  }
   return 'pc';
 }
 
@@ -109,9 +108,11 @@ export default function InventoryPage() {
       const json = await res.json();
 
       if (json.status !== 1 || !json.product) {
-        setQuickFeedback(`Error: Product not found.`);
+        setQuickFeedback(`Product not found. Please add manually.`);
         setTimeout(() => setQuickFeedback(null), 4000);
-        return false;
+        setFormData({ name: '', category: 'Pantry', quantity: 1, max_quantity: 1, threshold: 0, unit: 'pc' });
+        setIsManualModalOpen(true);
+        return true; // Return true to close scanner
       }
 
       const p = json.product;
@@ -138,11 +139,19 @@ export default function InventoryPage() {
         setTimeout(() => setQuickFeedback(null), 3000);
         return true;
       } else {
-        return false;
+        setQuickFeedback(`Product not found. Please add manually.`);
+        setTimeout(() => setQuickFeedback(null), 4000);
+        setFormData({ name: '', category: 'Pantry', quantity: 1, max_quantity: 1, threshold: 0, unit: 'pc' });
+        setIsManualModalOpen(true);
+        return true;
       }
     } catch (err) {
       console.error(err);
-      return false;
+      setQuickFeedback(`Error looking up product. Please add manually.`);
+      setTimeout(() => setQuickFeedback(null), 4000);
+      setFormData({ name: '', category: 'Pantry', quantity: 1, max_quantity: 1, threshold: 0, unit: 'pc' });
+      setIsManualModalOpen(true);
+      return true;
     }
   };
 
@@ -288,7 +297,7 @@ export default function InventoryPage() {
            </div>
         </div>
 
-        {/* Inventory List */}
+{/* Inventory List */}
         <div>
            <div className="flex items-center justify-between mb-4">
              <h2 className="text-lg font-bold text-white">Recent Inventory</h2>
