@@ -27,7 +27,8 @@ export async function POST(req: Request) {
     }
 
     let systemMessage = "";
-    let userContent: unknown[] = [];
+    type ContentPart = { type: string; text?: string; image_url?: { url: string; detail: string } };
+    let userContent: ContentPart[] = [];
 
     // Determine image format (ensure it includes data URI prefix for OpenAI)
     const formattedImageUrl = image ? (image.startsWith('data:image/') ? image : `data:image/jpeg;base64,${image.replace(/[\n\r]/g, '')}`) : '';
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     console.error("[analyze-image-api] Fatal Error:", error);
     return NextResponse.json(
-      { error: error.message || "An unknown error occurred" },
+      { error: (error instanceof Error ? error.message : "An unknown error occurred") },
       { status: 500 }
     );
   }
