@@ -124,7 +124,7 @@ function parseUnit(quantityStr: string | undefined): string {
   if (!quantityStr) return 'pc';
   const match = quantityStr.match(/(?:\b|(?<=\d))(ml|l|g|kg|oz|lb|fl oz|count|rolls|sheets|pack)\b/i);
   if (match && match[1]) {
-    const u = match[1].toLowerCase();
+    let u = match[1].toLowerCase();
     if (u === 'l') return 'L';
     return u;
   }

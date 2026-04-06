@@ -23,8 +23,25 @@ export function useRealtimeHousehold(householdId: string) {
           table: 'items',
           filter: `household_id=eq.${householdId}`,
         },
-        () => {
-          void queryClient.invalidateQueries({queryKey: queryKeys.inventory(householdId)});
+        (payload) => {
+          const key = queryKeys.inventory(householdId);
+          if (payload.eventType === 'INSERT') {
+            queryClient.setQueryData(key, (old: any[] | undefined) => {
+              if (!old) return [payload.new];
+              if (old.find((i: any) => i.id === payload.new.id)) return old;
+              return [...old, payload.new];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            queryClient.setQueryData(key, (old: any[] | undefined) => {
+              if (!old) return [payload.new];
+              return old.map((i: any) => (i.id === payload.new.id ? payload.new : i));
+            });
+          } else if (payload.eventType === 'DELETE') {
+            queryClient.setQueryData(key, (old: any[] | undefined) => {
+              if (!old) return [];
+              return old.filter((i: any) => i.id !== payload.old.id);
+            });
+          }
         },
       )
       .on(
@@ -35,8 +52,25 @@ export function useRealtimeHousehold(householdId: string) {
           table: 'shopping_list',
           filter: `household_id=eq.${householdId}`,
         },
-        () => {
-          void queryClient.invalidateQueries({queryKey: queryKeys.shopping(householdId)});
+        (payload) => {
+          const key = queryKeys.shopping(householdId);
+          if (payload.eventType === 'INSERT') {
+            queryClient.setQueryData(key, (old: any[] | undefined) => {
+              if (!old) return [payload.new];
+              if (old.find((i: any) => i.id === payload.new.id)) return old;
+              return [...old, payload.new];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            queryClient.setQueryData(key, (old: any[] | undefined) => {
+              if (!old) return [payload.new];
+              return old.map((i: any) => (i.id === payload.new.id ? payload.new : i));
+            });
+          } else if (payload.eventType === 'DELETE') {
+            queryClient.setQueryData(key, (old: any[] | undefined) => {
+              if (!old) return [];
+              return old.filter((i: any) => i.id !== payload.old.id);
+            });
+          }
         },
       )
       .on(
