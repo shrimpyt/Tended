@@ -238,7 +238,7 @@ export default function InventoryPage() {
     }
   };
 
-  return (
+    return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="bg-background/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-4">
@@ -297,7 +297,6 @@ export default function InventoryPage() {
            </div>
         </div>
 
-
 {/* Inventory List */}
         <div>
            <div className="flex items-center justify-between mb-4">
@@ -332,7 +331,6 @@ export default function InventoryPage() {
                                  <h3 className="font-semibold text-white text-sm truncate">{item.name}</h3>
                                  <p className="text-xs text-text-secondary mt-0.5 truncate">{item.category}</p>
                               </div>
-                              {/* Mobile: Actions */}
                               <div className="flex sm:hidden shrink-0 gap-1">
                                 <button onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors">
                                    <Edit size={18} />
@@ -375,7 +373,6 @@ export default function InventoryPage() {
                                </div>
                             </div>
 
-                            {/* Actions - Desktop right side */}
                             <div className="hidden sm:flex items-center gap-2 shrink-0 justify-end">
                                <button onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors">
                                   <Edit size={18} />
