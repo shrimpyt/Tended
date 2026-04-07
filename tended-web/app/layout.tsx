@@ -1,4 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+
+export const viewport: Viewport = {
+  themeColor: "#0A0A0B",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import ClientProvider from "@/components/ClientProvider";
@@ -20,8 +29,17 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Tended",
-  description: "Household Management App",
+  title: "Tended - Household Management",
+  description: "Household inventory & smart kitchen management app.",
+  applicationName: "Tended",
+  appleWebApp: {
+    capable: true,
+    title: "Tended",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
