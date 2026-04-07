@@ -186,46 +186,67 @@ export default function Dashboard() {
 
   const handleBarcodeScan = async (code: string): Promise<boolean> => {
     try {
+      // 1. Try OpenFoodFacts first (deterministic, free)
       const res = await fetch(
         `https://world.openfoodfacts.org/api/v0/product/${code}.json`,
-        {headers: {'User-Agent': 'TendedWebApp/1.0'}},
+        { headers: { 'User-Agent': 'TendedWebApp/1.0' } },
       );
       const json = await res.json();
 
-      if (json.status !== 1 || !json.product) {
-        setQuickFeedback(`Error: Product not found.`);
-        setTimeout(() => setQuickFeedback(null), 4000);
-        return false;
+      if (json.status === 1 && json.product) {
+        const p = json.product;
+        const name =
+          p.product_name_en?.trim() ||
+          p.product_name?.trim() ||
+          p.abbreviated_product_name?.trim() ||
+          '';
+
+        if (name) {
+          await addItem({
+            householdId,
+            userId: profile?.id ?? '',
+            item: {
+              name,
+              category: mapOFFCategory(p.categories),
+              quantity: 1,
+              unit: parseUnit(p.quantity) || 'pc',
+              max_quantity: 1,
+              threshold: 1,
+            }
+          });
+          setQuickFeedback(`Added ${name}!`);
+          setTimeout(() => setQuickFeedback(null), 3000);
+          return true;
+        }
       }
 
-      const p = json.product;
-      const name =
-        p.product_name_en?.trim() ||
-        p.product_name?.trim() ||
-        p.abbreviated_product_name?.trim() ||
-        '';
-
-      if (name) {
-        await addItem({
-          householdId,
-          userId: profile?.id ?? '',
-          item: {
-            name: name,
-            category: mapOFFCategory(p.categories),
-            quantity: 1,
-            unit: parseUnit(p.quantity) || 'pc',
-            max_quantity: 1,
-            threshold: 1,
-          }
-        });
-        setQuickFeedback(`Added ${name}!`);
-        setTimeout(() => setQuickFeedback(null), 3000);
-        return true;
-      } else {
-        return false;
-      }
+      // Product not found — signal no-match so modal shows manual entry
+      return false;
     } catch (err) {
-      console.error(err);
+      console.error('[handleBarcodeScan] Error:', err);
+      return false;
+    }
+  };
+
+  const handleManualBarcodeEntry = async (name: string): Promise<boolean> => {
+    try {
+      await addItem({
+        householdId,
+        userId: profile?.id ?? '',
+        item: {
+          name,
+          category: 'Pantry',
+          quantity: 1,
+          unit: 'pc',
+          max_quantity: 1,
+          threshold: 1,
+        }
+      });
+      setQuickFeedback(`Added "${name}"!`);
+      setTimeout(() => setQuickFeedback(null), 3000);
+      return true;
+    } catch (err) {
+      console.error('[handleManualBarcodeEntry] Error:', err);
       return false;
     }
   };
@@ -511,6 +532,7 @@ export default function Dashboard() {
         <BarcodeScanModal
           visible={barcodeOpen}
           onScan={handleBarcodeScan}
+          onManualEntry={handleManualBarcodeEntry}
           onClose={() => setBarcodeOpen(false)}
         />
 
@@ -626,8 +648,8 @@ export default function Dashboard() {
 
         {/* Parse Modal */}
         {modalOpen && pendingItem && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="bg-surface-elevated rounded-xl p-6 w-full max-w-sm border border-border">
+           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4">
+              <div className="glass rounded-2xl p-6 w-full max-w-sm border border-white/10 shadow-2xl">
                  <h2 className="text-xl font-bold mb-4">Add Scanned Item</h2>
                  <div className="text-sm text-text-secondary mb-4 break-all">
                     Barcode: {pendingItem.raw_barcode}
