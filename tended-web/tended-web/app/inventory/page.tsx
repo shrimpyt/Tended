@@ -421,8 +421,8 @@ export default function InventoryPage() {
 
       {/* Manual Add/Edit Modal */}
       {isManualModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-surface-elevated rounded-xl p-6 w-full max-w-md border border-border relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/[0.05] backdrop-blur-[20px] p-4">
+          <div className="glass rounded-2xl p-6 w-full max-w-md border border-white/10 shadow-2xl relative">
             <button
               onClick={() => setIsManualModalOpen(false)}
               className="absolute top-4 right-4 text-text-secondary hover:text-text-primary"

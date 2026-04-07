@@ -299,15 +299,18 @@ export default function Dashboard() {
 
   const parseItemMutation = useMutation({
     mutationFn: async ({ id, category, name }: { id: string, category: string, name: string }) => {
-      if (!householdId) return;
-
-      await supabase.from('items').insert({
-         household_id: householdId,
-         name,
-         category,
-         stock_level: 100,
-         threshold: 20,
-      });
+      const { start, end } = isoWeek();
+      const entry = await supabase
+        .from('inventory')
+        .insert([{
+          household_id: householdId,
+          name: itemName,
+          category: itemCategory,
+          unit: itemUnit,
+          quantity: 1,
+          max_quantity: 1,
+          user_id: profile?.id
+        }]);
 
       await supabase.from('inbox_scans').update({ status: 'parsed' }).eq('id', id);
     },
@@ -322,14 +325,15 @@ export default function Dashboard() {
     useSensor(KeyboardSensor)
   );
 
+  const [itemName, setItemName] = useState('');
+  const [itemCategory, setItemCategory] = useState('Pantry');
+  const [itemUnit, setItemUnit] = useState('pc');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [pendingItem, setPendingItem] = useState<InboxItem | null>(null);
+
   const { setNodeRef: setMainInventoryRef, isOver } = useDroppable({
     id: 'main-inventory',
   });
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [pendingItem, setPendingItem] = useState<InboxItem | null>(null);
-  const [itemName, setItemName] = useState("New Item");
-  const [itemCategory, setItemCategory] = useState("Pantry");
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -648,8 +652,8 @@ export default function Dashboard() {
 
         {/* Parse Modal */}
         {modalOpen && pendingItem && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4">
-              <div className="glass rounded-2xl p-6 w-full max-w-sm border border-white/10 shadow-2xl">
+           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/5 backdrop-blur-[20px] p-4">
+              <div className="glass rounded-2xl p-6 w-full max-w-sm border border-white/20 shadow-2xl">
                  <h2 className="text-xl font-bold mb-4">Add Scanned Item</h2>
                  <div className="text-sm text-text-secondary mb-4 break-all">
                     Barcode: {pendingItem.raw_barcode}
@@ -681,6 +685,17 @@ export default function Dashboard() {
                           <option value="Cleaning">Cleaning</option>
                           <option value="Bathroom">Bathroom</option>
                        </select>
+                    </div>
+
+                    <div>
+                       <label className="block text-sm font-medium mb-1 text-text-secondary">Unit</label>
+                       <input
+                          type="text"
+                          value={itemUnit}
+                          onChange={e => setItemUnit(e.target.value)}
+                          className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue"
+                          placeholder="e.g. bottle, bag, kg"
+                       />
                     </div>
 
                     <div className="flex justify-end gap-3 mt-4">

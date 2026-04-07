@@ -298,3 +298,46 @@ export function useDeleteShoppingListItem() {
     },
   });
 }
+
+// =====================
+// WASTE EVENTS
+// =====================
+
+interface NewWasteEvent {
+  item_id: string;
+  item_name: string;
+  quantity: number;
+  unit: string | null | undefined;
+  cost: number;
+  reason: string;
+}
+
+export function useAddWasteEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      householdId,
+      userId,
+      event,
+    }: {
+      householdId: string;
+      userId: string;
+      event: NewWasteEvent;
+    }) => {
+      const { error } = await supabase.from('waste_events').insert({
+        household_id: householdId,
+        logged_by: userId,
+        item_id: event.item_id,
+        item_name: event.item_name,
+        quantity: event.quantity,
+        unit: event.unit ?? null,
+        estimated_cost: event.cost,
+        reason: event.reason,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: (_, { householdId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventory(householdId) });
+    },
+  });
+}

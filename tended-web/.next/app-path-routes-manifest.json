@@ -1,12 +1,11 @@
 {
-  "/_global-error/page": "/_global-error",
   "/_not-found/page": "/_not-found",
-  "/dashboard/page": "/dashboard",
+  "/_global-error/page": "/_global-error",
   "/favicon.ico/route": "/favicon.ico",
-  "/forgot-password/page": "/forgot-password",
+  "/manifest.webmanifest/route": "/manifest.webmanifest",
+  "/dashboard/page": "/dashboard",
   "/household/page": "/household",
   "/inventory/page": "/inventory",
-  "/manifest.webmanifest/route": "/manifest.webmanifest",
   "/meals/page": "/meals",
   "/onboarding/page": "/onboarding",
   "/page": "/",
@@ -14,5 +13,6 @@
   "/settings/page": "/settings",
   "/shopping-list/page": "/shopping-list",
   "/sign-in/page": "/sign-in",
-  "/sign-up/page": "/sign-up"
+  "/sign-up/page": "/sign-up",
+  "/forgot-password/page": "/forgot-password"
 }

@@ -3,11 +3,9 @@ import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
+  disable: process.env.NODE_ENV === "development",
 });
 
-const nextConfig: NextConfig = {
-  // Use standard Webpack for stability during UI dev
-  turbopack: {},
-};
+const nextConfig: NextConfig = {};
 
 export default withPWA(nextConfig);

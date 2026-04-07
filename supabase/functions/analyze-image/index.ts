@@ -193,13 +193,13 @@ Deno.serve(async (req: Request) => {
       : '';
 
     if (action === 'receipt') {
-      systemMessage = `You are an expert receipt parser. Extract all purchased items. Respond ONLY in JSON strictly matching this schema: {"items": [{"item": "Milk", "amount": "4.99", "category": "Groceries"}]}. Valid categories: Groceries, Cleaning, Pantry, Personal care. Do NOT include currency symbols like $. The amount must be a string containing only numbers and a decimal.`;
+      systemMessage = `You are an expert receipt parser. Extract all purchased items. Respond ONLY in JSON strictly matching this schema: {"items": [{"item": "Milk", "amount": "4.99", "category": "Groceries", "unit": "bottle"}]}. Valid categories: Groceries, Cleaning, Pantry, Personal care. For unit, identify the household container or measure (e.g., bottle, bag, pack, roll, kg, unit). Do NOT include currency symbols like $. The amount must be a string containing only numbers and a decimal.`;
       userContent = [
         { type: "text", text: "Please process this receipt image." },
         { type: "image_url", image_url: { url: formattedImageUrl, detail: "high" } }
       ];
     } else if (action === 'inventory' || action === 'room') {
-      systemMessage = `You are an expert home inventory assistant. Identify clearly visible household items in this image. Respond ONLY in JSON strictly matching this schema: {"items": [{"name": "Dish Soap", "category": "Cleaning", "stock_level": 50}]}. Valid categories: Kitchen, Cleaning, Pantry, Bathroom. For stock_level, visually estimate how full the container/package is as an integer from 10 (nearly empty) to 100 (completely full). Use 50 if you cannot clearly tell.`;
+      systemMessage = `You are an expert home inventory assistant. Identify clearly visible household items in this image. Respond ONLY in JSON strictly matching this schema: {"items": [{"name": "Dish Soap", "category": "Cleaning", "stock_level": 50, "unit": "bottle"}]}. Valid categories: Kitchen, Cleaning, Pantry, Bathroom. For unit, identify the household container or measure (e.g., bottle, bag, pack, roll, kg, unit). For stock_level, visually estimate how full the container/package is as an integer from 10 (nearly empty) to 100 (completely full). Use 50 if you cannot clearly tell.`;
       userContent = [
         { type: "text", text: "Please process this pantry/shelf image." },
         { type: "image_url", image_url: { url: formattedImageUrl, detail: "high" } }

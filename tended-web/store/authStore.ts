@@ -24,6 +24,7 @@ interface AuthState {
 
   setSession: (session: Session | null) => void;
   setProfile: (profile: Profile | null) => void;
+  setLoading: (loading: boolean) => void;
   fetchProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -39,6 +40,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setProfile: (profile) =>
     set({profile}),
+
+  setLoading: (loading) =>
+    set({loading}),
 
   fetchProfile: async () => {
     const {user} = get();

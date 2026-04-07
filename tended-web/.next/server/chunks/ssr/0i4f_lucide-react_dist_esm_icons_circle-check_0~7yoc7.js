@@ -1,3 +1,0 @@
-module.exports=[65671,67610,a=>{"use strict";var b=a.i(20807);let c=(0,b.default)("circle-check",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"m9 12 2 2 4-4",key:"dzmm74"}]]);a.s(["CheckCircle2",0,c],65671);let d=(0,b.default)("plus",[["path",{d:"M5 12h14",key:"1ays0h"}],["path",{d:"M12 5v14",key:"s699le"}]]);a.s(["Plus",0,d],67610)}];
-
-//# sourceMappingURL=0i4f_lucide-react_dist_esm_icons_circle-check_0~7yoc7.js.map

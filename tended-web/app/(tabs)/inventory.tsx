@@ -119,7 +119,7 @@ export default function InventoryScreen() {
       : null;
 
   const visibleItems = allowedCategories
-    ? items.filter(item => allowedCategories.includes(item.category))
+    ? items.filter(item => allowedCategories.includes(item.category ?? ''))
     : items;
 
   const filterCategories: FilterCategory[] = ['All', ...getUniqueCategories(visibleItems)];
@@ -257,11 +257,14 @@ export default function InventoryScreen() {
 
       <BarcodeScanModal
         visible={showBarcodeModal}
+        onScan={async () => false}
+        onManualEntry={async () => false}
         onClose={() => setShowBarcodeModal(false)}
       />
 
       <CameraInventoryModal
         visible={showCameraModal}
+        householdId={householdId}
         onClose={() => setShowCameraModal(false)}
       />
 

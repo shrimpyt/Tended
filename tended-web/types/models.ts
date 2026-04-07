@@ -1,5 +1,14 @@
 export type Category = string;
 
+export interface Recipe {
+  id: number;
+  title: string;
+  image: string;
+  usedIngredientCount: number;
+  missedIngredientCount: number;
+}
+
+
 export interface Item {
   id: string;
   household_id: string;

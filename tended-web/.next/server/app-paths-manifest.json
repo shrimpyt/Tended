@@ -1,12 +1,11 @@
 {
-  "/_global-error/page": "app/_global-error/page.js",
   "/_not-found/page": "app/_not-found/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
+  "/_global-error/page": "app/_global-error/page.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/forgot-password/page": "app/forgot-password/page.js",
+  "/manifest.webmanifest/route": "app/manifest.webmanifest/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
   "/household/page": "app/household/page.js",
   "/inventory/page": "app/inventory/page.js",
-  "/manifest.webmanifest/route": "app/manifest.webmanifest/route.js",
   "/meals/page": "app/meals/page.js",
   "/onboarding/page": "app/onboarding/page.js",
   "/page": "app/page.js",
@@ -14,5 +13,6 @@
   "/settings/page": "app/settings/page.js",
   "/shopping-list/page": "app/shopping-list/page.js",
   "/sign-in/page": "app/sign-in/page.js",
-  "/sign-up/page": "app/sign-up/page.js"
+  "/sign-up/page": "app/sign-up/page.js",
+  "/forgot-password/page": "app/forgot-password/page.js"
 }
