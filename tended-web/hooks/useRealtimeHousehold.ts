@@ -26,20 +26,20 @@ export function useRealtimeHousehold(householdId: string) {
         (payload) => {
           const key = queryKeys.inventory(householdId);
           if (payload.eventType === 'INSERT') {
-            queryClient.setQueryData(key, (old: any[] | undefined) => {
+            queryClient.setQueryData(key, (old: {id: string}[] | undefined) => {
               if (!old) return [payload.new];
-              if (old.find((i: any) => i.id === payload.new.id)) return old;
+              if (old.find((i) => i.id === payload.new.id)) return old;
               return [...old, payload.new];
             });
           } else if (payload.eventType === 'UPDATE') {
-            queryClient.setQueryData(key, (old: any[] | undefined) => {
+            queryClient.setQueryData(key, (old: {id: string}[] | undefined) => {
               if (!old) return [payload.new];
-              return old.map((i: any) => (i.id === payload.new.id ? payload.new : i));
+              return old.map((i) => (i.id === payload.new.id ? payload.new : i));
             });
           } else if (payload.eventType === 'DELETE') {
-            queryClient.setQueryData(key, (old: any[] | undefined) => {
+            queryClient.setQueryData(key, (old: {id: string}[] | undefined) => {
               if (!old) return [];
-              return old.filter((i: any) => i.id !== payload.old.id);
+              return old.filter((i) => i.id !== payload.old.id);
             });
           }
         },
@@ -55,20 +55,20 @@ export function useRealtimeHousehold(householdId: string) {
         (payload) => {
           const key = queryKeys.shopping(householdId);
           if (payload.eventType === 'INSERT') {
-            queryClient.setQueryData(key, (old: any[] | undefined) => {
+            queryClient.setQueryData(key, (old: {id: string}[] | undefined) => {
               if (!old) return [payload.new];
-              if (old.find((i: any) => i.id === payload.new.id)) return old;
+              if (old.find((i) => i.id === payload.new.id)) return old;
               return [...old, payload.new];
             });
           } else if (payload.eventType === 'UPDATE') {
-            queryClient.setQueryData(key, (old: any[] | undefined) => {
+            queryClient.setQueryData(key, (old: {id: string}[] | undefined) => {
               if (!old) return [payload.new];
-              return old.map((i: any) => (i.id === payload.new.id ? payload.new : i));
+              return old.map((i) => (i.id === payload.new.id ? payload.new : i));
             });
           } else if (payload.eventType === 'DELETE') {
-            queryClient.setQueryData(key, (old: any[] | undefined) => {
+            queryClient.setQueryData(key, (old: {id: string}[] | undefined) => {
               if (!old) return [];
-              return old.filter((i: any) => i.id !== payload.old.id);
+              return old.filter((i) => i.id !== payload.old.id);
             });
           }
         },
