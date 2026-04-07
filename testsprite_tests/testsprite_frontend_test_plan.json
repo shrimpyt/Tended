@@ -1,0 +1,1496 @@
+[
+  {
+    "id": "TC001",
+    "title": "Sign in success navigates to dashboard",
+    "description": "Verifies a user can sign in with valid credentials and reaches the dashboard tab.",
+    "category": "User Sign In",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user lands on the dashboard"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Sign in validation error when email is blank",
+    "description": "Verifies submitting the sign-in form with an empty email shows a validation error.",
+    "category": "User Sign In",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a validation error is visible for the email field"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Sign in validation error when password is blank",
+    "description": "Verifies submitting the sign-in form with an empty password shows a validation error.",
+    "category": "User Sign In",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a validation error is visible for the password field"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Sign in validation error when both fields are blank",
+    "description": "Verifies submitting the sign-in form with both fields empty shows validation errors.",
+    "category": "User Sign In",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify validation errors are visible for the email and password fields"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Sign in shows error on invalid credentials",
+    "description": "Verifies entering an incorrect password shows an invalid-credentials error and does not log the user in.",
+    "category": "User Sign In",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill invalid-password-123 into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an invalid credentials error is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Sign in form remains available after invalid credentials",
+    "description": "Verifies the sign-in UI remains usable after an invalid-credentials attempt.",
+    "category": "User Sign In",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill invalid-password-123 into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the sign-in request to complete"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the sign-in form is still displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Dashboard loads with core summary content",
+    "description": "Verifies the dashboard primary content (greeting, stats, low-stock alerts, shopping list preview) is displayed after login.",
+    "category": "Dashboard",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open the dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a greeting with the signed-in user context is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify dashboard summary sections for inventory, spending, low-stock alerts, and shopping list preview are displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Dashboard shopping list preview item can be marked complete",
+    "description": "Marks one shopping list item complete from the dashboard preview and verifies the preview updates.",
+    "category": "Dashboard",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Tap a shopping list item in the dashboard preview to toggle its completion state"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the toggled shopping list item shows as completed in the dashboard preview"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Dashboard full shopping list modal updates preview after completing multiple items",
+    "description": "Opens the full shopping list from the dashboard, completes multiple items, and verifies the dashboard preview reflects the changes.",
+    "category": "Dashboard",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Open the full shopping list from the dashboard preview"
+      },
+      {
+        "type": "action",
+        "description": "Mark one shopping list item as complete in the full list"
+      },
+      {
+        "type": "action",
+        "description": "Mark a second shopping list item as complete in the full list"
+      },
+      {
+        "type": "action",
+        "description": "Close the full shopping list modal"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard shopping list preview reflects the updated completion states"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Dashboard low-stock alerts section is viewable",
+    "description": "Verifies low-stock inventory alerts are shown on the dashboard when available, otherwise shows an empty state.",
+    "category": "Dashboard",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Scroll to the low-stock alerts section"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify low-stock alerts are displayed or an empty state is displayed for low-stock alerts"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Dashboard spending summary section is displayed",
+    "description": "Verifies the monthly/weekly spending summary content is present on the dashboard.",
+    "category": "Dashboard",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open the dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Scroll to the spending summary section"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify spending summary data is displayed or an empty state is displayed for spending summary"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Inventory list loads and supports adding a new item end-to-end",
+    "description": "Filters inventory, adds a new item via the add item form, and verifies it appears in the inventory list.",
+    "category": "Inventory Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open inventory"
+      },
+      {
+        "type": "action",
+        "description": "Verify the inventory list is visible by scrolling through the list"
+      },
+      {
+        "type": "action",
+        "description": "Filter items by a category option"
+      },
+      {
+        "type": "action",
+        "description": "Open the add item form"
+      },
+      {
+        "type": "action",
+        "description": "Fill Test Item Alpha into the item name field"
+      },
+      {
+        "type": "action",
+        "description": "Select a valid category"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid stock level into the stock level field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid threshold into the threshold field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the add item form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify Test Item Alpha is displayed in the inventory list"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Inventory item stock can be updated",
+    "description": "Selects an inventory item, updates its stock level, and verifies the updated stock is reflected in the list.",
+    "category": "Inventory Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open inventory"
+      },
+      {
+        "type": "action",
+        "description": "Open the add item form"
+      },
+      {
+        "type": "action",
+        "description": "Fill Stock Update Item into the item name field"
+      },
+      {
+        "type": "action",
+        "description": "Select a valid category"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid stock level into the stock level field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid threshold into the threshold field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the add item form"
+      },
+      {
+        "type": "action",
+        "description": "Select the inventory item named Stock Update Item"
+      },
+      {
+        "type": "action",
+        "description": "Fill a different valid stock level into the stock update field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the stock update"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the inventory list shows updated stock information for Stock Update Item"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Add item form validates required fields",
+    "description": "Attempts to submit the add item form with missing required fields and verifies validation feedback is shown.",
+    "category": "Inventory Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open inventory"
+      },
+      {
+        "type": "action",
+        "description": "Open the add item form"
+      },
+      {
+        "type": "action",
+        "description": "Submit the add item form without filling required fields"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify validation errors are displayed for missing required fields"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Inventory item can be deleted after confirmation",
+    "description": "Creates an item, deletes it using the delete interaction with confirmation, and verifies it is removed from the list.",
+    "category": "Inventory Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open inventory"
+      },
+      {
+        "type": "action",
+        "description": "Open the add item form"
+      },
+      {
+        "type": "action",
+        "description": "Fill Delete Me Item into the item name field"
+      },
+      {
+        "type": "action",
+        "description": "Select a valid category"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid stock level into the stock level field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid threshold into the threshold field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the add item form"
+      },
+      {
+        "type": "action",
+        "description": "Initiate delete for the inventory item named Delete Me Item using the supported delete gesture"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the deletion"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify Delete Me Item is not displayed in the inventory list"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Inventory category filter can be cleared to show all items",
+    "description": "Applies a category filter and then clears it to return to the full inventory list.",
+    "category": "Inventory Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open inventory"
+      },
+      {
+        "type": "action",
+        "description": "Filter items by a category option"
+      },
+      {
+        "type": "action",
+        "description": "Clear the category filter to show all items"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the inventory list returns to an unfiltered view"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "AI camera scanning modal can be opened from inventory and closed",
+    "description": "Opens the camera inventory modal from inventory and verifies the scanning UI is presented, then closes it.",
+    "category": "AI Camera Scanning (Inventory)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open inventory"
+      },
+      {
+        "type": "action",
+        "description": "Open the camera inventory modal"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the camera inventory scanning interface is displayed"
+      },
+      {
+        "type": "action",
+        "description": "Close the camera inventory modal"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user returns to the inventory list"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "AI camera scanning flow: add selected identified items to inventory",
+    "description": "Runs the AI analysis from a picked image, selects identified items, adds them to inventory, and verifies new items appear.",
+    "category": "AI Camera Scanning (Inventory)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open inventory"
+      },
+      {
+        "type": "action",
+        "description": "Open the camera inventory modal"
+      },
+      {
+        "type": "action",
+        "description": "Pick a photo from the device gallery for analysis"
+      },
+      {
+        "type": "action",
+        "description": "Wait for AI analysis to complete"
+      },
+      {
+        "type": "action",
+        "description": "Toggle at least one identified item to select it"
+      },
+      {
+        "type": "action",
+        "description": "Add the selected identified items to inventory"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify at least one newly added item from the analysis is displayed in the inventory list"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "AI camera scanning flow handles no or low-confidence results with retry or manual add option",
+    "description": "After AI analysis yields no/low-confidence results, verifies the UI provides a failure message and a way to retry or add manually.",
+    "category": "AI Camera Scanning (Inventory)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the tab to open inventory"
+      },
+      {
+        "type": "action",
+        "description": "Open the camera inventory modal"
+      },
+      {
+        "type": "action",
+        "description": "Pick a photo from the device gallery for analysis"
+      },
+      {
+        "type": "action",
+        "description": "Wait for AI analysis to complete"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an analysis failure or no-results state is displayed with an option to retry or add items manually"
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "Manual spending entry can be added and appears in the monthly list with updated total",
+    "description": "Verifies a user can add a spending entry manually and then see it in the list and reflected in the monthly total.",
+    "category": "Spending Tracker",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/spending"
+      },
+      {
+        "type": "action",
+        "description": "Open the add spending form"
+      },
+      {
+        "type": "action",
+        "description": "Fill Store A into the store name field"
+      },
+      {
+        "type": "action",
+        "description": "Fill 12.34 into the amount field"
+      },
+      {
+        "type": "action",
+        "description": "Select a valid category"
+      },
+      {
+        "type": "action",
+        "description": "Select a valid date"
+      },
+      {
+        "type": "action",
+        "description": "Submit the spending form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a spending entry for Store A with amount 12.34 is displayed in the current month list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the total monthly spend is updated"
+      }
+    ]
+  },
+  {
+    "id": "TC021",
+    "title": "Spending list and monthly total load for the current month",
+    "description": "Verifies the spending screen loads and shows the current month spending list and a monthly total.",
+    "category": "Spending Tracker",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/spending"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the list of spending entries for the current month is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the total monthly spend is displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "Navigate between months in spending history",
+    "description": "Verifies a user can navigate to a different month and the spending view updates to that month.",
+    "category": "Spending Tracker",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/spending"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the previous month in the month selector"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the spending entries list is showing the selected month"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the total monthly spend reflects the selected month"
+      }
+    ]
+  },
+  {
+    "id": "TC023",
+    "title": "Delete a spending entry via swipe and confirm it is removed",
+    "description": "Verifies a user can delete a spending entry and it no longer appears in the list.",
+    "category": "Spending Tracker",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/spending"
+      },
+      {
+        "type": "action",
+        "description": "Open the add spending form"
+      },
+      {
+        "type": "action",
+        "description": "Fill Delete Me Store into the store name field"
+      },
+      {
+        "type": "action",
+        "description": "Fill 5.00 into the amount field"
+      },
+      {
+        "type": "action",
+        "description": "Select a valid category"
+      },
+      {
+        "type": "action",
+        "description": "Select a valid date"
+      },
+      {
+        "type": "action",
+        "description": "Submit the spending form"
+      },
+      {
+        "type": "action",
+        "description": "Swipe to delete the spending entry for Delete Me Store"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the spending entry for Delete Me Store is no longer displayed in the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the total monthly spend is updated"
+      }
+    ]
+  },
+  {
+    "id": "TC024",
+    "title": "Manual add spending validates required fields",
+    "description": "Verifies the manual add spending form prevents submission when required fields are missing.",
+    "category": "Spending Tracker",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/spending"
+      },
+      {
+        "type": "action",
+        "description": "Open the add spending form"
+      },
+      {
+        "type": "action",
+        "description": "Submit the spending form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a validation error is visible for the missing required fields"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no new spending entry is added to the list"
+      }
+    ]
+  },
+  {
+    "id": "TC025",
+    "title": "Receipt scan flow creates a spending entry after confirming extracted data",
+    "description": "Verifies receipt scanning can create a spending entry after reviewing extracted store name and total.",
+    "category": "Spending Tracker",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/spending"
+      },
+      {
+        "type": "action",
+        "description": "Open the receipt scan modal"
+      },
+      {
+        "type": "action",
+        "description": "Pick a receipt image from the gallery"
+      },
+      {
+        "type": "action",
+        "description": "Wait for AI analysis to complete"
+      },
+      {
+        "type": "action",
+        "description": "Confirm to add the spending entry using the extracted data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a new spending entry is displayed in the current month list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the total monthly spend is updated"
+      }
+    ]
+  },
+  {
+    "id": "TC026",
+    "title": "Receipt scan extraction failure shows error and allows switching to manual entry",
+    "description": "Verifies that when AI extraction fails, the UI shows an extraction error and allows manual entry as an alternative path.",
+    "category": "Spending Tracker",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/spending"
+      },
+      {
+        "type": "action",
+        "description": "Open the receipt scan modal"
+      },
+      {
+        "type": "action",
+        "description": "Pick a receipt image from the gallery"
+      },
+      {
+        "type": "action",
+        "description": "Wait for AI analysis to complete"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an extraction error state is displayed with an option to enter details manually"
+      },
+      {
+        "type": "action",
+        "description": "Choose the option to enter details manually"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the manual spending entry form is displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC027",
+    "title": "Receipt scan modal opens and shows review UI after analysis",
+    "description": "Verifies the receipt scan modal can be opened and progresses to the review step after analysis completes.",
+    "category": "Receipt OCR Scanning",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/spending"
+      },
+      {
+        "type": "action",
+        "description": "Open the receipt scan modal"
+      },
+      {
+        "type": "action",
+        "description": "Pick a receipt image from the gallery"
+      },
+      {
+        "type": "action",
+        "description": "Wait for AI analysis to complete"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a review step is displayed with extracted store details and a total amount"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify there is an option to confirm adding the spending entry"
+      }
+    ]
+  },
+  {
+    "id": "TC028",
+    "title": "Confirming receipt scan adds a spending entry to the spending list",
+    "description": "Verifies the end-to-end receipt OCR flow results in a new spending entry visible in the spending list.",
+    "category": "Receipt OCR Scanning",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/spending"
+      },
+      {
+        "type": "action",
+        "description": "Open the receipt scan modal"
+      },
+      {
+        "type": "action",
+        "description": "Pick a receipt image from the gallery"
+      },
+      {
+        "type": "action",
+        "description": "Wait for AI analysis to complete"
+      },
+      {
+        "type": "action",
+        "description": "Confirm to add the spending entry using the extracted data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the spending entry created from the receipt is displayed in the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the total monthly spend is updated"
+      }
+    ]
+  },
+  {
+    "id": "TC029",
+    "title": "Offline cached data can be viewed when returning to the dashboard after prior load",
+    "description": "Verifies that after loading data once, navigating back to the dashboard later still displays previously loaded data from cache.",
+    "category": "Offline Data Persistence",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/index"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard content to load"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/inventory"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /(tabs)/index"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify dashboard data sections are displayed using previously loaded data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard does not require re-authentication to display cached content"
+      }
+    ]
+  },
+  {
+    "id": "TC030",
+    "title": "Register for push notifications when permission is granted",
+    "description": "Verifies that granting notification permission from the dashboard results in an in-app confirmation that notifications are registered.",
+    "category": "Push Notification Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the system notification permission prompt to appear"
+      },
+      {
+        "type": "action",
+        "description": "Grant notification permission on the system prompt"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a confirmation state is shown indicating notifications are enabled or registered"
+      }
+    ]
+  },
+  {
+    "id": "TC031",
+    "title": "Handle denied push notification permission with guidance",
+    "description": "Verifies that denying notification permission results in an in-app disabled state with instructions to enable notifications later.",
+    "category": "Push Notification Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the system notification permission prompt to appear"
+      },
+      {
+        "type": "action",
+        "description": "Deny notification permission on the system prompt"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an in-app state is shown indicating notifications are disabled"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify guidance is displayed for enabling notifications later in device settings"
+      }
+    ]
+  },
+  {
+    "id": "TC032",
+    "title": "Dashboard loads after sign-in and does not block on notification prompt dismissal",
+    "description": "Verifies the primary dashboard content is accessible even if the notification prompt is dismissed without choosing allow/deny.",
+    "category": "Push Notification Registration",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the system notification permission prompt to appear"
+      },
+      {
+        "type": "action",
+        "description": "Dismiss the system notification permission prompt"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard primary content is displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC033",
+    "title": "Notification permission prompt is not repeatedly shown after a permission decision in the same session",
+    "description": "Verifies the app does not re-prompt for notification permission after the user has already made a permission choice during the current session.",
+    "category": "Push Notification Registration",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the system notification permission prompt to appear"
+      },
+      {
+        "type": "action",
+        "description": "Deny notification permission on the system prompt"
+      },
+      {
+        "type": "action",
+        "description": "Click the Inventory tab"
+      },
+      {
+        "type": "action",
+        "description": "Click the Dashboard tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the system notification permission prompt is not shown again"
+      }
+    ]
+  },
+  {
+    "id": "TC034",
+    "title": "Notification registration UI state persists across tab navigation after granting permission",
+    "description": "Verifies that once notifications are enabled, navigating away and back keeps the enabled/registered state visible on the dashboard.",
+    "category": "Push Notification Registration",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /sign-in"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the system notification permission prompt to appear"
+      },
+      {
+        "type": "action",
+        "description": "Grant notification permission on the system prompt"
+      },
+      {
+        "type": "action",
+        "description": "Click the Spending tab"
+      },
+      {
+        "type": "action",
+        "description": "Click the Dashboard tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a confirmation state is shown indicating notifications are enabled or registered"
+      }
+    ]
+  }
+]

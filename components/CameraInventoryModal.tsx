@@ -1,251 +1,590 @@
-'use client';
+import React, {useState} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Image,
+  TextInput,
+} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import {useCameraPermissions} from 'expo-image-picker';
+import {Colors, Typography, Spacing, Radius, Border, Shadows} from '../constants/theme';
+import {useInventory, useAddInventoryItem} from '../hooks/queries';
+import {NewItem} from '../types/models';
+import {useAuthStore} from '../store/authStore';
+import {supabase} from '../lib/supabase';
 
-import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useUpdateQuantity, useInventory } from '@/hooks/queries';
-import { useAuthStore } from '@/store/authStore';
-import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
-import { X, Upload, Camera, Check, AlertCircle, Loader2 } from 'lucide-react';
-import { Item } from '@/types/models';
-import { compressImage } from '@/utils/imageCompressor';
+function getUniqueCategories(items: any[]): string[] {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (item.category && item.category.trim()) {
+      seen.add(item.category.trim());
+    }
+  }
+  return Array.from(seen).sort();
+}
 
-interface FoundItem {
+type Step = 'pick' | 'analyzing' | 'review' | 'saving';
+
+interface IdentifiedItem {
   name: string;
   category: string;
-  stock_level: number; // 0-100
-  matched_item?: Item;
+  quantity: number;
+  max_quantity: number;
+  threshold: number;
+  unit: string | null;
+  checked: boolean;
 }
 
 interface Props {
   visible: boolean;
-  householdId: string;
   onClose: () => void;
 }
 
-export default function CameraInventoryModal({ visible, householdId, onClose }: Props) {
-  const { profile } = useAuthStore();
-  const { mutateAsync: updateQuantity } = useUpdateQuantity();
-  const { data: inventoryItems = [] } = useInventory(householdId);
+export default function CameraInventoryModal({visible, onClose}: Props) {
+  const {profile} = useAuthStore();
+  const householdId = profile?.household_id ?? '';
 
-  const [step, setStep] = useState<'pick' | 'processing' | 'review'>('pick');
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [foundItems, setFoundItems] = useState<FoundItem[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [errorText, setErrorText] = useState('');
+  const {data: items = []} = useInventory(householdId);
+  const {mutateAsync: addItem} = useAddInventoryItem();
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) {
-      console.log('[CameraInventoryModal] No files selected');
-      return;
-    }
-    const file = e.target.files[0];
-    console.log('[CameraInventoryModal] File selected:', file.name, file.size, file.type);
-    const uri = URL.createObjectURL(file);
-    setImageUri(uri);
-    setStep('processing');
-    setErrorText('');
+  const [step, setStep] = useState<Step>('pick');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [identified, setIdentified] = useState<IdentifiedItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-    try {
-      console.log('[CameraInventoryModal] Compressing image...');
-      const base64Str = await compressImage(file, 1); // target 1MB
-      console.log('[CameraInventoryModal] Image compressed, starting processImage');
-      processImage(base64Str);
-    } catch (err) {
-      console.error('[CameraInventoryModal] Image compression error:', err);
-      setErrorText('Failed to process image file. Please try another.');
-      setStep('pick');
-    }
+  const categorySuggestions =
+    getUniqueCategories(items).length > 0
+      ? getUniqueCategories(items)
+      : ['Kitchen', 'Bathroom', 'Cleaning', 'Pantry'];
+
+  const reset = () => {
+    setStep('pick');
+    setPhotoUri(null);
+    setIdentified([]);
+    setError(null);
   };
 
-  const processImage = async (base64: string) => {
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
+  const processImage = async (uri: string, base64?: string | null) => {
+    setPhotoUri(uri);
+    setStep('analyzing');
+    setError(null);
+
     try {
-      console.log('[CameraInventoryModal] Invoking analyze-image function...');
       const { data, error } = await supabase.functions.invoke('analyze-image', {
-        body: { action: 'inventory', image: base64 },
+        body: { action: 'inventory', image: base64 }
       });
 
       if (error) {
-        console.error('[CameraInventoryModal] Supabase function error:', error);
-        let errorMessage = error.message || 'Error invoking Supabase edge function';
-        // Attempt to extract the inner JSON error if available
+        console.error("Supabase Edge Function Error:", error);
+        let errorMessage = error.message ?? 'Edge function failed';
         if (error.context && typeof error.context.json === 'function') {
           try {
             const errBody = await error.context.json();
             if (errBody && errBody.error) {
               errorMessage = errBody.error;
             }
-          } catch {
-            // ignore JSON parse error
-          }
+          } catch (e) {}
         }
         throw new Error(errorMessage);
       }
 
-      console.log('[CameraInventoryModal] Response data:', data);
-
-      let parsedData = data;
-      if (typeof data === 'string') {
-        try {
-          // Strip potential markdown code blocks like ```json ... ```
-          let cleanData = data.trim();
-          if (cleanData.startsWith('```')) {
-            cleanData = cleanData.replace(/^```(json)?/, '').replace(/```$/, '').trim();
-          }
-          parsedData = JSON.parse(cleanData);
-        } catch (e) {
-          console.error('[CameraInventoryModal] Failed to parse JSON response:', e);
-          throw new Error('Invalid JSON response from AI');
-        }
-      }
-
-      if (parsedData && parsedData.items && Array.isArray(parsedData.items)) {
-        console.log(`[CameraInventoryModal] Successfully parsed ${parsedData.items.length} items`);
-        const enrichedItems = parsedData.items.map((item: {name: string, quantity: number, unit?: string, category: string}) => {
-          const match = fuzzyMatchInventory(item.name, inventoryItems);
-          return { ...item, matched_item: match };
-        });
-        setFoundItems(enrichedItems);
-        setStep('review');
+      if (data && data.items) {
+        const drafts = data.items.map((item: any) => ({
+          name: item.name,
+          category: item.category,
+          // AI returns stock_level 10-100; map to 0-1 quantity fraction
+          quantity: Math.round(((item.stock_level || 50) / 100) * 10) / 10,
+          max_quantity: 1,
+          threshold: 0.25,
+          unit: item.unit || null,
+          checked: true,
+        }));
+        setIdentified(drafts);
       } else {
-        console.warn('[CameraInventoryModal] No items array found in parsed data:', parsedData);
-        setErrorText('Could not detect items. Please try a clearer photo.');
-        setStep('pick');
+        setIdentified([]);
       }
-    } catch (err: unknown) {
-      console.error('[CameraInventoryModal] processImage catch block error:', err);
-      const msg = err instanceof Error ? err.message : 'Unknown error occurred.';
-      setErrorText(`Failed to analyze pantry: ${msg}`);
+      setStep('review');
+    } catch (err: any) {
+      setError(err.message || 'Failed to analyze image.');
       setStep('pick');
     }
   };
 
-  const handleSyncItems = async () => {
-    if (!profile?.id) return;
-    setSaving(true);
+  const resizeAndProcess = async (uri: string, originalBase64?: string | null) => {
     try {
-      for (const item of foundItems) {
-        if (item.matched_item) {
-          // Convert stock_level (0-100) to quantity
-          const newQty = Math.round((item.stock_level / 100) * (item.matched_item.max_quantity || 10));
-          await updateQuantity({
-            itemId: item.matched_item.id,
-            userId: profile.id,
-            oldQuantity: item.matched_item.quantity,
-            newQuantity: newQty,
-            item: item.matched_item,
-          });
-        }
-      }
-      handleClose();
-    } catch {
-      setErrorText('Failed to sync inventory.');
-    } finally {
-      setSaving(false);
+      // Use expo-image-manipulator to aggressively compress the image and ensure format
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 800 } }], // Resize largest dimension to 800
+        { compress: 0.4, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      processImage(manipResult.uri, manipResult.base64);
+    } catch (e) {
+      console.error("Failed to manipulate image:", e);
+      // Fallback
+      processImage(uri, originalBase64);
     }
   };
 
-  const handleClose = () => {
-    setStep('pick');
-    setImageUri(null);
-    setFoundItems([]);
-    onClose();
+  const handleTakePhoto = async () => {
+    if (!cameraPermission?.granted) {
+      const result = await requestCameraPermission();
+      if (!result.granted) return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.4,
+      allowsEditing: true,
+      aspect: [4, 3],
+      base64: true,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      resizeAndProcess(result.assets[0].uri, result.assets[0].base64);
+    }
   };
+
+  const handleChoosePhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.4,
+      allowsEditing: true,
+      aspect: [4, 3],
+      base64: true,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      resizeAndProcess(result.assets[0].uri, result.assets[0].base64);
+    }
+  };
+
+  const toggleItem = (index: number) => {
+    setIdentified(prev =>
+      prev.map((item, i) => (i === index ? {...item, checked: !item.checked} : item)),
+    );
+  };
+
+  const updateItem = (index: number, field: 'name' | 'category', value: string) => {
+    setIdentified(prev =>
+      prev.map((item, i) => (i === index ? {...item, [field]: value} : item)),
+    );
+  };
+
+  const handleAddAll = async () => {
+    if (!profile?.household_id || !profile?.id) return;
+    setStep('saving');
+
+    const toAdd = identified.filter(i => i.checked && i.name.trim());
+    for (const item of toAdd) {
+      const newItem: NewItem = {
+        name: item.name.trim(),
+        category: item.category.trim() || null,
+        quantity: item.quantity,
+        max_quantity: item.max_quantity,
+        threshold: item.threshold,
+        unit: item.unit,
+      };
+      try {
+        await addItem({
+          householdId: profile.household_id,
+          userId: profile.id,
+          item: newItem,
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    handleClose();
+  };
+
+  const selectedCount = identified.filter(i => i.checked).length;
 
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-elevated flex-shrink-0">
-        <button onClick={handleClose} className="text-text-secondary hover:text-text-primary font-medium px-2 py-1">
-          Cancel
-        </button>
-        <h2 className="text-lg font-bold text-text-primary">Scan Pantry</h2>
-        <div className="w-16"></div>
-      </div>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={handleClose}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
 
-      <div className="flex-1 overflow-y-auto">
+        {/* ── Pick photo ── */}
         {step === 'pick' && (
-          <div className="flex flex-col items-center justify-center h-full p-6 max-w-sm mx-auto text-center">
-            <div className="w-20 h-20 bg-primary-blue-light text-primary-blue rounded-full mb-6 flex items-center justify-center">
-              <Camera size={36} />
-            </div>
-            <h3 className="text-2xl font-bold text-text-primary mb-2">Scan Your Pantry</h3>
-            <p className="text-text-secondary mb-8 leading-relaxed">
-              Take a photo of your shelves to automatically update stock levels.
-            </p>
-            
-            {errorText && (
-              <div className="mb-6 p-4 rounded-lg bg-red-100 border border-red-300 text-red-700 w-full flex gap-3 text-left items-start">
-                <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
-                <span className="text-sm">{errorText}</span>
-              </div>
-            )}
+          <>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={handleClose}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Scan Items</Text>
+              <View style={styles.headerSpacer} />
+            </View>
 
-            <label className="w-full py-4 bg-primary-blue hover:bg-opacity-90 text-white rounded-xl font-medium tracking-wide shadow-md cursor-pointer flex items-center justify-center gap-2 transition-all">
-              <Upload size={20} />
-              Take or Upload Photo
-              <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
-            </label>
-            
-            <p className="mt-4 text-xs text-text-secondary">
-              Direct camera access requested on supported mobile browsers.
-            </p>
-          </div>
+            <View style={styles.pickBody}>
+              <Text style={styles.pickTitle}>Point your camera at a shelf,{'\n'}cupboard, or any surface</Text>
+              <Text style={styles.pickSubtitle}>
+                AI will identify everything it can see and add it to your inventory
+              </Text>
+
+              {error && (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
+
+              <View style={styles.pickButtons}>
+                <TouchableOpacity style={styles.pickBtn} onPress={handleTakePhoto} activeOpacity={0.8}>
+                  <Text style={styles.pickBtnIcon}>📷</Text>
+                  <Text style={styles.pickBtnLabel}>Take Photo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.pickBtn} onPress={handleChoosePhoto} activeOpacity={0.8}>
+                  <Text style={styles.pickBtnIcon}>🖼️</Text>
+                  <Text style={styles.pickBtnLabel}>Choose Photo</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.pickTip}>
+                💡 Works best with good lighting and items in clear view
+              </Text>
+            </View>
+          </>
         )}
 
-        {step === 'processing' && (
-          <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-            {imageUri && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={imageUri} alt="pantry" className="w-64 max-h-64 object-contain opacity-50 mb-8 rounded-lg shadow-sm" />
+        {/* ── Analyzing ── */}
+        {step === 'analyzing' && (
+          <View style={styles.center}>
+            {photoUri && (
+              <Image source={{uri: photoUri}} style={styles.photoThumb} resizeMode="cover" />
             )}
-            <Loader2 className="animate-spin text-primary-blue mb-4" size={40} />
-            <p className="text-lg font-medium text-text-secondary">Detecting items in pantry...</p>
-          </div>
+            <ActivityIndicator size="large" color={Colors.blue} style={styles.spinner} />
+            <Text style={styles.analyzingTitle}>Identifying items…</Text>
+            <Text style={styles.analyzingSubtitle}>AI is scanning your photo</Text>
+          </View>
         )}
 
+        {/* ── Review ── */}
         {step === 'review' && (
-          <div className="p-6 pb-24 max-w-lg mx-auto w-full">
-            <h3 className="text-xl font-bold text-text-primary mb-1">Detected Items</h3>
-            <p className="text-sm text-text-secondary mb-6">Review the found items and their estimated stock levels.</p>
+          <>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => setStep('pick')}>
+                <Text style={styles.cancelText}>Retake</Text>
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>
+                {identified.length} item{identified.length !== 1 ? 's' : ''} found
+              </Text>
+              <View style={styles.headerSpacer} />
+            </View>
 
-            <div className="space-y-4">
-              {foundItems.map((item, idx) => (
-                <div key={idx} className="p-4 rounded-xl border border-border bg-surface flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-primary-blue-light text-primary-blue flex items-center justify-center flex-shrink-0 font-bold text-sm">
-                    {item.stock_level}%
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-text-primary truncate">{item.name}</div>
-                    <div className="text-xs text-text-secondary">
-                      {item.matched_item ? `Matched with ${item.matched_item.name}` : 'No local match found'}
-                    </div>
-                  </div>
-                  {item.matched_item && (
-                    <div className="flex items-center gap-1 text-green text-[11px] font-bold uppercase tracking-wider">
-                      <Check size={12} strokeWidth={3} />
-                      Syncing
-                    </div>
-                  )}
-                </div>
+            <Text style={styles.reviewSubtitle}>
+              Tap to deselect, or edit names and categories
+            </Text>
+
+            <ScrollView contentContainerStyle={styles.reviewList} keyboardShouldPersistTaps="handled">
+              {identified.map((item, idx) => (
+                <View key={idx} style={[styles.reviewRow, !item.checked && styles.reviewRowUnchecked]}>
+                  <TouchableOpacity
+                    style={[styles.checkbox, item.checked && styles.checkboxChecked]}
+                    onPress={() => toggleItem(idx)}
+                    activeOpacity={0.7}>
+                    {item.checked && <Text style={styles.checkmark}>✓</Text>}
+                  </TouchableOpacity>
+
+                  <View style={styles.reviewFields}>
+                    <TextInput
+                      style={[styles.reviewNameInput, !item.checked && styles.reviewInputUnchecked]}
+                      value={item.name}
+                      onChangeText={v => updateItem(idx, 'name', v)}
+                      placeholderTextColor={Colors.textSecondary}
+                      autoCapitalize="words"
+                    />
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.categoryChips}>
+                      {categorySuggestions.map(cat => (
+                        <TouchableOpacity
+                          key={cat}
+                          style={[
+                            styles.categoryChip,
+                            item.category === cat && styles.categoryChipActive,
+                          ]}
+                          onPress={() => updateItem(idx, 'category', cat)}>
+                          <Text
+                            style={[
+                              styles.categoryChipText,
+                              item.category === cat && styles.categoryChipTextActive,
+                            ]}>
+                            {cat}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
               ))}
-            </div>
+            </ScrollView>
 
-            {/* Sticky Actions */}
-            <div className="fixed bottom-0 inset-x-0 p-6 bg-background/80 backdrop-blur-md border-t border-border">
-              <button
-                onClick={handleSyncItems}
-                disabled={saving || foundItems.filter(i => i.matched_item).length === 0}
-                className="w-full py-4 bg-primary-blue hover:bg-opacity-90 disabled:opacity-50 text-white rounded-xl font-bold tracking-wide shadow-lg flex items-center justify-center gap-2 transition-all"
-              >
-                {saving ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />}
-                {saving ? 'Syncing...' : `Confirm & Sync ${foundItems.filter(i => i.matched_item).length} Items`}
-              </button>
-            </div>
-          </div>
+            <View style={styles.footer}>
+              <Text style={styles.footerCount}>
+                {selectedCount} of {identified.length} selected
+              </Text>
+              <TouchableOpacity
+                style={[styles.addBtn, selectedCount === 0 && styles.addBtnDisabled]}
+                onPress={handleAddAll}
+                disabled={selectedCount === 0}
+                activeOpacity={0.8}>
+                <Text style={styles.addBtnText}>
+                  Add {selectedCount} item{selectedCount !== 1 ? 's' : ''} →
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
-      </div>
-    </div>
+
+        {/* ── Saving ── */}
+        {step === 'saving' && (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={Colors.blue} />
+            <Text style={styles.analyzingTitle}>Adding to inventory…</Text>
+          </View>
+        )}
+
+      </SafeAreaView>
+    </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {flex: 1, backgroundColor: Colors.background},
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: Border.width,
+    borderBottomColor: Colors.border,
+  },
+  headerTitle: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
+  },
+  cancelText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.regular,
+    width: 60,
+  },
+  headerSpacer: {width: 60},
+  // Pick step
+  pickBody: {
+    flex: 1,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+  },
+  pickTitle: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.medium,
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  pickSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  pickButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    width: '100%',
+  },
+  pickBtn: {
+    flex: 1,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    borderRadius: Radius.lg,
+    paddingVertical: Spacing.xl,
+    alignItems: 'center',
+    gap: Spacing.sm,
+    ...Shadows.soft,
+  },
+  pickBtnIcon: {fontSize: 32},
+  pickBtnLabel: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+  },
+  pickTip: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.regular,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+  },
+  errorBox: {
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.red,
+    borderRadius: Radius.sm,
+    padding: Spacing.md,
+    width: '100%',
+  },
+  errorText: {
+    color: Colors.red,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+  },
+  // Analyzing
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+  },
+  photoThumb: {
+    width: 140,
+    height: 140,
+    borderRadius: Radius.md,
+    opacity: 0.7,
+  },
+  spinner: {marginTop: Spacing.md},
+  analyzingTitle: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.medium,
+  },
+  analyzingSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+  },
+  // Review
+  reviewSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  reviewList: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 130,
+    gap: Spacing.sm,
+  },
+  reviewRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    ...Shadows.soft,
+  },
+  reviewRowUnchecked: {opacity: 0.5},
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: Radius.full,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background,
+    marginTop: 2,
+    flexShrink: 0,
+  },
+  checkboxChecked: {backgroundColor: Colors.blue, borderColor: Colors.blue},
+  checkmark: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: Typography.weights.bold,
+  },
+  reviewFields: {flex: 1, gap: Spacing.sm},
+  reviewNameInput: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
+    paddingVertical: 0,
+  },
+  reviewInputUnchecked: {color: Colors.textSecondary},
+  categoryChips: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  categoryChip: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: 20,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  categoryChipActive: {
+    backgroundColor: Colors.blue,
+    borderColor: Colors.blue,
+  },
+  categoryChipText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.medium,
+  },
+  categoryChipTextActive: {color: Colors.textPrimary},
+  // Footer
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(5, 5, 5, 0.9)', // slightly transparent for blur effect
+    borderTopWidth: Border.width,
+    borderTopColor: Colors.border,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    paddingBottom: Spacing.xxl,
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  footerCount: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+  },
+  addBtn: {
+    backgroundColor: Colors.blue,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    borderRadius: Radius.full,
+    width: '100%',
+    alignItems: 'center',
+    ...Shadows.glow,
+  },
+  addBtnDisabled: {opacity: 0.4},
+  addBtnText: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    letterSpacing: 0.5,
+  },
+});

@@ -1,0 +1,263 @@
+version: "2"
+type: frontend
+tech_stack:
+  - TypeScript
+  - React Native
+  - Expo Router
+  - TanStack React Query
+  - Supabase (Auth, Database, Edge Functions, Storage)
+  - Zustand (auth store only)
+  - react-native-reanimated
+  - expo-notifications
+routes:
+  - path: /sign-in
+    file: app/sign-in.tsx
+    auth_required: false
+    description: Email/password sign in screen
+  - path: /sign-up
+    file: app/sign-up.tsx
+    auth_required: false
+    description: Email/password account creation screen
+  - path: /household
+    file: app/household.tsx
+    auth_required: true
+    description: Create or join a household after first sign-in
+  - path: /(tabs)
+    file: app/(tabs)/_layout.tsx
+    auth_required: true
+    description: Bottom tab navigator shell (Dashboard, Inventory, Spending, Meals)
+  - path: /(tabs)/index
+    file: app/(tabs)/index.tsx
+    auth_required: true
+    description: Dashboard - weekly spend, low stock alerts, shopping list preview
+  - path: /(tabs)/inventory
+    file: app/(tabs)/inventory.tsx
+    auth_required: true
+    description: Full inventory list with add/edit/delete and camera scanning
+  - path: /(tabs)/spending
+    file: app/(tabs)/spending.tsx
+    auth_required: true
+    description: Monthly spending log with receipt scanning
+  - path: /(tabs)/meals
+    file: app/(tabs)/meals.tsx
+    auth_required: true
+    description: Meal planning placeholder tab
+
+features:
+  - name: User Sign In
+    description: Authenticate with email and password via Supabase Auth
+    files:
+      - app/sign-in.tsx
+      - store/authStore.ts
+      - lib/supabase.ts
+    entry_route: /sign-in
+    user_interactions:
+      - Enter email address
+      - Enter password
+      - Tap Sign In button
+      - See validation error on empty fields
+      - See error message on invalid credentials
+      - Navigate to dashboard on success
+    api_calls:
+      - method: POST
+        endpoint: /auth/v1/token (Supabase Auth)
+    auth_required: false
+
+  - name: User Sign Up
+    description: Create a new account with email, password and display name
+    files:
+      - app/sign-up.tsx
+      - store/authStore.ts
+    entry_route: /sign-up
+    user_interactions:
+      - Enter display name
+      - Enter email address
+      - Enter password
+      - Confirm password
+      - Tap Create Account button
+      - See error if passwords do not match
+    api_calls:
+      - method: POST
+        endpoint: /auth/v1/signup (Supabase Auth)
+    auth_required: false
+
+  - name: Create or Join Household
+    description: After sign-up, users create a new household or join via invite code
+    files:
+      - app/household.tsx
+    entry_route: /household
+    user_interactions:
+      - Enter household name to create
+      - Tap Create button
+      - Or enter invite code to join existing household
+      - Tap Join button
+    api_calls:
+      - method: POST
+        endpoint: /rest/v1/households (Supabase DB)
+      - method: PATCH
+        endpoint: /rest/v1/profiles (Supabase DB)
+    auth_required: true
+
+  - name: Dashboard
+    description: Home screen showing weekly spend, low stock items and shopping list preview
+    files:
+      - app/(tabs)/index.tsx
+      - hooks/queries.ts
+      - hooks/useRealtimeHousehold.ts
+    entry_route: /(tabs)/index
+    user_interactions:
+      - View greeting with user name
+      - See item count, low stock count, monthly spend stats
+      - View low stock inventory alerts with stock bars
+      - Tap shopping list item to mark as complete
+      - Tap View All to open full shopping list modal
+      - Tap settings icon to open profile screen
+    api_calls:
+      - method: GET
+        endpoint: /rest/v1/items (Supabase DB)
+      - method: GET
+        endpoint: /rest/v1/spending_entries (Supabase DB)
+      - method: GET
+        endpoint: /rest/v1/shopping_list (Supabase DB)
+      - method: PATCH
+        endpoint: /rest/v1/shopping_list (toggle complete)
+    auth_required: true
+
+  - name: Inventory Management
+    description: Browse, add, edit, delete household inventory items with stock levels
+    files:
+      - app/(tabs)/inventory.tsx
+      - hooks/queries.ts
+      - components/AddItemModal.tsx
+      - components/UpdateStockModal.tsx
+      - components/CameraInventoryModal.tsx
+      - components/BarcodeScanModal.tsx
+    entry_route: /(tabs)/inventory
+    user_interactions:
+      - View list of inventory items with stock bars
+      - Filter items by category
+      - Tap item to open UpdateStockModal
+      - Tap + to open AddItemModal
+      - Enter item name, category, stock level, threshold
+      - Submit form to add item
+      - Swipe/long-press to delete item
+      - Tap camera icon to open CameraInventoryModal
+      - Take or pick a photo for AI item identification
+      - Review identified items and confirm selection
+      - Tap barcode icon to scan barcode
+    api_calls:
+      - method: GET
+        endpoint: /rest/v1/items
+      - method: POST
+        endpoint: /rest/v1/items
+      - method: PATCH
+        endpoint: /rest/v1/items
+      - method: DELETE
+        endpoint: /rest/v1/items
+      - method: POST
+        endpoint: /functions/v1/analyze-image (Supabase Edge Function)
+    auth_required: true
+
+  - name: Spending Tracker
+    description: Log and review household spending entries with receipt OCR scanning
+    files:
+      - app/(tabs)/spending.tsx
+      - hooks/queries.ts
+      - components/AddSpendingModal.tsx
+      - components/ReceiptScanModal.tsx
+    entry_route: /(tabs)/spending
+    user_interactions:
+      - View list of spending entries for current month
+      - See total monthly spend
+      - Navigate between months
+      - Tap + to add spending manually
+      - Enter store name, amount, category, date
+      - Tap scan icon to open ReceiptScanModal
+      - Take or pick photo of receipt
+      - Review AI-extracted items and amounts
+      - Confirm to add spending entry
+      - Swipe to delete entry
+    api_calls:
+      - method: GET
+        endpoint: /rest/v1/spending_entries
+      - method: POST
+        endpoint: /rest/v1/spending_entries
+      - method: DELETE
+        endpoint: /rest/v1/spending_entries
+      - method: POST
+        endpoint: /functions/v1/analyze-image (Supabase Edge Function)
+    auth_required: true
+
+  - name: AI Camera Scanning (Inventory)
+    description: Use device camera + OpenAI gpt-4o to identify household items from photos
+    files:
+      - components/CameraInventoryModal.tsx
+      - supabase/functions/analyze-image/index.ts
+    entry_route: /(tabs)/inventory
+    user_interactions:
+      - Open camera modal
+      - Take a photo or pick from gallery
+      - Wait for AI analysis
+      - Review list of identified items with checkboxes
+      - Toggle items on/off
+      - Tap Add Selected to save items to inventory
+    api_calls:
+      - method: POST
+        endpoint: /functions/v1/analyze-image
+    auth_required: true
+
+  - name: Receipt OCR Scanning
+    description: Scan grocery receipts to automatically log spending entries
+    files:
+      - components/ReceiptScanModal.tsx
+      - supabase/functions/analyze-image/index.ts
+    entry_route: /(tabs)/spending
+    user_interactions:
+      - Open receipt scan modal
+      - Take a photo or pick from gallery
+      - Wait for AI analysis
+      - Review extracted store name and total amount
+      - Confirm to add spending entry
+    api_calls:
+      - method: POST
+        endpoint: /functions/v1/analyze-image
+    auth_required: true
+
+  - name: Offline Data Persistence
+    description: React Query cache is persisted to AsyncStorage so data loads when offline
+    files:
+      - app/_layout.tsx
+      - hooks/queries.ts
+    entry_route: /(tabs)/index
+    user_interactions:
+      - Open app without network connection
+      - See previously loaded data from cache
+      - Data automatically refreshes when connectivity is restored
+    api_calls: []
+    auth_required: true
+
+  - name: Push Notification Registration
+    description: App requests notification permissions and stores Expo push token in Supabase
+    files:
+      - app/_layout.tsx
+      - utils/notifications.ts
+    entry_route: /(tabs)/index
+    user_interactions:
+      - Launch app for first time after sign-in
+      - See system notification permission prompt
+      - Grant permission
+    api_calls:
+      - method: PATCH
+        endpoint: /rest/v1/profiles (store expo_push_token)
+    auth_required: true
+
+known_limitations:
+  - issue: Meals tab is a placeholder screen with no backend integration
+    location: app/(tabs)/meals.tsx
+    impact: No meal planning functionality yet; page is empty
+  - issue: RoomScanWizard state variables (draftItems, checkedItems, imageUris) may have inconsistencies from recent refactor
+    location: components/RoomScanWizard.tsx
+    impact: Room scan wizard may have runtime errors when reviewing identified items
+  - issue: Supabase Edge Function analyze-image has Deno type warnings in TypeScript IDE but works correctly when deployed
+    location: supabase/functions/analyze-image/index.ts
+    impact: No runtime impact; IDE shows false type errors for Deno globals
