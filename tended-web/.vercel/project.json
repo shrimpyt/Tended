@@ -1,0 +1,16 @@
+{
+  "projectId": "prj_iUHERqMAzFMtpUTzjqbE0Z3yyeyy",
+  "orgId": "team_GrGKEHMJS93y0oj0oqASPHs7",
+  "projectName": "tended-web",
+  "settings": {
+    "createdAt": 1775256492600,
+    "framework": "nextjs",
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": "npm run build",
+    "outputDirectory": ".next",
+    "rootDirectory": null,
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}
