@@ -10,7 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 // Routes that should not render the navigation shell
 const HIDDEN_ROUTES = new Set([
   '/', '/sign-in', '/sign-up', '/forgot-password',
-  '/household', '/onboarding', '/landing', '/design-lab',
+  '/household', '/onboarding', '/landing', '/design-lab', '/tutorial',
 ]);
 
 export default function NavShell() {

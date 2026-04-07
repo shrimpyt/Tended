@@ -402,6 +402,20 @@ export default function SettingsPage() {
           )}
         </section>
 
+        {/* ── TUTORIAL ── */}
+        <section className="space-y-4 mb-6">
+          <p className="text-xs font-semibold uppercase tracking-widest text-text-secondary">App & Devices</p>
+          <div className="bg-surface-elevated border border-border rounded-2xl p-4">
+            <button
+              onClick={() => router.push('/tutorial')}
+              className="w-full flex items-center justify-between text-left py-2 text-sm font-medium text-text-primary hover:text-primary-blue transition-colors"
+            >
+              <span>How to Install the App</span>
+              <span className="text-text-secondary">→</span>
+            </button>
+          </div>
+        </section>
+
         {/* ── SIGN OUT ── */}
         <button
           onClick={handleSignOut}
