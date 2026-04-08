@@ -1,0 +1,41 @@
+    Co-authored-by: shrimpyt <35939674+shrimpyt@users.noreply.github.com>
+
+    * Finalize landing page redirect and cleanup
+
+    * fix(dashboard): restore UI colors, fix auth loading, and refine routing to solve blue screen issue
+
+    * feat: re-integrate meals/recipes into MVP and stabilize scanning pipeline
+
+    * chore: cleanup duplicate artifact files and logs
+
+    * Refactor: Deep Glassmorphism, Unit Intelligence, and Repository Cleanup
+
+    * Convert AddItemModal to Next.js and apply Deep Space UI to scanning modals
+
+    ---------
+
+    Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>
+    Co-authored-by: shrimpyt <35939674+shrimpyt@users.noreply.github.com>
+    Co-authored-by: Trystan Oliver <trystanoliver@Trystans-MacBook-Air.local>
+    Co-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>
+
+diff --git a/tended-web/components/CameraInventoryModal.tsx b/tended-web/components/CameraInventoryModal.tsx
+new file mode 100644
+index 0000000..c0d69b0
+--- /dev/null
++++ b/tended-web/components/CameraInventoryModal.tsx
+@@ -0,0 +1,263 @@
++'use client';
++
++import React, { useState, useRef } from 'react';
++    const img = new window.Image();
++    const url = URL.createObjectURL(file);
++    img.onload = () => {
++      const maxDim = 800;
++      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
++      const canvas = document.createElement('canvas');
++      canvas.width = Math.round(img.width * scale);
++      canvas.height = Math.round(img.height * scale);
++      const ctx = canvas.getContext('2d')!;
++      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
++      URL.revokeObjectURL(url);
