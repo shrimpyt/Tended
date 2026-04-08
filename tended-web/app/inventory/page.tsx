@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { useInventory, useAddInventoryItem, useDeleteInventoryItem } from '@/hooks/queries';
+import { useInventory, useAddInventoryItem, useDeleteInventoryItem, useUpdateQuantity } from '@/hooks/queries';
 import Link from 'next/link';
 import { Zap, Plus, X, Edit, Trash2, Package, AlertTriangle, Clock, MoreHorizontal, Minus } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import AIDialog from '@/components/AIDialog';
 import BarcodeScanModal from '@/components/BarcodeScanModal';
 import ReceiptScanModal from '@/components/ReceiptScanModal';

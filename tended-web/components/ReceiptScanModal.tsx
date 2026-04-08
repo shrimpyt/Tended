@@ -1,6 +1,26 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
+
+import { useAuthStore } from '../store/authStore';
+import { useInventory, useAddSpendingEntry, useRestockFromReceipt } from '../hooks/queries';
+import { fuzzyMatchInventory } from '../utils/fuzzyMatch';
+import type { NewSpendingEntry, Item } from '../types/models';
+
+const CATEGORIES = ['Groceries', 'Dining', 'Household', 'Pets', 'Personal'];
+
+type Props = { visible: boolean; householdId: string; onClose: () => void };
+type Step = 'pick' | 'processing' | 'review' | 'inventoryMatch';
+import type { SpendingCategory } from '../types/models';
+
+type LineItem = { item: string; amount: string; category: SpendingCategory };
+type RestockProposal = { inventoryItem: Item; addQuantity: number; approved: boolean };
+
+const fmtQty = (num: number) => num % 1 === 0 ? num.toString() : num.toFixed(1);
+
+async function compressImageToBase64(file: File): Promise<{ base64: string, previewUrl: string }> {
+  return new Promise((resolve, reject) => {
     const img = new window.Image();
     const previewUrl = URL.createObjectURL(file);
     img.onload = () => {
