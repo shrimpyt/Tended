@@ -1,6 +1,19 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
+
+import { useAuthStore } from '../store/authStore';
+import { useInventory, useAddInventoryItem } from '../hooks/queries';
+const getUniqueCategories = (items: any[]) => Array.from(new Set(items.map(i => i.category).filter(Boolean)));
+import type { NewItem } from '../types/models';
+
+type Props = { visible: boolean; householdId: string; onClose: () => void };
+type Step = 'pick' | 'analyzing' | 'review' | 'saving';
+type IdentifiedItem = { name: string; category: string; quantity: number; max_quantity: number; threshold: number; unit: string | null; checked: boolean };
+
+async function compressImageToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
     const img = new window.Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
