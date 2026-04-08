@@ -1,19 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useUpdateQuantity, useInventory, useAddInventoryItem } from '@/hooks/queries';
-import { useAuthStore } from '@/store/authStore';
-import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
-import { X, Upload, Camera, Check, Plus, AlertCircle, Loader2 } from 'lucide-react';
-import { Item } from '@/types/models';
-import { compressImage } from '@/utils/imageCompressor';
+import React, { useState, useRef } from 'react';
+import Image from 'next/image';
+import { useInventory, useAddInventoryItem } from '../hooks/queries';
+import { NewItem } from '../types/models';
+import { useAuthStore } from '../store/authStore';
+import { supabase } from '../lib/supabase';
 
-interface FoundItem {
+function getUniqueCategories(items: { category?: string | null }[]): string[] {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (item.category?.trim()) seen.add(item.category.trim());
+  }
+  return Array.from(seen).sort();
+}
+
+type Step = 'pick' | 'analyzing' | 'review' | 'saving';
+
+interface IdentifiedItem {
   name: string;
   category: string;
-  stock_level: number; // 0-100
-  matched_item?: Item;
+  quantity: number;
+  max_quantity: number;
+  threshold: number;
+  unit: string | null;
+  checked: boolean;
 }
 
 interface Props {
@@ -22,243 +33,262 @@ interface Props {
   onClose: () => void;
 }
 
+async function compressImageToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const maxDim = 800;
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.4);
+      resolve(dataUrl.split(',')[1]); // return raw base64
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 export default function CameraInventoryModal({ visible, householdId, onClose }: Props) {
   const { profile } = useAuthStore();
-  const { mutateAsync: updateQuantity } = useUpdateQuantity();
+  const { data: items = [] } = useInventory(householdId);
   const { mutateAsync: addItem } = useAddInventoryItem();
-  const { data: inventoryItems = [] } = useInventory(householdId);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState<'pick' | 'processing' | 'review'>('pick');
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [foundItems, setFoundItems] = useState<FoundItem[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [errorText, setErrorText] = useState('');
+  const [step, setStep] = useState<Step>('pick');
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+  const [identified, setIdentified] = useState<IdentifiedItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const categorySuggestions =
+    getUniqueCategories(items).length > 0
+      ? getUniqueCategories(items)
+      : ['Kitchen', 'Bathroom', 'Cleaning', 'Pantry'];
+
+  const reset = () => {
+    setStep('pick');
+    setPhotoDataUrl(null);
+    setIdentified([]);
+    setError(null);
+  };
+
+  const handleClose = () => { reset(); onClose(); };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) {
-      console.log('[CameraInventoryModal] No files selected');
-      return;
-    }
-    const file = e.target.files[0];
-    console.log('[CameraInventoryModal] File selected:', file.name, file.size, file.type);
-    const uri = URL.createObjectURL(file);
-    setImageUri(uri);
-    setStep('processing');
-    setErrorText('');
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setError(null);
+    setStep('analyzing');
 
     try {
-      console.log('[CameraInventoryModal] Compressing image...');
-      const base64Str = await compressImage(file, 1); // target 1MB
-      console.log('[CameraInventoryModal] Image compressed, starting processImage');
-      processImage(base64Str);
-    } catch (err) {
-      console.error('[CameraInventoryModal] Image compression error:', err);
-      setErrorText('Failed to process image file. Please try another.');
-      setStep('pick');
-    }
-  };
+      const base64 = await compressImageToBase64(file);
+      const previewUrl = URL.createObjectURL(file);
+      setPhotoDataUrl(previewUrl);
 
-  const processImage = async (base64: string) => {
-    try {
-      console.log('[CameraInventoryModal] Invoking analyze-image API route...');
-      const response = await fetch('/api/analyze-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'inventory', image: base64 }),
+      const { data, error: fnError } = await supabase.functions.invoke('analyze-image', {
+        body: { action: 'inventory', image: base64 },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error('[CameraInventoryModal] API route error:', errorData);
-        const errorMessage = errorData?.error || 'Error invoking API route';
-        const rawDetails = errorData ? JSON.stringify(errorData, null, 2) : await response.text();
-        throw new Error(`${errorMessage} | RAW_DETAILS: ${rawDetails}`);
-      }
+      if (fnError) throw new Error(fnError.message ?? 'Edge function failed');
 
-      const data = await response.json();
-      console.log('[CameraInventoryModal] Response data:', data);
-
-      let parsedData = data;
-      if (typeof data === 'string') {
-        try {
-          // Strip potential markdown code blocks like ```json ... ```
-          let cleanData = data.trim();
-          if (cleanData.startsWith('```')) {
-            cleanData = cleanData.replace(/^```(json)?/, '').replace(/```$/, '').trim();
-          }
-          parsedData = JSON.parse(cleanData);
-        } catch (e) {
-          console.error('[CameraInventoryModal] Failed to parse JSON response:', e);
-          throw new Error('Invalid JSON response from AI');
-        }
-      }
-
-      if (parsedData && parsedData.items && Array.isArray(parsedData.items)) {
-        console.log(`[CameraInventoryModal] Successfully parsed ${parsedData.items.length} items`);
-        const enrichedItems = parsedData.items.map((item: {name: string, quantity: number, unit?: string, category: string}) => {
-          const match = fuzzyMatchInventory(item.name, inventoryItems);
-          return { ...item, matched_item: match };
-        });
-        setFoundItems(enrichedItems);
-        setStep('review');
+      if (data?.items) {
+        setIdentified(
+          data.items.map((item: { name: string; category: string; stock_level?: number; unit?: string }) => ({
+            name: item.name,
+            category: item.category,
+            quantity: Math.round(((item.stock_level || 50) / 100) * 10) / 10,
+            max_quantity: 1,
+            threshold: 0.25,
+            unit: item.unit || null,
+            checked: true,
+          }))
+        );
       } else {
-        console.warn('[CameraInventoryModal] No items array found in parsed data:', parsedData);
-        setErrorText('Could not detect items. Please try a clearer photo.');
-        setStep('pick');
+        setIdentified([]);
       }
+      setStep('review');
     } catch (err: unknown) {
-      console.error('[CameraInventoryModal] processImage catch block error:', err);
-      const msg = err instanceof Error ? err.message : 'Unknown error occurred.';
-      setErrorText(`Failed to analyze pantry: ${msg}`);
+      setError(err instanceof Error ? err.message : 'Failed to analyze image.');
       setStep('pick');
     }
   };
 
-  const handleSyncItems = async () => {
-    if (!profile?.id) return;
-    setSaving(true);
-    try {
-      for (const item of foundItems) {
-        if (item.matched_item) {
-          // Add standard 1 unit if matched (assuming mostly adding to existing stock visually)
-          // Visual stock_level (0-100%) isn't as useful anymore without max_quantity,
-          // so default to incrementing by 1 or setting it to a nominal value.
-          const newQty = item.matched_item.quantity + 1;
-          await updateQuantity({
-            itemId: item.matched_item.id,
-            userId: profile.id,
-            oldQuantity: item.matched_item.quantity,
-            newQuantity: newQty,
-            item: item.matched_item,
-          });
-        } else {
-          // Add new item
-          await addItem({
-            householdId,
-            userId: profile.id,
-            item: {
-              name: item.name,
-              category: item.category || 'Pantry',
-              quantity: 1, // Default 1 for new visual items
-              max_quantity: 1,
-              threshold: 0,
-              unit: 'pc'
-            },
-          });
-        }
-      }
-      handleClose();
-    } catch {
-      setErrorText('Failed to sync inventory.');
-    } finally {
-      setSaving(false);
+  const toggleItem = (index: number) =>
+    setIdentified(prev => prev.map((item, i) => i === index ? { ...item, checked: !item.checked } : item));
+
+  const updateItem = (index: number, field: 'name' | 'category', value: string) =>
+    setIdentified(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+
+  const handleAddAll = async () => {
+    if (!profile?.household_id || !profile?.id) return;
+    setStep('saving');
+    const toAdd = identified.filter(i => i.checked && i.name.trim());
+    for (const item of toAdd) {
+      const newItem: NewItem = {
+        name: item.name.trim(),
+        category: item.category.trim() || null,
+        quantity: item.quantity,
+        max_quantity: item.max_quantity,
+        threshold: item.threshold,
+        unit: item.unit,
+      };
+      try {
+        await addItem({ householdId: profile.household_id, userId: profile.id, item: newItem });
+      } catch (e) { console.error(e); }
     }
+    handleClose();
   };
 
-  const handleClose = () => {
-    setStep('pick');
-    setImageUri(null);
-    setFoundItems([]);
-    onClose();
-  };
+  const selectedCount = identified.filter(i => i.checked).length;
 
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-elevated flex-shrink-0">
-        <button onClick={handleClose} className="text-text-secondary hover:text-text-primary font-medium px-2 py-1">
-          Cancel
-        </button>
-        <h2 className="text-lg font-bold text-text-primary">Scan Pantry</h2>
-        <div className="w-16"></div>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/5 backdrop-blur-[20px] p-4">
+      <div className="glass rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col border border-white/20 shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <button onClick={handleClose} className="text-sm text-text-secondary hover:text-foreground transition-colors">Cancel</button>
+          <h2 className="text-sm font-semibold">
+            {step === 'pick' && 'Scan Items'}
+            {step === 'analyzing' && 'Analyzing…'}
+            {step === 'review' && `${identified.length} item${identified.length !== 1 ? 's' : ''} found`}
+            {step === 'saving' && 'Saving…'}
+          </h2>
+          <div className="w-12" />
+        </div>
 
-      <div className="flex-1 overflow-y-auto">
+        {/* Pick step */}
         {step === 'pick' && (
-          <div className="flex flex-col items-center justify-center h-full p-6 max-w-sm mx-auto text-center">
-            <div className="w-20 h-20 bg-primary-blue-light text-primary-blue rounded-full mb-6 flex items-center justify-center">
-              <Camera size={36} />
+          <div className="flex-1 flex flex-col items-center justify-center p-8 gap-5">
+            <div className="text-4xl">📷</div>
+            <div className="text-center">
+              <p className="text-base font-medium text-foreground mb-1">Scan your pantry</p>
+              <p className="text-sm text-text-secondary">Take a photo of any shelf, fridge, or cupboard. AI will identify what it sees.</p>
             </div>
-            <h3 className="text-2xl font-bold text-text-primary mb-2">Scan Your Pantry</h3>
-            <p className="text-text-secondary mb-8 leading-relaxed">
-              Take a photo of your shelves to automatically update stock levels.
-            </p>
-            
-            {errorText && (
-              <div className="mb-6 p-4 rounded-lg bg-red-100 border border-red-300 text-red-700 w-full flex gap-3 text-left items-start max-h-48 overflow-y-auto overflow-x-hidden break-words whitespace-pre-wrap">
-                <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
-                <span className="text-sm">{errorText.replace(' | RAW_DETAILS: ', '\n\nDetails:\n')}</span>
+            {error && (
+              <div className="w-full px-4 py-3 rounded-lg bg-red/10 border border-red/30 text-sm text-red">
+                {error}
               </div>
             )}
-
-            <label className="w-full py-4 bg-primary-blue hover:bg-opacity-90 text-white rounded-xl font-medium tracking-wide shadow-md cursor-pointer flex items-center justify-center gap-2 transition-all">
-              <Upload size={20} />
-              Take or Upload Photo
-              <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full py-3 rounded-xl bg-primary-blue text-white font-semibold text-sm hover:bg-primary-blue/90 transition-colors"
+            >
+              Take Photo
+            </button>
+            <input
+              type="file"
+              accept="image/*"
+              id="camera-gallery-input"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <label
+              htmlFor="camera-gallery-input"
+              className="w-full py-3 rounded-xl bg-surface-elevated border border-border text-foreground font-medium text-sm text-center cursor-pointer hover:bg-white/5 transition-colors"
+            >
+              Choose from Library
             </label>
-            
-            <p className="mt-4 text-xs text-text-secondary">
-              Direct camera access requested on supported mobile browsers.
-            </p>
+            <p className="text-xs text-text-secondary text-center">💡 Works best with good lighting and items visible</p>
           </div>
         )}
 
-        {step === 'processing' && (
-          <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-            {imageUri && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={imageUri} alt="pantry" className="w-64 max-h-64 object-contain opacity-50 mb-8 rounded-lg shadow-sm" />
+        {/* Analyzing step */}
+        {step === 'analyzing' && (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">
+            {photoDataUrl && (
+              <Image src={photoDataUrl} alt="Preview" width={128} height={128} className="w-32 h-32 rounded-xl object-cover opacity-60" unoptimized />
             )}
-            <Loader2 className="animate-spin text-primary-blue mb-4" size={40} />
-            <p className="text-lg font-medium text-text-secondary">Detecting items in pantry...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-blue" />
+            <p className="text-base font-medium">Identifying items…</p>
+            <p className="text-sm text-text-secondary">AI is scanning your photo</p>
           </div>
         )}
 
+        {/* Review step */}
         {step === 'review' && (
-          <div className="p-6 pb-24 max-w-lg mx-auto w-full">
-            <h3 className="text-xl font-bold text-text-primary mb-1">Detected Items</h3>
-            <p className="text-sm text-text-secondary mb-6">Review the found items and their estimated stock levels.</p>
-
-            <div className="space-y-4">
-              {foundItems.map((item, idx) => (
-                <div key={idx} className="p-4 rounded-xl border border-border bg-surface flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-primary-blue-light text-primary-blue flex items-center justify-center flex-shrink-0 font-bold text-sm">
-                    {item.stock_level}%
-                  </div>
+          <>
+            <p className="text-xs text-text-secondary px-5 py-2 border-b border-border">
+              Tap to deselect, or edit names and categories
+            </p>
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+              {identified.map((item, idx) => (
+                <div
+                  key={idx}
+                  className={`flex items-start gap-3 p-4 rounded-xl border transition-opacity ${
+                    item.checked ? 'bg-surface-elevated border-border' : 'bg-transparent border-border/30 opacity-50'
+                  }`}
+                >
+                  <button
+                    onClick={() => toggleItem(idx)}
+                    className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                      item.checked ? 'bg-primary-blue border-primary-blue' : 'border-border bg-transparent'
+                    }`}
+                  >
+                    {item.checked && <span className="text-white text-[10px] font-bold">✓</span>}
+                  </button>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-text-primary truncate">{item.name}</div>
-                    <div className="text-xs text-text-secondary">
-                      {item.matched_item ? `Matched with ${item.matched_item.name}` : 'No local match found'}
+                    <input
+                      value={item.name}
+                      onChange={e => updateItem(idx, 'name', e.target.value)}
+                      className="w-full bg-transparent text-sm font-medium text-foreground focus:outline-none border-b border-transparent focus:border-primary-blue pb-0.5 mb-2"
+                    />
+                    <div className="flex flex-wrap gap-1.5">
+                      {categorySuggestions.map(cat => (
+                        <button
+                          key={cat}
+                          onClick={() => updateItem(idx, 'category', cat)}
+                          className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                            item.category === cat
+                              ? 'bg-primary-blue border-primary-blue text-white'
+                              : 'border-border text-text-secondary bg-transparent hover:text-foreground'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  {item.matched_item ? (
-                    <div className="flex items-center gap-1 text-green-500 text-[11px] font-bold uppercase tracking-wider">
-                      <Check size={12} strokeWidth={3} />
-                      Syncing
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 text-primary-blue text-[11px] font-bold uppercase tracking-wider">
-                      <Plus size={12} strokeWidth={3} />
-                      Adding
-                    </div>
-                  )}
                 </div>
               ))}
+              {identified.length === 0 && (
+                <p className="text-sm text-text-secondary text-center py-6">No items identified. Try again with better lighting.</p>
+              )}
             </div>
-
-            {/* Sticky Actions */}
-            <div className="fixed bottom-0 inset-x-0 p-6 bg-background/80 backdrop-blur-md border-t border-border">
+            <div className="px-5 py-4 border-t border-border flex items-center justify-between gap-3">
+              <span className="text-xs text-text-secondary">{selectedCount} of {identified.length} selected</span>
               <button
-                onClick={handleSyncItems}
-                disabled={saving || foundItems.length === 0}
-                className="w-full py-4 bg-primary-blue hover:bg-opacity-90 disabled:opacity-50 text-white rounded-xl font-bold tracking-wide shadow-lg flex items-center justify-center gap-2 transition-all"
+                onClick={handleAddAll}
+                disabled={selectedCount === 0}
+                className="px-5 py-2.5 rounded-xl bg-primary-blue text-white text-sm font-semibold disabled:opacity-40 hover:bg-primary-blue/90 transition-colors"
               >
-                {saving ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />}
-                {saving ? 'Processing...' : `Confirm & Save ${foundItems.length} Items`}
+                Add {selectedCount} item{selectedCount !== 1 ? 's' : ''} →
               </button>
             </div>
+          </>
+        )}
+
+        {/* Saving step */}
+        {step === 'saving' && (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-blue" />
+            <p className="text-base font-medium">Adding to inventory…</p>
           </div>
         )}
       </div>
