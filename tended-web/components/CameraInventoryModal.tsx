@@ -150,8 +150,8 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="glass rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col border border-white/10 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/5 backdrop-blur-[20px] p-4">
+      <div className="glass rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col border border-white/20 shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <button onClick={handleClose} className="text-sm text-text-secondary hover:text-foreground transition-colors">Cancel</button>

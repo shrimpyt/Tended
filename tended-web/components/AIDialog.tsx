@@ -119,12 +119,12 @@ export default function AIDialog({ open, onClose, onTriggerScanner }: AIDialogPr
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
+        className="absolute inset-0 bg-black/5 backdrop-blur-[20px] transition-opacity duration-300"
         onClick={onClose}
       />
 
       {/* Dialog container */}
-      <div className="relative w-full max-w-lg bg-background rounded-3xl shadow-2xl overflow-hidden border border-white/10 animate-in fade-in zoom-in slide-in-from-bottom-5 duration-300">
+      <div className="glass relative w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-white/20 animate-in fade-in zoom-in slide-in-from-bottom-5 duration-300">
         
         {/* Header */}
         <div className="px-5 py-4 flex items-center justify-between border-b border-white/5 bg-white/2">

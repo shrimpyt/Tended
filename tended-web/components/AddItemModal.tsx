@@ -1,21 +1,9 @@
-import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Modal,
-  ScrollView,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
-import {useInventory, useAddInventoryItem} from '../hooks/queries';
-import {NewItem} from '../types/models';
-import {useAuthStore} from '../store/authStore';
+'use client';
+
+import React, { useState } from 'react';
+import { useInventory, useAddInventoryItem } from '../hooks/queries';
+import { NewItem } from '../types/models';
+import { useAuthStore } from '../store/authStore';
 
 function getUniqueCategories(items: any[]): string[] {
   const seen = new Set<string>();
@@ -34,12 +22,12 @@ interface Props {
   onClose: () => void;
 }
 
-export default function AddItemModal({visible, onClose}: Props) {
-  const {profile} = useAuthStore();
+export default function AddItemModal({ visible, onClose }: Props) {
+  const { profile } = useAuthStore();
   const householdId = profile?.household_id ?? '';
 
-  const {data: items = []} = useInventory(householdId);
-  const {mutateAsync: addItem} = useAddInventoryItem();
+  const { data: items = [] } = useInventory(householdId);
+  const { mutateAsync: addItem } = useAddInventoryItem();
 
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
@@ -121,278 +109,147 @@ export default function AddItemModal({visible, onClose}: Props) {
 
   const qtyNum = parseFloat(quantity) || 0;
   const maxQtyNum = parseFloat(maxQuantity) || 1;
-  const barPct = Math.min(100, (qtyNum / maxQtyNum) * 100);
+  const barPct = Math.min(100, Math.max(0, (qtyNum / maxQtyNum) * 100));
   const unitLabel = unit.trim() ? ` ${unit.trim()}` : '';
+  const categorySuggestions = getUniqueCategories(items).length > 0 ? getUniqueCategories(items) : DEFAULT_CATEGORY_SUGGESTIONS;
+
+  if (!visible) return null;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={handleClose}>
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Add Item</Text>
-            <TouchableOpacity onPress={handleSave} disabled={loading}>
-              {loading
-                ? <ActivityIndicator color={Colors.blue} />
-                : <Text style={styles.saveText}>Save</Text>
-              }
-            </TouchableOpacity>
-          </View>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/5 backdrop-blur-[20px] transition-opacity duration-300"
+        onClick={handleClose}
+      />
 
-          <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
-            {error && <Text style={styles.errorText}>{error}</Text>}
+      {/* Dialog container */}
+      <div className="glass relative w-full max-w-lg max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-white/20 animate-in fade-in zoom-in slide-in-from-bottom-5 duration-300">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-white/2 flex-shrink-0">
+          <button 
+            onClick={handleClose}
+            className="text-sm text-text-secondary hover:text-foreground transition-colors w-16 text-left"
+          >
+            Cancel
+          </button>
+          <h2 className="text-sm font-semibold">Add Item</h2>
+          <button 
+            onClick={handleSave} 
+            disabled={loading}
+            className="text-sm text-primary-blue font-medium hover:text-primary-blue/80 transition-colors w-16 text-right disabled:opacity-50"
+          >
+            {loading ? 'Saving...' : 'Save'}
+          </button>
+        </div>
 
-            {/* Name */}
-            <Text style={styles.label}>Item name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Dish Soap"
-              placeholderTextColor={Colors.textSecondary}
-              value={name}
-              onChangeText={setName}
+        {/* Scrollable form body */}
+        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+          {error && <div className="px-4 py-3 rounded-lg bg-red/10 border border-red/30 text-sm text-red">{error}</div>}
+
+          {/* Name */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Item name</label>
+            <input
               autoFocus
-              autoCapitalize="words"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Dish Soap"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-blue transition-all"
             />
+          </div>
 
-            {/* Unit */}
-            <Text style={styles.label}>Unit <Text style={styles.optional}>(optional)</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. bottles, rolls, kg"
-              placeholderTextColor={Colors.textSecondary}
+          {/* Unit */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+              Unit <span className="normal-case font-normal">(optional)</span>
+            </label>
+            <input
               value={unit}
-              onChangeText={setUnit}
-              autoCapitalize="none"
+              onChange={(e) => setUnit(e.target.value)}
+              placeholder="e.g. bottles, rolls, kg"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-blue transition-all"
             />
+          </div>
 
-            {/* Category */}
-            <Text style={styles.label}>Category <Text style={styles.optional}>(optional)</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Kitchen, Bedroom..."
-              placeholderTextColor={Colors.textSecondary}
+          {/* Category */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+              Category <span className="normal-case font-normal">(optional)</span>
+            </label>
+            <input
               value={category}
-              onChangeText={setCategory}
-              autoCapitalize="words"
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="e.g. Kitchen, Pantry…"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-blue transition-all"
             />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.suggestionRow}>
-              {(getUniqueCategories(items).length > 0
-                ? getUniqueCategories(items)
-                : DEFAULT_CATEGORY_SUGGESTIONS
-              ).map(chip => (
-                <TouchableOpacity
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {categorySuggestions.map(chip => (
+                <button
                   key={chip}
-                  style={styles.chip}
-                  onPress={() => setCategory(chip)}>
-                  <Text style={styles.chipText}>{chip}</Text>
-                </TouchableOpacity>
+                  onClick={() => setCategory(chip)}
+                  className="px-2.5 py-1 rounded-full text-xs border border-border text-text-secondary hover:text-foreground hover:border-primary-blue transition-colors"
+                >
+                  {chip}
+                </button>
               ))}
-            </ScrollView>
+            </div>
+          </div>
 
-            {/* Quantity */}
-            <Text style={styles.label}>Quantity</Text>
-            <View style={styles.quantityRow}>
-              <View style={styles.quantityField}>
-                <Text style={styles.quantityFieldLabel}>Current{unitLabel}</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="1"
-                  placeholderTextColor={Colors.textSecondary}
+          {/* Quantity */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Quantity</label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <p className="text-xs text-text-secondary mb-1">Current{unitLabel}</p>
+                <input
+                  type="number"
                   value={quantity}
-                  onChangeText={setQuantity}
-                  keyboardType="decimal-pad"
+                  onChange={e => setQuantity(e.target.value)}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-blue transition-all"
                 />
-              </View>
-              <Text style={styles.quantitySep}>/</Text>
-              <View style={styles.quantityField}>
-                <Text style={styles.quantityFieldLabel}>Max{unitLabel}</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="1"
-                  placeholderTextColor={Colors.textSecondary}
+              </div>
+              <span className="text-text-secondary text-lg pt-5">/</span>
+              <div className="flex-1">
+                <p className="text-xs text-text-secondary mb-1">Max{unitLabel}</p>
+                <input
+                  type="number"
                   value={maxQuantity}
-                  onChangeText={setMaxQuantity}
-                  keyboardType="decimal-pad"
+                  onChange={e => setMaxQuantity(e.target.value)}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-blue transition-all"
                 />
-              </View>
-            </View>
+              </div>
+            </div>
+          </div>
 
-            {/* Stock preview bar */}
-            <View style={styles.stockPreview}>
-              <View style={styles.barTrack}>
-                <View
-                  style={[
-                    styles.barFill,
-                    {
-                      width: `${barPct}%` as `${number}%`,
-                      backgroundColor: barPct === 0 ? Colors.red : barPct <= 25 ? Colors.amber : Colors.green,
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.stockPct}>{Math.round(barPct)}%</Text>
-            </View>
+          {/* Stock preview bar */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-1.5 bg-background border border-border/50 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all duration-300 ${barPct === 0 ? 'bg-red' : barPct <= 25 ? 'bg-amber' : 'bg-green'}`}
+                style={{ width: `${barPct}%` }}
+              />
+            </div>
+            <span className="text-xs text-text-secondary font-medium w-9 text-right">{Math.round(barPct)}%</span>
+          </div>
 
-            {/* Threshold */}
-            <Text style={styles.label}>Reorder when below{unitLabel}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0.25"
-              placeholderTextColor={Colors.textSecondary}
+          {/* Threshold */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">Reorder when below{unitLabel}</label>
+            <input
+              type="number"
               value={threshold}
-              onChangeText={setThreshold}
-              keyboardType="decimal-pad"
+              onChange={e => setThreshold(e.target.value)}
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-blue transition-all"
             />
-            <Text style={styles.hint}>
+            <p className="text-xs text-text-secondary">
               You'll be alerted when{unitLabel ? unitLabel.trim() : ' amount'} drops below this.
-            </Text>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </Modal>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: Border.width,
-    borderBottomColor: Colors.border,
-  },
-  headerTitle: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
-  },
-  cancelText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.regular,
-  },
-  saveText: {
-    color: Colors.blue,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
-  },
-  form: {
-    padding: Spacing.lg,
-    gap: Spacing.sm,
-    paddingBottom: Spacing.xxl,
-  },
-  label: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-    marginTop: Spacing.md,
-  },
-  optional: {
-    color: Colors.textSecondary,
-    fontWeight: Typography.weights.regular,
-  },
-  input: {
-    backgroundColor: Colors.surface,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.regular,
-  },
-  suggestionRow: {
-    gap: Spacing.sm,
-    paddingVertical: Spacing.xs,
-  },
-  chip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: 20,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  chipText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-  },
-  quantityRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: Spacing.sm,
-  },
-  quantityField: {
-    flex: 1,
-    gap: Spacing.xs,
-  },
-  quantityFieldLabel: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.regular,
-  },
-  quantitySep: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.regular,
-    paddingBottom: Spacing.md,
-  },
-  stockPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  barTrack: {
-    flex: 1,
-    height: 6,
-    backgroundColor: Colors.surface,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  stockPct: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.regular,
-    width: 36,
-    textAlign: 'right',
-  },
-  hint: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.regular,
-    marginTop: 2,
-  },
-  errorText: {
-    color: Colors.red,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.regular,
-  },
-});
