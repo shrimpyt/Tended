@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import { useInventory, useAddInventoryItem } from '../hooks/queries';
 import { NewItem } from '../types/models';
 import { useAuthStore } from '../store/authStore';
@@ -34,7 +35,7 @@ interface Props {
 
 async function compressImageToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img = new window.Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       const maxDim = 800;
@@ -212,7 +213,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
         {step === 'analyzing' && (
           <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">
             {photoDataUrl && (
-              <img src={photoDataUrl} alt="Preview" className="w-32 h-32 rounded-xl object-cover opacity-60" />
+              <Image src={photoDataUrl} alt="Preview" width={128} height={128} className="w-32 h-32 rounded-xl object-cover opacity-60" unoptimized />
             )}
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-blue" />
             <p className="text-base font-medium">Identifying items…</p>
