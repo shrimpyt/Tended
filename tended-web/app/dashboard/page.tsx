@@ -519,6 +519,7 @@ export default function Dashboard() {
 
         <BarcodeScanModal
           visible={barcodeOpen}
+          onManualEntry={async () => true}
           onScan={handleBarcodeScan}
           onClose={() => setBarcodeOpen(false)}
         />
@@ -692,6 +693,7 @@ export default function Dashboard() {
 
         <BarcodeScanModal
           visible={barcodeOpen}
+          onManualEntry={async () => true}
           onScan={handleBarcodeScan}
           onClose={() => setBarcodeOpen(false)}
         />

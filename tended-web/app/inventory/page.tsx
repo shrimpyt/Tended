@@ -409,6 +409,7 @@ export default function InventoryPage() {
 
       <BarcodeScanModal
         visible={barcodeOpen}
+        onManualEntry={async () => true}
         onScan={handleBarcodeScan}
         onClose={() => setBarcodeOpen(false)}
       />
