@@ -1,40 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { useInventory, useAddInventoryItem } from '../hooks/queries';
-import { NewItem } from '../types/models';
-import { useAuthStore } from '../store/authStore';
-import { supabase } from '../lib/supabase';
-
-function getUniqueCategories(items: { category?: string | null }[]): string[] {
-  const seen = new Set<string>();
-  for (const item of items) {
-    if (item.category?.trim()) seen.add(item.category.trim());
-  }
-  return Array.from(seen).sort();
-}
-
-type Step = 'pick' | 'analyzing' | 'review' | 'saving';
-
-interface IdentifiedItem {
-  name: string;
-  category: string;
-  quantity: number;
-  max_quantity: number;
-  threshold: number;
-  unit: string | null;
-  checked: boolean;
-}
-
-interface Props {
-  visible: boolean;
-  householdId: string;
-  onClose: () => void;
-}
-
-async function compressImageToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img = new window.Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       const maxDim = 800;
@@ -212,7 +179,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
         {step === 'analyzing' && (
           <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">
             {photoDataUrl && (
-              <img src={photoDataUrl} alt="Preview" className="w-32 h-32 rounded-xl object-cover opacity-60" />
+              <Image src={photoDataUrl} alt="Preview" width={128} height={128} className="w-32 h-32 rounded-xl object-cover opacity-60" unoptimized />
             )}
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-blue" />
             <p className="text-base font-medium">Identifying items…</p>

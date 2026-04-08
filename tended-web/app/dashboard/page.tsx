@@ -18,6 +18,7 @@ import {
   useAddShoppingListItem,
   useAddWasteEvent,
   useAddInventoryItem,
+  useUpdateItem,
 } from '@/hooks/queries';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRealtimeHousehold } from '@/hooks/useRealtimeHousehold';
@@ -121,13 +122,12 @@ function mapOFFCategory(categoriesStr: string | undefined): string {
 
 function parseUnit(quantityStr: string | undefined): string {
   if (!quantityStr) return 'pc';
-  const lower = quantityStr.toLowerCase();
-  if (lower.includes('ml')) return 'ml';
-  if (lower.includes(' l')) return 'L';
-  if (lower.includes('g')) return 'g';
-  if (lower.includes('kg')) return 'kg';
-  if (lower.includes('oz')) return 'oz';
-  if (lower.includes('lb')) return 'lb';
+  const match = quantityStr.match(/(?:\b|(?<=\d))(ml|l|g|kg|oz|lb|fl oz|count|rolls|sheets|pack)\b/i);
+  if (match && match[1]) {
+    const u = match[1].toLowerCase();
+    if (u === 'l') return 'L';
+    return u;
+  }
   return 'pc';
 }
 
@@ -183,71 +183,67 @@ export default function Dashboard() {
   const { mutate: updateQuantity }  = useUpdateQuantity();
   const { mutate: addWasteEvent }   = useAddWasteEvent();
   const { mutateAsync: addItem } = useAddInventoryItem();
+  const { mutate: updateItem } = useUpdateItem();
 
   const handleBarcodeScan = async (code: string): Promise<boolean> => {
     try {
-      // 1. Try OpenFoodFacts first (deterministic, free)
       const res = await fetch(
         `https://world.openfoodfacts.org/api/v0/product/${code}.json`,
-        { headers: { 'User-Agent': 'TendedWebApp/1.0' } },
+        {headers: {'User-Agent': 'TendedWebApp/1.0'}},
       );
       const json = await res.json();
 
-      if (json.status === 1 && json.product) {
-        const p = json.product;
-        const name =
-          p.product_name_en?.trim() ||
-          p.product_name?.trim() ||
-          p.abbreviated_product_name?.trim() ||
-          '';
-
-        if (name) {
-          await addItem({
-            householdId,
-            userId: profile?.id ?? '',
-            item: {
-              name,
-              category: mapOFFCategory(p.categories),
-              quantity: 1,
-              unit: parseUnit(p.quantity) || 'pc',
-              max_quantity: 1,
-              threshold: 1,
-            }
-          });
-          setQuickFeedback(`Added ${name}!`);
-          setTimeout(() => setQuickFeedback(null), 3000);
-          return true;
-        }
+      if (json.status !== 1 || !json.product) {
+        setQuickFeedback(`Product not found. Please add manually.`);
+        setTimeout(() => setQuickFeedback(null), 4000);
+        const nowTimestamp = new Date().getTime();
+        const isoDateString = new Date(nowTimestamp).toISOString();
+        setPendingItem({ id: 'manual-' + nowTimestamp, raw_barcode: code, status: 'pending', created_at: isoDateString });
+        setModalOpen(true);
+        return true; // Return true to close the scanner modal
       }
 
-      // Product not found — signal no-match so modal shows manual entry
-      return false;
-    } catch (err) {
-      console.error('[handleBarcodeScan] Error:', err);
-      return false;
-    }
-  };
+      const p = json.product;
+      const name =
+        p.product_name_en?.trim() ||
+        p.product_name?.trim() ||
+        p.abbreviated_product_name?.trim() ||
+        '';
 
-  const handleManualBarcodeEntry = async (name: string): Promise<boolean> => {
-    try {
-      await addItem({
-        householdId,
-        userId: profile?.id ?? '',
-        item: {
-          name,
-          category: 'Pantry',
-          quantity: 1,
-          unit: 'pc',
-          max_quantity: 1,
-          threshold: 1,
-        }
-      });
-      setQuickFeedback(`Added "${name}"!`);
-      setTimeout(() => setQuickFeedback(null), 3000);
-      return true;
+      if (name) {
+        await addItem({
+          householdId,
+          userId: profile?.id ?? '',
+          item: {
+            name: name,
+            category: mapOFFCategory(p.categories),
+            quantity: 1,
+            unit: parseUnit(p.quantity) || 'pc',
+            max_quantity: 1,
+            threshold: 1,
+          }
+        });
+        setQuickFeedback(`Added ${name}!`);
+        setTimeout(() => setQuickFeedback(null), 3000);
+        return true;
+      } else {
+        setQuickFeedback(`Product not found. Please add manually.`);
+        setTimeout(() => setQuickFeedback(null), 4000);
+        const nowTimestamp = new Date().getTime();
+        const isoDateString = new Date(nowTimestamp).toISOString();
+        setPendingItem({ id: 'manual-' + nowTimestamp, raw_barcode: code, status: 'pending', created_at: isoDateString });
+        setModalOpen(true);
+        return true;
+      }
     } catch (err) {
-      console.error('[handleManualBarcodeEntry] Error:', err);
-      return false;
+      console.error(err);
+      setQuickFeedback(`Error looking up product. Please add manually.`);
+      setTimeout(() => setQuickFeedback(null), 4000);
+      const nowTimestamp = new Date().getTime();
+        const isoDateString = new Date(nowTimestamp).toISOString();
+        setPendingItem({ id: 'manual-' + nowTimestamp, raw_barcode: code, status: 'pending', created_at: isoDateString });
+      setModalOpen(true);
+      return true;
     }
   };
 
@@ -299,18 +295,13 @@ export default function Dashboard() {
 
   const parseItemMutation = useMutation({
     mutationFn: async ({ id, category, name }: { id: string, category: string, name: string }) => {
-      const { start, end } = isoWeek();
-      const entry = await supabase
-        .from('inventory')
-        .insert([{
-          household_id: householdId,
-          name: itemName,
-          category: itemCategory,
-          unit: itemUnit,
-          quantity: 1,
-          max_quantity: 1,
-          user_id: profile?.id
-        }]);
+      await supabase.from('items').insert({
+         household_id: householdId,
+         name,
+         category,
+         stock_level: 100,
+         threshold: 20,
+      });
 
       await supabase.from('inbox_scans').update({ status: 'parsed' }).eq('id', id);
     },
@@ -382,10 +373,10 @@ export default function Dashboard() {
         </div>
 
         <div className="px-5 sm:px-8 pb-5">
-           <Link href="/scan" className="w-full flex items-center justify-center gap-2 py-4 bg-primary-blue text-white font-semibold rounded-2xl shadow-lg hover:bg-primary-blue/90 transition-all">
+           <button onClick={() => setAiOpen(true)} className="w-full flex items-center justify-center gap-2 py-4 bg-primary-blue text-white font-semibold rounded-2xl shadow-lg hover:bg-primary-blue/90 transition-all">
              <Zap size={20} />
              Quick Capture
-           </Link>
+           </button>
         </div>
 
         <div className="px-5 sm:px-8 grid grid-cols-1 gap-4 mt-2">
@@ -535,8 +526,8 @@ export default function Dashboard() {
 
         <BarcodeScanModal
           visible={barcodeOpen}
+          onManualEntry={async () => true}
           onScan={handleBarcodeScan}
-          onManualEntry={handleManualBarcodeEntry}
           onClose={() => setBarcodeOpen(false)}
         />
 
@@ -564,9 +555,9 @@ export default function Dashboard() {
                <div className="px-3 py-2 text-text-secondary hover:text-text-primary">Family Settings</div>
             </nav>
 
-            <Link href="/scan" className="block w-full bg-primary-blue text-white text-center py-2 rounded-md font-medium text-sm hover:bg-primary-blue/90 transition-colors">
+            <button onClick={() => setAiOpen(true)} className="w-full bg-primary-blue text-white text-center py-2 rounded-md font-medium text-sm hover:bg-primary-blue/90 transition-colors">
               + Quick Capture
-            </Link>
+            </button>
           </aside>
 
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -605,8 +596,8 @@ export default function Dashboard() {
                            <tr className="border-b border-border">
                               <th className="py-2 font-medium text-text-secondary">Name</th>
                               <th className="py-2 font-medium text-text-secondary">Category</th>
-                              <th className="py-2 font-medium text-text-secondary">Stock %</th>
-                              <th className="py-2 font-medium text-text-secondary">Target</th>
+                              <th className="py-2 font-medium text-text-secondary">Quantity</th>
+                              <th className="py-2 font-medium text-text-secondary">Reorder At</th>
                            </tr>
                         </thead>
                         <tbody>
@@ -615,21 +606,60 @@ export default function Dashboard() {
                                  <td className="py-3 pr-4">
                                     <input
                                        defaultValue={item.name}
+                                       onBlur={(e) => {
+                                         if (e.target.value !== item.name) {
+                                           updateItem({ itemId: item.id, updates: { name: e.target.value }});
+                                         }
+                                       }}
                                        className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-full"
                                     />
                                  </td>
-                                 <td className="py-3 pr-4 text-text-secondary">{item.category}</td>
                                  <td className="py-3 pr-4">
-                                    <input
-                                      type="number"
-                                      defaultValue={Math.round((item.quantity / item.max_quantity) * 100)}
-                                      className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-16"
-                                    />
+                                    <select
+                                       defaultValue={item.category || 'Kitchen'}
+                                       onChange={(e) => {
+                                         if (e.target.value !== item.category) {
+                                           updateItem({ itemId: item.id, updates: { category: e.target.value }});
+                                         }
+                                       }}
+                                       className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 text-text-secondary cursor-pointer"
+                                    >
+                                       <option value="Pantry" className="bg-surface text-text-primary">Pantry</option>
+                                       <option value="Kitchen" className="bg-surface text-text-primary">Kitchen</option>
+                                       <option value="Cleaning" className="bg-surface text-text-primary">Cleaning</option>
+                                       <option value="Bathroom" className="bg-surface text-text-primary">Bathroom</option>
+                                    </select>
+                                 </td>
+                                 <td className="py-3 pr-4">
+                                    <div className="flex items-center">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        defaultValue={item.quantity}
+                                        onBlur={(e) => {
+                                          const val = parseFloat(e.target.value);
+                                          if (!isNaN(val) && val !== item.quantity) {
+                                            updateItem({ itemId: item.id, updates: { quantity: Math.max(0, val) }});
+                                          }
+                                        }}
+                                        className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-16"
+                                      />
+                                      <span className="text-text-secondary text-xs ml-1">{item.unit || 'pc'}</span>
+                                    </div>
                                  </td>
                                  <td className="py-3">
                                     <input
                                       type="number"
-                                      defaultValue={item.max_quantity}
+                                      min="0"
+                                      step="0.1"
+                                      defaultValue={item.threshold}
+                                      onBlur={(e) => {
+                                          const val = parseFloat(e.target.value);
+                                          if (!isNaN(val) && val !== item.threshold) {
+                                            updateItem({ itemId: item.id, updates: { threshold: Math.max(0, val) }});
+                                          }
+                                      }}
                                       className="bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-primary-blue rounded px-1 -ml-1 w-16"
                                     />
                                  </td>
@@ -651,9 +681,39 @@ export default function Dashboard() {
         </div>
 
         {/* Parse Modal */}
+        {/* Floating Modals for Desktop */}
+        <AIDialog
+          open={aiOpen}
+          onClose={() => setAiOpen(false)}
+          onTriggerScanner={(type) => {
+            if (type === 'camera') setCameraOpen(true);
+            else if (type === 'barcode') setBarcodeOpen(true);
+            else if (type === 'receipt') setReceiptOpen(true);
+          }}
+        />
+
+        <CameraInventoryModal
+          visible={cameraOpen}
+          householdId={householdId}
+          onClose={() => setCameraOpen(false)}
+        />
+
+        <BarcodeScanModal
+          visible={barcodeOpen}
+          onManualEntry={async () => true}
+          onScan={handleBarcodeScan}
+          onClose={() => setBarcodeOpen(false)}
+        />
+
+        <ReceiptScanModal
+          visible={receiptOpen}
+          householdId={householdId}
+          onClose={() => setReceiptOpen(false)}
+        />
+
         {modalOpen && pendingItem && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/5 backdrop-blur-[20px] p-4">
-              <div className="glass rounded-2xl p-6 w-full max-w-sm border border-white/20 shadow-2xl">
+           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="bg-surface-elevated rounded-xl p-6 w-full max-w-sm border border-border">
                  <h2 className="text-xl font-bold mb-4">Add Scanned Item</h2>
                  <div className="text-sm text-text-secondary mb-4 break-all">
                     Barcode: {pendingItem.raw_barcode}
@@ -687,16 +747,6 @@ export default function Dashboard() {
                        </select>
                     </div>
 
-                    <div>
-                       <label className="block text-sm font-medium mb-1 text-text-secondary">Unit</label>
-                       <input
-                          type="text"
-                          value={itemUnit}
-                          onChange={e => setItemUnit(e.target.value)}
-                          className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue"
-                          placeholder="e.g. bottle, bag, kg"
-                       />
-                    </div>
 
                     <div className="flex justify-end gap-3 mt-4">
                        <button

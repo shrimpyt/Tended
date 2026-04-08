@@ -22,6 +22,7 @@ interface AuthState {
   profile: Profile | null;
   loading: boolean;
 
+  setLoading: (loading: boolean) => void;
   setSession: (session: Session | null) => void;
   setProfile: (profile: Profile | null) => void;
   setLoading: (loading: boolean) => void;
@@ -35,27 +36,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   profile: null,
   loading: true,
 
+  setLoading: (loading) => set({loading}),
+
   setSession: (session) =>
     set({session, user: session?.user ?? null}),
 
   setProfile: (profile) =>
-    set({profile}),
+    set({profile, loading: false}),
 
   setLoading: (loading) =>
     set({loading}),
 
   fetchProfile: async () => {
     const {user} = get();
-    if (!user) return;
+    if (!user) {
+      set({loading: false});
+      return;
+    }
 
-    const {data, error} = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    try {
+      const {data, error} = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-    if (!error && data) {
-      set({profile: data as Profile});
+      if (!error && data) {
+        set({profile: data as Profile, loading: false});
+      } else {
+        set({loading: false});
+      }
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+      set({loading: false});
     }
   },
 

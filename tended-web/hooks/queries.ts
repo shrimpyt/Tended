@@ -62,6 +62,23 @@ export function useAddInventoryItem() {
 export function useUpdateQuantity() {
   const queryClient = useQueryClient();
   return useMutation({
+    // ── Optimistic update: reflect change immediately in cache ──
+    onMutate: async ({ item, newQuantity }: { itemId: string; userId: string; oldQuantity: number; newQuantity: number; item: Item }) => {
+      const qk = queryKeys.inventory(item.household_id);
+      await queryClient.cancelQueries({ queryKey: qk });
+      const previous = queryClient.getQueryData<Item[]>(qk);
+      const clamped = Math.max(0, newQuantity);
+      queryClient.setQueryData<Item[]>(qk, old =>
+        old?.map(i => i.id === item.id ? { ...i, quantity: clamped } : i) ?? []
+      );
+      return { previous };
+    },
+    onError: (_err, { item }, context) => {
+      // Roll back on server error
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.inventory(item.household_id), context.previous);
+      }
+    },
     mutationFn: async ({itemId, userId, oldQuantity, newQuantity, item}: {
       itemId: string;
       userId: string;
@@ -69,7 +86,7 @@ export function useUpdateQuantity() {
       newQuantity: number;
       item: Item;
     }) => {
-      const clamped = Math.max(0, Math.min(newQuantity, item.max_quantity));
+      const clamped = Math.max(0, newQuantity);
 
       const {error} = await supabase
         .from('items')
@@ -113,7 +130,7 @@ export function useRestockFromReceipt() {
       householdId: string;
     }) => {
       for (const p of args.proposals) {
-        const newQty = Math.min(p.item.quantity + p.addQuantity, p.item.max_quantity);
+        const newQty = Math.max(0, p.item.quantity + p.addQuantity);
         await supabase.from('items').update({quantity: newQty}).eq('id', p.item.id);
         supabase.from('stock_events').insert({
           item_id: p.item.id,
@@ -125,6 +142,19 @@ export function useRestockFromReceipt() {
     },
     onSuccess: (_, args) => {
       queryClient.invalidateQueries({queryKey: queryKeys.inventory(args.householdId)});
+    },
+  });
+}
+
+export function useUpdateItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ itemId, updates }: { itemId: string; updates: Partial<Item> }) => {
+      const { error } = await supabase.from('items').update(updates).eq('id', itemId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
   });
 }

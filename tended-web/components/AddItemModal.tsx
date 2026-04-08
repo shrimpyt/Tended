@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { useInventory, useAddInventoryItem } from '../hooks/queries';
-import { NewItem } from '../types/models';
+import { NewItem, Item } from '../types/models';
+
 import { useAuthStore } from '../store/authStore';
 
-function getUniqueCategories(items: any[]): string[] {
+function getUniqueCategories(items: Item[]): string[] {
   const seen = new Set<string>();
   for (const item of items) {
     if (item.category && item.category.trim()) {
@@ -118,25 +119,25 @@ export default function AddItemModal({ visible, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/5 backdrop-blur-[20px] transition-opacity duration-300"
         onClick={handleClose}
       />
 
       {/* Dialog container */}
       <div className="glass relative w-full max-w-lg max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-white/20 animate-in fade-in zoom-in slide-in-from-bottom-5 duration-300">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-white/2 flex-shrink-0">
-          <button 
+          <button
             onClick={handleClose}
             className="text-sm text-text-secondary hover:text-foreground transition-colors w-16 text-left"
           >
             Cancel
           </button>
           <h2 className="text-sm font-semibold">Add Item</h2>
-          <button 
-            onClick={handleSave} 
+          <button
+            onClick={handleSave}
             disabled={loading}
             className="text-sm text-primary-blue font-medium hover:text-primary-blue/80 transition-colors w-16 text-right disabled:opacity-50"
           >
@@ -226,7 +227,7 @@ export default function AddItemModal({ visible, onClose }: Props) {
           {/* Stock preview bar */}
           <div className="flex items-center gap-3">
             <div className="flex-1 h-1.5 bg-background border border-border/50 rounded-full overflow-hidden">
-              <div 
+              <div
                 className={`h-full rounded-full transition-all duration-300 ${barPct === 0 ? 'bg-red' : barPct <= 25 ? 'bg-amber' : 'bg-green'}`}
                 style={{ width: `${barPct}%` }}
               />
@@ -244,7 +245,7 @@ export default function AddItemModal({ visible, onClose }: Props) {
               className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-blue transition-all"
             />
             <p className="text-xs text-text-secondary">
-              You'll be alerted when{unitLabel ? unitLabel.trim() : ' amount'} drops below this.
+              You&apos;ll be alerted when{unitLabel ? unitLabel.trim() : ' amount'} drops below this.
             </p>
           </div>
         </div>

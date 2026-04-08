@@ -31,6 +31,7 @@ export interface NewItem {
   max_quantity: number;
   threshold: number;
   unit: string | null;
+  barcode?: string | null;
 }
 
 export interface StockEvent {

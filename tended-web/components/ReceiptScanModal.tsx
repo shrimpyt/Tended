@@ -1,41 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAddSpendingEntry, useInventory, useRestockFromReceipt } from '../hooks/queries';
-import { SpendingCategory, NewSpendingEntry, Item } from '../types/models';
-import { useAuthStore } from '../store/authStore';
-import { supabase } from '../lib/supabase';
-import { fuzzyMatchInventory } from '../utils/fuzzyMatch';
-
-const CATEGORIES: SpendingCategory[] = ['Groceries', 'Cleaning', 'Pantry', 'Personal care'];
-
-interface LineItem {
-  item: string;
-  amount: string;
-  category: SpendingCategory;
-}
-
-interface RestockProposal {
-  inventoryItem: Item;
-  addQuantity: number;
-  approved: boolean;
-}
-
-interface Props {
-  visible: boolean;
-  householdId: string;
-  onClose: () => void;
-}
-
-type Step = 'pick' | 'processing' | 'review' | 'inventoryMatch';
-
-function fmtQty(n: number): string {
-  return n % 1 === 0 ? String(n) : n.toFixed(1);
-}
-
-async function compressImageToBase64(file: File): Promise<{ base64: string; previewUrl: string }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img = new window.Image();
     const previewUrl = URL.createObjectURL(file);
     img.onload = () => {
       const maxDim = 800;
@@ -215,7 +181,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
         {step === 'processing' && (
           <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">
             {imagePreview && (
-              <img src={imagePreview} alt="Receipt preview" className="w-full max-h-48 object-contain rounded-xl opacity-50" />
+              <Image src={imagePreview} alt="Receipt preview" width={400} height={200} className="w-full max-h-48 object-contain rounded-xl opacity-50" unoptimized />
             )}
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-blue" />
             <p className="text-sm text-text-secondary">Reading receipt...</p>
@@ -227,7 +193,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
           <>
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
               {imagePreview && (
-                <img src={imagePreview} alt="Receipt" className="w-full h-32 object-cover rounded-xl opacity-70" />
+                <Image src={imagePreview} alt="Receipt" width={400} height={128} className="w-full h-32 object-cover rounded-xl opacity-70" unoptimized />
               )}
               {errorMsg && (
                 <div className="px-4 py-3 rounded-lg bg-amber/10 border border-amber/30 text-sm text-amber">{errorMsg}</div>

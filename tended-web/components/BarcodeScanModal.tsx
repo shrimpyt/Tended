@@ -162,13 +162,20 @@ export default function BarcodeScanModal({ visible, onScan, onManualEntry, onClo
   }, []);
 
   useEffect(() => {
+    let active = true;
     if (visible) {
       reset();
-      startCamera();
+      const initCamera = async () => {
+         if (active) startCamera();
+      };
+      initCamera();
     } else {
       stopCamera();
     }
-    return () => stopCamera();
+    return () => {
+       active = false;
+       stopCamera();
+    };
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleManualBarcodeSubmit = async (code: string) => {

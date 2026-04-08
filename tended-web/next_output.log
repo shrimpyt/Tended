@@ -1,0 +1,8 @@
+▲ Next.js 16.2.2 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 578ms
+
+○ Compiling /inventory ...
+ GET /inventory 200 in 8.8s (next.js: 7.9s, application-code: 957ms)
+ GET / 200 in 1084ms (next.js: 1026ms, application-code: 58ms)

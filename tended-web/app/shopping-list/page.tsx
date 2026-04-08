@@ -46,12 +46,14 @@ export default function ShoppingListPage() {
           <input
             type="text"
             placeholder="Add an item..."
+            aria-label="Add an item"
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
             className="flex-1 px-4 py-3 bg-surface border border-border rounded-xl text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-blue-light focus:border-primary-blue shadow-sm"
           />
           <button 
             type="submit"
+            aria-label="Add"
             disabled={!newItemName.trim()}
             className="px-6 py-3 bg-primary-blue hover:bg-opacity-90 disabled:opacity-50 text-white rounded-xl font-medium shadow-md transition-colors flex items-center gap-2"
           >
@@ -74,14 +76,15 @@ export default function ShoppingListPage() {
                   <div key={item.id} className="flex items-center gap-4 p-4 border-b border-border last:border-0 hover:bg-surface transition-colors">
                     <button 
                       onClick={() => toggleItem({ itemId: item.id, completed: true })}
-                      className="text-text-secondary hover:text-success-green flex-shrink-0"
+                      aria-label={`Mark ${item.item_name} as completed`}
+                      className="text-text-secondary hover:text-success-green flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success-green rounded-full"
                     >
                       <Circle size={24} />
                     </button>
                     <div className="flex-1">
                       <span className="text-text-primary font-medium text-lg">{item.item_name}</span>
                     </div>
-                    <button onClick={() => removeItem(item.id)} className="text-text-secondary hover:text-danger-red p-2">
+                    <button onClick={() => removeItem(item.id)} aria-label={`Delete ${item.item_name}`} className="text-text-secondary hover:text-danger-red p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-red rounded-md">
                       <Trash2 size={20} />
                     </button>
                   </div>
@@ -101,14 +104,15 @@ export default function ShoppingListPage() {
                     <div key={item.id} className="flex items-center gap-4 p-4 border-b border-border last:border-0">
                       <button 
                         onClick={() => toggleItem({ itemId: item.id, completed: false })}
-                        className="text-success-green flex-shrink-0"
+                        aria-label={`Mark ${item.item_name} as pending`}
+                        className="text-success-green flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success-green rounded-full"
                       >
                         <CheckCircle2 size={24} />
                       </button>
                       <div className="flex-1">
                         <span className="text-text-secondary font-medium text-lg line-through">{item.item_name}</span>
                       </div>
-                      <button onClick={() => removeItem(item.id)} className="text-text-secondary hover:text-danger-red p-2">
+                      <button onClick={() => removeItem(item.id)} aria-label={`Delete ${item.item_name}`} className="text-text-secondary hover:text-danger-red p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-red rounded-md">
                         <Trash2 size={20} />
                       </button>
                     </div>

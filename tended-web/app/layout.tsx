@@ -1,4 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+
+export const viewport: Viewport = {
+  themeColor: "#0A0A0B",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import ClientProvider from "@/components/ClientProvider";
@@ -20,8 +29,17 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Tended",
-  description: "Household Management App",
+  title: "Tended - Household Management",
+  description: "Household inventory & smart kitchen management app.",
+  applicationName: "Tended",
+  appleWebApp: {
+    capable: true,
+    title: "Tended",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
@@ -41,11 +59,11 @@ export default function RootLayout({
 
         <ClientProvider>
           {/*
-            md:pl-14  → offset for the 56 px (w-14) fixed sidebar on desktop
+            md:pl-64  → offset for the 256px (w-64) expanded sidebar on desktop
             pb-24     → space for the floating bottom bar on mobile
             md:pb-0   → no bottom padding needed on desktop
           */}
-          <div className="md:pl-14 pb-24 md:pb-0">
+          <div className="md:pl-64 pb-24 md:pb-0">
             {children}
           </div>
         </ClientProvider>

@@ -266,7 +266,8 @@ export default function MealsPage() {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
+    // setTimeout to avoid sync setState in effect if strictly needed, though react 18 batching usually handles this.
+    setTimeout(() => setIsClient(true), 0);
   }, []);
 
   const ingredientNames = inventory
