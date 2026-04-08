@@ -1,40 +1,6 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import Image from 'next/image';
-import { useInventory, useAddInventoryItem } from '../hooks/queries';
-import { NewItem } from '../types/models';
-import { useAuthStore } from '../store/authStore';
-import { supabase } from '../lib/supabase';
-
-function getUniqueCategories(items: { category?: string | null }[]): string[] {
-  const seen = new Set<string>();
-  for (const item of items) {
-    if (item.category?.trim()) seen.add(item.category.trim());
-  }
-  return Array.from(seen).sort();
-}
-
-type Step = 'pick' | 'analyzing' | 'review' | 'saving';
-
-interface IdentifiedItem {
-  name: string;
-  category: string;
-  quantity: number;
-  max_quantity: number;
-  threshold: number;
-  unit: string | null;
-  checked: boolean;
-}
-
-interface Props {
-  visible: boolean;
-  householdId: string;
-  onClose: () => void;
-}
-
-async function compressImageToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
     const img = new window.Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {

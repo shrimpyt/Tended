@@ -265,7 +265,7 @@ export default function Dashboard() {
   const monthSpend = useMemo(() => entries.reduce((s, e) => s + e.amount, 0), [entries]);
 
   const lowStockItems    = useMemo(
-    () => items.filter(i => i.quantity <= i.threshold),
+    () => items.filter(i => i.max_quantity > 0 && (i.quantity / i.max_quantity) <= i.threshold),
     [items]
   );
   const wellStockedCount = items.length - lowStockItems.length;
@@ -295,8 +295,6 @@ export default function Dashboard() {
 
   const parseItemMutation = useMutation({
     mutationFn: async ({ id, category, name }: { id: string, category: string, name: string }) => {
-      if (!householdId) return;
-
       await supabase.from('items').insert({
          household_id: householdId,
          name,
@@ -318,14 +316,15 @@ export default function Dashboard() {
     useSensor(KeyboardSensor)
   );
 
+  const [itemName, setItemName] = useState('');
+  const [itemCategory, setItemCategory] = useState('Pantry');
+  const [itemUnit, setItemUnit] = useState('pc');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [pendingItem, setPendingItem] = useState<InboxItem | null>(null);
+
   const { setNodeRef: setMainInventoryRef, isOver } = useDroppable({
     id: 'main-inventory',
   });
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [pendingItem, setPendingItem] = useState<InboxItem | null>(null);
-  const [itemName, setItemName] = useState("New Item");
-  const [itemCategory, setItemCategory] = useState("Pantry");
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -398,6 +397,7 @@ export default function Dashboard() {
               ) : (
                 <div className="flex-1 flex flex-col gap-3">
                   {lowStockItems.slice(0, 10).map(item => {
+                    const pct = Math.min(100, Math.max(0, (item.quantity / item.max_quantity) * 100));
                     const isEmpty = item.quantity === 0;
 
                     const nudge = (delta: number) => {
@@ -454,6 +454,7 @@ export default function Dashboard() {
                             </span>
                             <button
                               onClick={() => nudge(1)}
+                              disabled={item.quantity >= item.max_quantity}
                               className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-green hover:bg-green/10 disabled:opacity-20"
                             >
                               <Plus size={10} />
@@ -469,6 +470,12 @@ export default function Dashboard() {
                           </div>
                         </div>
 
+                        <div className="h-1 w-full rounded-full overflow-hidden bg-white/6">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${isEmpty ? 'bg-red' : 'bg-amber'}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -739,6 +746,7 @@ export default function Dashboard() {
                           <option value="Bathroom">Bathroom</option>
                        </select>
                     </div>
+
 
                     <div className="flex justify-end gap-3 mt-4">
                        <button

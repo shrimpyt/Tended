@@ -6,8 +6,6 @@ import {
   SpendingEntry,
   NewSpendingEntry,
   ShoppingListItem,
-  WasteEvent,
-  NewWasteEvent,
 } from '../types/models';
 
 export const queryKeys = {
@@ -15,7 +13,6 @@ export const queryKeys = {
   spending: (householdId: string, year: number, month: number) => ['spending', householdId, year, month] as const,
   shopping: (householdId: string) => ['shopping', householdId] as const,
   stockEvents: (itemId: string) => ['stockEvents', itemId] as const,
-  wasteEvents: (householdId: string) => ['wasteEvents', householdId] as const,
 };
 
 // =====================
@@ -170,6 +167,8 @@ export function useDeleteInventoryItem() {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
+      // Invalidate the generic inventory query, as well as any specific ones if needed.
+      // queryClient.invalidateQueries({queryKey: ['inventory']}) matches all keys starting with 'inventory'
       queryClient.invalidateQueries({queryKey: ['inventory']});
     },
   });
@@ -331,49 +330,44 @@ export function useDeleteShoppingListItem() {
 }
 
 // =====================
-// WASTE EVENTS (Graveyard)
+// WASTE EVENTS
 // =====================
 
-export function useWasteEvents(householdId: string) {
-  return useQuery({
-    queryKey: queryKeys.wasteEvents(householdId),
-    queryFn: async () => {
-      if (!householdId) return [];
-      const {data, error} = await supabase
-        .from('waste_events')
-        .select('*')
-        .eq('household_id', householdId)
-        .order('created_at', {ascending: false})
-        .limit(100);
-      if (error) throw new Error(error.message);
-      return data as WasteEvent[];
-    },
-    enabled: !!householdId,
-  });
+interface NewWasteEvent {
+  item_id: string;
+  item_name: string;
+  quantity: number;
+  unit: string | null | undefined;
+  cost: number;
+  reason: string;
 }
 
 export function useAddWasteEvent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({householdId, userId, event}: {
+    mutationFn: async ({
+      householdId,
+      userId,
+      event,
+    }: {
       householdId: string;
       userId: string;
       event: NewWasteEvent;
     }) => {
-      const {data, error} = await supabase
-        .from('waste_events')
-        .insert({
-          household_id: householdId,
-          recorded_by: userId,
-          ...event,
-        })
-        .select()
-        .single();
+      const { error } = await supabase.from('waste_events').insert({
+        household_id: householdId,
+        logged_by: userId,
+        item_id: event.item_id,
+        item_name: event.item_name,
+        quantity: event.quantity,
+        unit: event.unit ?? null,
+        estimated_cost: event.cost,
+        reason: event.reason,
+      });
       if (error) throw new Error(error.message);
-      return data as WasteEvent;
     },
-    onSuccess: (_, {householdId}) => {
-      queryClient.invalidateQueries({queryKey: queryKeys.wasteEvents(householdId)});
+    onSuccess: (_, { householdId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventory(householdId) });
     },
   });
 }

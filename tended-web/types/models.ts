@@ -1,5 +1,14 @@
 export type Category = string;
 
+export interface Recipe {
+  id: number;
+  title: string;
+  image: string;
+  usedIngredientCount: number;
+  missedIngredientCount: number;
+}
+
+
 export interface Item {
   id: string;
   household_id: string;
@@ -13,9 +22,6 @@ export interface Item {
   photo_url: string | null;
   created_by: string | null;
   updated_at: string;
-  // Added in migration 002
-  price?: number;
-  expiry_date?: string | null;
 }
 
 export interface NewItem {
@@ -69,42 +75,4 @@ export interface ShoppingListItem {
   completed: boolean;
   created_at: string;
   added_by_name?: string;
-}
-
-// ── Waste / Graveyard (migration 002) ─────────────────────────────
-
-export type WasteReason = 'expired' | 'discarded' | 'spoiled';
-
-export interface WasteEvent {
-  id: string;
-  household_id: string;
-  item_id: string | null;
-  item_name: string;
-  quantity: number;
-  unit: string | null;
-  cost: number;
-  reason: WasteReason;
-  created_at: string;
-  recorded_by: string | null;
-}
-
-export interface NewWasteEvent {
-  item_id?: string | null;
-  item_name: string;
-  quantity: number;
-  unit?: string | null;
-  cost: number;
-  reason: WasteReason;
-}
-
-// ── Recipe (Spoonacular) ───────────────────────────────────────────
-
-export interface Recipe {
-  id: number;
-  title: string;
-  image: string;
-  usedIngredientCount: number;
-  missedIngredientCount: number;
-  usedIngredients: Array<{ name: string; amount: number; unit: string }>;
-  missedIngredients: Array<{ name: string; amount: number; unit: string }>;
 }

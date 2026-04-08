@@ -253,3 +253,4 @@ export default function AddItemModal({ visible, onClose }: Props) {
     </div>
   );
 }
+

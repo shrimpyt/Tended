@@ -1,41 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
-import { useAddSpendingEntry, useInventory, useRestockFromReceipt } from '../hooks/queries';
-import { SpendingCategory, NewSpendingEntry, Item } from '../types/models';
-import { useAuthStore } from '../store/authStore';
-import { supabase } from '../lib/supabase';
-import { fuzzyMatchInventory } from '../utils/fuzzyMatch';
-
-const CATEGORIES: SpendingCategory[] = ['Groceries', 'Cleaning', 'Pantry', 'Personal care'];
-
-interface LineItem {
-  item: string;
-  amount: string;
-  category: SpendingCategory;
-}
-
-interface RestockProposal {
-  inventoryItem: Item;
-  addQuantity: number;
-  approved: boolean;
-}
-
-interface Props {
-  visible: boolean;
-  householdId: string;
-  onClose: () => void;
-}
-
-type Step = 'pick' | 'processing' | 'review' | 'inventoryMatch';
-
-function fmtQty(n: number): string {
-  return n % 1 === 0 ? String(n) : n.toFixed(1);
-}
-
-async function compressImageToBase64(file: File): Promise<{ base64: string; previewUrl: string }> {
-  return new Promise((resolve, reject) => {
     const img = new window.Image();
     const previewUrl = URL.createObjectURL(file);
     img.onload = () => {

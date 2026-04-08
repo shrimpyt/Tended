@@ -150,6 +150,7 @@ export default function BarcodeScanModal({ visible, onScan, onManualEntry, onClo
 
   const reset = useCallback(() => {
     scannedRef.current = false;
+    setStep('scanning');
     setDraft(null);
     setQuantity('1');
     setMaxQuantity('1');
@@ -163,6 +164,7 @@ export default function BarcodeScanModal({ visible, onScan, onManualEntry, onClo
   useEffect(() => {
     let active = true;
     if (visible) {
+      reset();
       const initCamera = async () => {
          if (active) startCamera();
       };
@@ -233,7 +235,7 @@ export default function BarcodeScanModal({ visible, onScan, onManualEntry, onClo
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
           <button
-            onClick={step === 'confirm' || step === 'notFound' ? () => {  startCamera(); } : handleClose}
+            onClick={step === 'confirm' || step === 'notFound' ? () => { reset(); startCamera(); } : handleClose}
             className="text-sm text-text-secondary hover:text-foreground transition-colors w-14"
           >
             {step === 'confirm' || step === 'notFound' ? 'Rescan' : 'Cancel'}
