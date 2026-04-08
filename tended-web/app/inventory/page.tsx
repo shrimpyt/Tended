@@ -332,10 +332,10 @@ export default function InventoryPage() {
                                  <p className="text-xs text-text-secondary mt-0.5 truncate">{item.category}</p>
                               </div>
                               <div className="flex sm:hidden shrink-0 gap-1">
-                                <button onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors">
+                                <button aria-label={`Edit ${item.name}`} onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none">
                                    <Edit size={18} />
                                 </button>
-                                <button onClick={() => handleDelete(item.id)} className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors">
+                                <button aria-label={`Delete ${item.name}`} onClick={() => handleDelete(item.id)} className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors focus-visible:ring-2 focus-visible:outline-none">
                                    <Trash2 size={18} />
                                 </button>
                               </div>
@@ -344,17 +344,19 @@ export default function InventoryPage() {
                             {/* Quick Adjust Quantity Controls */}
                             <div className="flex items-center gap-3">
                                <motion.button
+                                  aria-label={`Decrease quantity of ${item.name}`}
                                   whileTap={{ scale: 0.9, transition: { type: 'spring', stiffness: 400, damping: 10 } }}
                                   onClick={() => handleUpdateQuantity(item, item.quantity - 1)}
-                                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/10 transition-colors"
+                                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none"
                                >
                                   <Minus size={14} />
                                </motion.button>
                                <span className="text-white font-medium min-w-[2ch] text-center">{item.quantity}</span>
                                <motion.button
+                                  aria-label={`Increase quantity of ${item.name}`}
                                   whileTap={{ scale: 0.9, transition: { type: 'spring', stiffness: 400, damping: 10 } }}
                                   onClick={() => handleUpdateQuantity(item, item.quantity + 1)}
-                                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/10 transition-colors"
+                                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none"
                                >
                                   <Plus size={14} />
                                </motion.button>
@@ -374,10 +376,10 @@ export default function InventoryPage() {
                             </div>
 
                             <div className="hidden sm:flex items-center gap-2 shrink-0 justify-end">
-                               <button onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors">
+                               <button aria-label={`Edit ${item.name}`} onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none">
                                   <Edit size={18} />
-                               </button>
-                               <button onClick={() => handleDelete(item.id)} className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors">
+                                </button>
+                               <button aria-label={`Delete ${item.name}`} onClick={() => handleDelete(item.id)} className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors focus-visible:ring-2 focus-visible:outline-none">
                                   <Trash2 size={18} />
                                </button>
                             </div>
@@ -425,8 +427,9 @@ export default function InventoryPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-surface-elevated rounded-xl p-6 w-full max-w-md border border-border relative">
             <button
+              aria-label="Close modal"
               onClick={() => setIsManualModalOpen(false)}
-              className="absolute top-4 right-4 text-text-secondary hover:text-text-primary"
+              className="absolute top-4 right-4 text-text-secondary hover:text-text-primary focus-visible:ring-2 focus-visible:outline-none"
             >
               <X size={20} />
             </button>
