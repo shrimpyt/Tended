@@ -13,6 +13,7 @@ const CATEGORIES = ['Groceries', 'Dining', 'Household', 'Pets', 'Personal'];
 type Props = { visible: boolean; householdId: string; onClose: () => void };
 type Step = 'pick' | 'processing' | 'review' | 'inventoryMatch';
 import type { SpendingCategory } from '../types/models';
+import { supabase } from '../lib/supabase';
 
 type LineItem = { item: string; amount: string; category: SpendingCategory };
 type RestockProposal = { inventoryItem: Item; addQuantity: number; approved: boolean };

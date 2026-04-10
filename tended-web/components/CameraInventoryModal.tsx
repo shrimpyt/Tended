@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { useInventory, useAddInventoryItem } from '../hooks/queries';
 const getUniqueCategories = (items: any[]) => Array.from(new Set(items.map(i => i.category).filter(Boolean)));
 import type { NewItem } from '../types/models';
+import { supabase } from '../lib/supabase';
 
 type Props = { visible: boolean; householdId: string; onClose: () => void };
 type Step = 'pick' | 'analyzing' | 'review' | 'saving';
