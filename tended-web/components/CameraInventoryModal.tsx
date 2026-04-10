@@ -216,6 +216,9 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
                   }`}
                 >
                   <button
+                    role="checkbox"
+                    aria-checked={item.checked}
+                    aria-label={`Select ${item.name}`}
                     onClick={() => toggleItem(idx)}
                     className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                       item.checked ? 'bg-primary-blue border-primary-blue' : 'border-border bg-transparent'
