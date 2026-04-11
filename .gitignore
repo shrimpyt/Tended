@@ -51,3 +51,6 @@ vendor/
 
 # supabase temp
 supabase/.temp/
+
+# Next.js build output
+.next/

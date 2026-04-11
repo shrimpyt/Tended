@@ -443,7 +443,8 @@ export default function Dashboard() {
                             <button
                               onClick={() => nudge(-1)}
                               disabled={item.quantity <= 0}
-                              className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-red hover:bg-red/10 disabled:opacity-20"
+                              aria-label={`Decrease quantity of ${item.name}`}
+                              className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-red hover:bg-red/10 disabled:opacity-20 focus-visible:ring-2 focus-visible:outline-none"
                             >
                               <Minus size={10} />
                             </button>
@@ -455,7 +456,8 @@ export default function Dashboard() {
                             <button
                               onClick={() => nudge(1)}
                               disabled={item.quantity >= item.max_quantity}
-                              className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-green hover:bg-green/10 disabled:opacity-20"
+                              aria-label={`Increase quantity of ${item.name}`}
+                              className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-green hover:bg-green/10 disabled:opacity-20 focus-visible:ring-2 focus-visible:outline-none"
                             >
                               <Plus size={10} />
                             </button>
@@ -463,7 +465,8 @@ export default function Dashboard() {
                             <button
                               onClick={handleWaste}
                               disabled={item.quantity <= 0}
-                              className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-red hover:bg-red/10 disabled:opacity-20 ml-1"
+                              aria-label={`Delete ${item.name}`}
+                              className="w-5 h-5 flex items-center justify-center rounded transition-all text-text-secondary hover:text-red hover:bg-red/10 disabled:opacity-20 ml-1 focus-visible:ring-2 focus-visible:outline-none"
                             >
                               <Trash2 size={11} />
                             </button>
