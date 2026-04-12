@@ -62,28 +62,34 @@ export function useAddInventoryItem() {
 export function useUpdateQuantity() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({itemId, userId, oldQuantity, newQuantity, item}: {
+    mutationFn: async ({itemId, userId, oldQuantity, newQuantity, item, unit}: {
       itemId: string;
       userId: string;
       oldQuantity: number;
       newQuantity: number;
       item: Item;
+      unit?: string;
     }) => {
       const clamped = Math.max(0, Math.min(newQuantity, item.max_quantity));
 
       const {error} = await supabase
         .from('items')
-        .update({quantity: clamped})
+        .update({
+          quantity: clamped,
+          ...(unit !== undefined ? {unit} : {}),
+        })
         .eq('id', itemId);
       if (error) throw new Error(error.message);
 
-      // Log stock event
-      supabase.from('stock_events').insert({
-        item_id: itemId,
-        old_quantity: oldQuantity,
-        new_quantity: clamped,
-        updated_by: userId,
-      }).then();
+      // Log stock event if quantity changed
+      if (clamped !== oldQuantity) {
+        supabase.from('stock_events').insert({
+          item_id: itemId,
+          old_quantity: oldQuantity,
+          new_quantity: clamped,
+          updated_by: userId,
+        }).then();
+      }
 
       // Add to shopping list if crossing threshold downward
       if (oldQuantity >= item.threshold && clamped < item.threshold) {

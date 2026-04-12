@@ -16,6 +16,7 @@ import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
 import {useInventory, useAddInventoryItem} from '../hooks/queries';
 import {NewItem} from '../types/models';
 import {useAuthStore} from '../store/authStore';
+import { getSuggestedUnits } from '../utils/item-utils';
 
 function getUniqueCategories(items: any[]): string[] {
   const seen = new Set<string>();
@@ -174,6 +175,31 @@ export default function AddItemModal({visible, onClose}: Props) {
               autoCapitalize="none"
             />
 
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.unitChipsContainer}
+              contentContainerStyle={styles.unitChipsContent}
+            >
+              {getSuggestedUnits(category).map((u) => (
+                <TouchableOpacity
+                  key={u}
+                  style={[
+                    styles.unitChip,
+                    unit === u && styles.unitChipSelected
+                  ]}
+                  onPress={() => setUnit(u)}
+                >
+                  <Text style={[
+                    styles.unitChipText,
+                    unit === u && styles.unitChipTextSelected
+                  ]}>
+                    {u}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
             {/* Category */}
             <Text style={styles.label}>Category <Text style={styles.optional}>(optional)</Text></Text>
             <TextInput
@@ -313,7 +339,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.regular,
   },
   input: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceElevated,
     borderWidth: Border.width,
     borderColor: Colors.border,
     borderRadius: Radius.sm,
@@ -322,6 +348,35 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.regular,
+    marginBottom: Spacing.sm,
+  },
+  unitChipsContainer: {
+    marginBottom: Spacing.lg,
+  },
+  unitChipsContent: {
+    gap: Spacing.xs,
+  },
+  unitChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginRight: 6,
+  },
+  unitChipSelected: {
+    backgroundColor: Colors.blue,
+    borderColor: Colors.blue,
+  },
+  unitChipText: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: Typography.weights.bold,
+    textTransform: 'uppercase',
+  },
+  unitChipTextSelected: {
+    color: '#FFF',
   },
   suggestionRow: {
     gap: Spacing.sm,

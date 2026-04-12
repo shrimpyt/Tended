@@ -40,10 +40,10 @@
   --ring:               var(--primary);
   --radius:             0.75rem;
 
-  /* glass tokens */
-  --glass-bg:     rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.10);
-  --glass-hover:  rgba(255, 255, 255, 0.09);
+  /* glass tokens - Hardened for readability */
+  --glass-bg:     rgba(30, 30, 35, 0.85); /* Much more solid */
+  --glass-border: rgba(255, 255, 255, 0.20);
+  --glass-hover:  rgba(255, 255, 255, 0.12);
 
   /* Brand Colors */
   --primary-blue:       #3b82f6;

@@ -15,6 +15,7 @@ import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
 import {useUpdateQuantity, useDeleteInventoryItem} from '../hooks/queries';
 import {Item} from '../types/models';
 import {useAuthStore} from '../store/authStore';
+import { getSuggestedUnits } from '../utils/item-utils';
 
 function fmtQty(n: number): string {
   return n % 1 === 0 ? String(n) : n.toFixed(1);
@@ -38,12 +39,14 @@ export default function UpdateStockModal({item, onClose}: Props) {
 
   const [pendingQuantity, setPendingQuantity] = useState(0);
   const [exactInput, setExactInput] = useState('');
+  const [unit, setUnit] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (item) {
       setPendingQuantity(item.quantity);
       setExactInput(fmtQty(item.quantity));
+      setUnit(item.unit || '');
     }
   }, [item]);
 
@@ -91,6 +94,7 @@ export default function UpdateStockModal({item, onClose}: Props) {
       oldQuantity: item.quantity,
       newQuantity: pendingQuantity,
       item,
+      unit,
     });
     setLoading(false);
     onClose();
@@ -121,7 +125,7 @@ export default function UpdateStockModal({item, onClose}: Props) {
     );
   };
 
-  const unitLabel = item.unit ? ` ${item.unit}` : '';
+  const unitDisplay = unit ? ` ${unit}` : '';
 
   return (
     <Modal
@@ -148,7 +152,7 @@ export default function UpdateStockModal({item, onClose}: Props) {
           {/* Item info */}
           <Text style={styles.itemName}>{item.name}</Text>
           <Text style={styles.itemCategory}>
-            {item.category}{item.unit ? ` · ${item.unit}` : ''}
+            {item.category}
           </Text>
 
           {/* Stock bar */}
@@ -162,7 +166,7 @@ export default function UpdateStockModal({item, onClose}: Props) {
               />
             </View>
             <Text style={[styles.barLabel, {color: barColor}]}>
-              {fmtQty(pendingQuantity)}/{fmtQty(item.max_quantity)}{unitLabel}
+              {fmtQty(pendingQuantity)}/{fmtQty(item.max_quantity)}{unitDisplay}
             </Text>
           </View>
 
@@ -186,16 +190,16 @@ export default function UpdateStockModal({item, onClose}: Props) {
           <Text style={styles.sectionLabel}>Adjust</Text>
           <View style={styles.adjustRow}>
             <TouchableOpacity style={styles.adjustBtn} onPress={() => adjust(-1)} activeOpacity={0.7}>
-              <Text style={styles.adjustBtnText}>−1{unitLabel}</Text>
+              <Text style={styles.adjustBtnText}>−1{unitDisplay}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.adjustBtn} onPress={() => adjust(-0.5)} activeOpacity={0.7}>
-              <Text style={styles.adjustBtnText}>−½{unitLabel}</Text>
+              <Text style={styles.adjustBtnText}>−½{unitDisplay}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.adjustBtn} onPress={() => adjust(0.5)} activeOpacity={0.7}>
-              <Text style={styles.adjustBtnText}>+½{unitLabel}</Text>
+              <Text style={styles.adjustBtnText}>+½{unitDisplay}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.adjustBtn} onPress={() => adjust(1)} activeOpacity={0.7}>
-              <Text style={styles.adjustBtnText}>+1{unitLabel}</Text>
+              <Text style={styles.adjustBtnText}>+1{unitDisplay}</Text>
             </TouchableOpacity>
           </View>
 
@@ -222,8 +226,6 @@ export default function UpdateStockModal({item, onClose}: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* Exact amount */}
-          <Text style={styles.sectionLabel}>Set exact amount</Text>
           <View style={styles.exactRow}>
             <TextInput
               style={styles.exactInput}
@@ -233,17 +235,52 @@ export default function UpdateStockModal({item, onClose}: Props) {
               selectTextOnFocus
               placeholderTextColor={Colors.textSecondary}
             />
-            <Text style={styles.exactMax}>/ {fmtQty(item.max_quantity)}{unitLabel}</Text>
+            <Text style={styles.exactMax}>/ {fmtQty(item.max_quantity)}</Text>
           </View>
+
+          {/* Unit Edit */}
+          <Text style={styles.sectionLabel}>Unit of measure</Text>
+          <TextInput
+            style={styles.unitInput}
+            value={unit}
+            onChangeText={setUnit}
+            placeholder="e.g. pc, bottle, kg"
+            placeholderTextColor={Colors.textTertiary}
+            autoCapitalize="none"
+          />
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.unitChipsContainer}
+            contentContainerStyle={styles.unitChipsContent}
+          >
+            {getSuggestedUnits(item.category).map((u) => (
+              <TouchableOpacity
+                key={u}
+                style={[
+                  styles.unitChip,
+                  unit === u && styles.unitChipSelected
+                ]}
+                onPress={() => setUnit(u)}
+              >
+                <Text style={[
+                  styles.unitChipText,
+                  unit === u && styles.unitChipTextSelected
+                ]}>
+                  {u}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
           {/* Info rows */}
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Current</Text>
-            <Text style={styles.infoValue}>{fmtQty(item.quantity)}{unitLabel}</Text>
+            <Text style={styles.infoValue}>{fmtQty(item.quantity)}{unitDisplay}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Reorder at</Text>
-            <Text style={styles.infoValue}>{fmtQty(item.threshold)}{unitLabel}</Text>
+            <Text style={styles.infoValue}>{fmtQty(item.threshold)}{unitDisplay}</Text>
           </View>
 
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.7}>
@@ -385,7 +422,7 @@ const styles = StyleSheet.create({
   },
   exactInput: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceElevated,
     borderWidth: Border.width,
     borderColor: Colors.border,
     borderRadius: Radius.sm,
@@ -399,6 +436,45 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.regular,
+  },
+  unitInput: {
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.md,
+    marginBottom: Spacing.sm,
+  },
+  unitChipsContainer: {
+    marginBottom: Spacing.lg,
+  },
+  unitChipsContent: {
+    gap: Spacing.xs,
+  },
+  unitChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginRight: 6,
+  },
+  unitChipSelected: {
+    backgroundColor: Colors.blue,
+    borderColor: Colors.blue,
+  },
+  unitChipText: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: Typography.weights.bold,
+    textTransform: 'uppercase',
+  },
+  unitChipTextSelected: {
+    color: '#FFF',
   },
   infoRow: {
     flexDirection: 'row',

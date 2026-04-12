@@ -28,6 +28,7 @@ import ReceiptScanModal from '@/components/ReceiptScanModal';
 import CameraInventoryModal from '@/components/CameraInventoryModal';
 import { parseItem } from '@/utils/nlpParser';
 import { fuzzyMatchInventory } from '@/utils/fuzzyMatch';
+import { getSuggestedUnits } from '@/utils/itemUtils';
 import {
   DndContext,
   closestCenter,
@@ -652,8 +653,8 @@ export default function Dashboard() {
 
         {/* Parse Modal */}
         {modalOpen && pendingItem && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/5 backdrop-blur-[20px] p-4">
-              <div className="glass rounded-2xl p-6 w-full max-w-sm border border-white/20 shadow-2xl">
+           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[24px] p-4">
+              <div className="glass rounded-2xl p-6 w-full max-w-sm border border-white/20 shadow-2xl bg-surface/90">
                  <h2 className="text-xl font-bold mb-4">Add Scanned Item</h2>
                  <div className="text-sm text-text-secondary mb-4 break-all">
                     Barcode: {pendingItem.raw_barcode}
@@ -687,16 +688,32 @@ export default function Dashboard() {
                        </select>
                     </div>
 
-                    <div>
-                       <label className="block text-sm font-medium mb-1 text-text-secondary">Unit</label>
-                       <input
-                          type="text"
-                          value={itemUnit}
-                          onChange={e => setItemUnit(e.target.value)}
-                          className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue"
-                          placeholder="e.g. bottle, bag, kg"
-                       />
-                    </div>
+                                         <div>
+                        <label className="block text-sm font-medium mb-1 text-text-secondary">Unit</label>
+                        <input
+                           type="text"
+                           value={itemUnit}
+                           onChange={e => setItemUnit(e.target.value)}
+                           className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue"
+                           placeholder="e.g. bottle, bag, kg"
+                        />
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                           {getSuggestedUnits(itemCategory).map(u => (
+                              <button
+                                 key={u}
+                                 type="button"
+                                 onClick={() => setItemUnit(u)}
+                                 className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-bold border transition-colors ${
+                                    itemUnit === u 
+                                       ? 'bg-primary-blue border-primary-blue text-white' 
+                                       : 'bg-background border-border text-text-secondary hover:border-text-secondary'
+                                 }`}
+                              >
+                                 {u}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
 
                     <div className="flex justify-end gap-3 mt-4">
                        <button
