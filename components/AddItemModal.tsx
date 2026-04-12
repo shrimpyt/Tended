@@ -14,10 +14,10 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Colors, Typography, Spacing, Radius, Border} from '../constants/theme';
 import {useInventory, useAddInventoryItem} from '../hooks/queries';
-import {NewItem} from '../types/models';
+import {Item, NewItem} from '../types/models';
 import {useAuthStore} from '../store/authStore';
 
-function getUniqueCategories(items: any[]): string[] {
+function getUniqueCategories(items: Item[]): string[] {
   const seen = new Set<string>();
   for (const item of items) {
     if (item.category && item.category.trim()) {
