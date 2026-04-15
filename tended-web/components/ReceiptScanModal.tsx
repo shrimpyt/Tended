@@ -337,12 +337,14 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setRestockProposals(prev => prev.map((p, i) => i === idx ? { ...p, addQuantity: Math.max(0.5, p.addQuantity - 0.5) } : p))}
-                          className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-white/5"
+                          aria-label="Decrease restock quantity"
+                          className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-white/5 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-primary-blue"
                         >−</button>
                         <span>+{fmtQty(proposal.addQuantity)}{unitLabel}</span>
                         <button
                           onClick={() => setRestockProposals(prev => prev.map((p, i) => i === idx ? { ...p, addQuantity: p.addQuantity + 0.5 } : p))}
-                          className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-white/5"
+                          aria-label="Increase restock quantity"
+                          className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-white/5 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-primary-blue"
                         >+</button>
                       </div>
                     </div>
