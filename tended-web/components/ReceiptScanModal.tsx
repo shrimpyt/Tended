@@ -166,7 +166,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
-          <button onClick={handleClose} className="text-sm text-text-secondary hover:text-foreground transition-colors">Cancel</button>
+          <button onClick={handleClose} className="text-sm text-text-secondary hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue rounded-md px-1">Cancel</button>
           <h2 className="text-sm font-semibold">
             {step === 'pick' && 'Scan Receipt'}
             {step === 'processing' && 'Reading receipt…'}
@@ -249,7 +249,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
                       <button
                         key={cat}
                         onClick={() => handleUpdateItem(index, 'category', cat)}
-                        className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                        className={`px-2 py-0.5 rounded-full text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue ${
                           li.category === cat
                             ? 'bg-primary-blue border-primary-blue text-white'
                             : 'border-border text-text-secondary hover:text-foreground'
@@ -260,7 +260,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
                     ))}
                     <button
                       onClick={() => handleRemoveItem(index)}
-                      className="ml-auto text-xs text-red hover:text-red/80 transition-colors"
+                      className="ml-auto text-xs text-red hover:text-red/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red rounded-sm px-1"
                     >
                       Remove
                     </button>
@@ -270,7 +270,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
 
               <button
                 onClick={handleAddItem}
-                className="py-3 rounded-xl border border-dashed border-border text-sm text-text-secondary hover:text-foreground transition-colors"
+                className="py-3 rounded-xl border border-dashed border-border text-sm text-text-secondary hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue"
               >
                 + Add item
               </button>
@@ -284,7 +284,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
               <button
                 onClick={handleContinue}
                 disabled={saving}
-                className="px-5 py-2.5 rounded-xl bg-primary-blue text-white text-sm font-semibold disabled:opacity-40 hover:bg-primary-blue/90 transition-colors"
+                className="px-5 py-2.5 rounded-xl bg-primary-blue text-white text-sm font-semibold disabled:opacity-40 hover:bg-primary-blue/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 {saving ? 'Saving…' : 'Continue →'}
               </button>
@@ -313,8 +313,11 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium flex-1">{item.name}</p>
                       <button
+                        role="switch"
+                        aria-checked={proposal.approved}
+                        aria-label={`Restock ${item.name}`}
                         onClick={() => setRestockProposals(prev => prev.map((p, i) => i === idx ? { ...p, approved: !p.approved } : p))}
-                        className={`px-3 py-1 rounded-full text-xs border transition-colors ${
+                        className={`px-3 py-1 rounded-full text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue ${
                           proposal.approved ? 'bg-green/20 border-green text-green' : 'border-border text-text-secondary'
                         }`}
                       >
@@ -336,13 +339,15 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
                       <span>{fmtQty(item.quantity)}{unitLabel} → <span className="text-green font-medium">{fmtQty(newQty)}{unitLabel}</span></span>
                       <div className="flex items-center gap-2">
                         <button
+                          aria-label={`Decrease restock quantity for ${item.name}`}
                           onClick={() => setRestockProposals(prev => prev.map((p, i) => i === idx ? { ...p, addQuantity: Math.max(0.5, p.addQuantity - 0.5) } : p))}
-                          className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-white/5"
+                          className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue"
                         >−</button>
                         <span>+{fmtQty(proposal.addQuantity)}{unitLabel}</span>
                         <button
+                          aria-label={`Increase restock quantity for ${item.name}`}
                           onClick={() => setRestockProposals(prev => prev.map((p, i) => i === idx ? { ...p, addQuantity: p.addQuantity + 0.5 } : p))}
-                          className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-white/5"
+                          className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue"
                         >+</button>
                       </div>
                     </div>
@@ -355,14 +360,14 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
               <button
                 onClick={saveSpendingEntries}
                 disabled={saving}
-                className="flex-1 py-2.5 rounded-xl border border-border text-sm text-text-secondary hover:text-foreground disabled:opacity-40 transition-colors"
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm text-text-secondary hover:text-foreground disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 Skip, save spending only
               </button>
               <button
                 onClick={handleApplyRestocks}
                 disabled={saving}
-                className="flex-1 py-2.5 rounded-xl bg-primary-blue text-white text-sm font-semibold disabled:opacity-40 hover:bg-primary-blue/90 transition-colors"
+                className="flex-1 py-2.5 rounded-xl bg-primary-blue text-white text-sm font-semibold disabled:opacity-40 hover:bg-primary-blue/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 {saving ? 'Saving…' : 'Apply Restocks'}
               </button>

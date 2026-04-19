@@ -10,3 +10,7 @@
 ## 2026-04-11 - Accessibility of flip-quantity interactive components
 **Learning:** Custom interactive components like flip-quantity elements in the dashboard item list lacked distinct focus states and ARIA labels. They did not communicate effectively what they do to screen readers.
 **Action:** When creating custom flip-quantity components or similar numeric adjustment controls, always include descriptive `aria-label`s and ensure they have `focus-visible:ring-2 focus-visible:outline-none`.
+
+## 2026-04-12 - Accessibility of dynamic modal interactive components
+**Learning:** Interactive elements such as custom toggle switches, quantity adjustment (+/-) buttons, and category chips within dynamic modals often miss ARIA roles/labels and distinct keyboard focus states, hindering accessibility for keyboard and screen-reader users.
+**Action:** Always verify that interactive items in modal lists (like restock toggles or amount steppers) have their corresponding `role`, `aria-checked`, `aria-label` attributes and utilize `focus-visible` utility classes for clear visual keyboard navigation.
