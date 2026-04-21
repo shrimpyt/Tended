@@ -4,14 +4,14 @@ import React, { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useShoppingList, useAddShoppingListItem, useToggleShoppingListItem, useDeleteShoppingListItem } from '@/hooks/queries';
 import Link from 'next/link';
-import { Circle, CheckCircle2, Plus, Trash2 } from 'lucide-react';
+import { Circle, CheckCircle2, Plus, Trash2, Loader2 } from 'lucide-react';
 
 export default function ShoppingListPage() {
   const { profile } = useAuthStore();
   const householdId = profile?.household_id ?? '';
 
   const { data: items = [], isLoading } = useShoppingList(householdId);
-  const { mutateAsync: addItem } = useAddShoppingListItem();
+  const { mutateAsync: addItem, isPending: isAdding } = useAddShoppingListItem();
   const { mutate: toggleItem } = useToggleShoppingListItem();
   const { mutate: removeItem } = useDeleteShoppingListItem();
 
@@ -54,10 +54,10 @@ export default function ShoppingListPage() {
           <button 
             type="submit"
             aria-label="Add"
-            disabled={!newItemName.trim()}
+            disabled={!newItemName.trim() || isAdding}
             className="px-6 py-3 bg-primary-blue hover:bg-opacity-90 disabled:opacity-50 text-white rounded-xl font-medium shadow-md transition-colors flex items-center gap-2"
           >
-            <Plus size={20} /> Add
+            {isAdding ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />} Add
           </button>
         </form>
 
