@@ -8,11 +8,21 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Colors, Typography, Spacing, Radius, Border} from '../../constants/theme';
-import {MEAL_DATABASE, MealData} from '../../constants/meals';
+import {useAuthStore} from '../../store/authStore';
+import {useInventory, useSavedMeals, useSaveRecipe, useRemoveSavedMeal} from '../../hooks/queries';
+import {useRecipes, fetchRecipeDetails} from '../../hooks/useRecipes';
+import {Modal} from 'react-native';
 
-export type Meal = MealData;
+export interface Recipe {
+  id: number;
+  title: string;
+  image: string;
+  instructions?: string;
+  readyInMinutes?: number;
+  servings?: number;
+  ingredients?: any[];
+}
 
 function pickSuggestions(pantryItems: string[]): Meal[] {
   const lower = pantryItems.map(p => p.toLowerCase());
@@ -110,18 +120,23 @@ function MealCard({meal, onSave, saved}: {meal: Meal; onSave: () => void; saved:
   );
 }
 
-function SavedMealRow({meal, onRemove}: {meal: Meal; onRemove: () => void}) {
+function SavedMealRow({meal, onRemove, onPress}: {meal: any; onRemove: () => void; onPress: () => void}) {
+  const recipe = meal.recipe;
   return (
-    <View style={styles.savedRow}>
+    <TouchableOpacity style={styles.savedRow} onPress={onPress}>
       <View style={styles.savedRowLeft}>
-        <Text style={styles.savedMealName}>{meal.name}</Text>
+        <Text style={styles.savedMealName}>{recipe.title}</Text>
         <View style={styles.savedMealMeta}>
-          <Text style={styles.clockIcon}>&#9201;</Text>
-          <Text style={styles.savedMealMetaText}>{meal.prepTime}m</Text>
-          <Text style={styles.savedMealMetaDot}> · </Text>
+          {recipe.ready_in_minutes && (
+            <>
+              <Text style={styles.clockIcon}>&#9201;</Text>
+              <Text style={styles.savedMealMetaText}>{recipe.ready_in_minutes}m</Text>
+              <Text style={styles.savedMealMetaDot}> · </Text>
+            </>
+          )}
           <Text style={styles.savedMealMetaText} numberOfLines={1}>
-            {meal.ingredients.slice(0, 3).join(', ')}
-            {meal.ingredients.length > 3 ? ' ...' : ''}
+            {recipe.ingredients?.slice(0, 3).map((i: any) => i.name || i.original).join(', ')}
+            {recipe.ingredients?.length > 3 ? ' ...' : ''}
           </Text>
         </View>
       </View>
@@ -130,66 +145,156 @@ function SavedMealRow({meal, onRemove}: {meal: Meal; onRemove: () => void}) {
         hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
         <Text style={styles.removeText}>&#10005;</Text>
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
+  );
+}
+
+function RecipeDetailModal({
+  recipe,
+  visible,
+  onClose,
+  onSave,
+  isSaved,
+}: {
+  recipe: any;
+  visible: boolean;
+  onClose: () => void;
+  onSave?: () => void;
+  isSaved?: boolean;
+}) {
+  const insets = useSafeAreaInsets();
+  if (!recipe) return null;
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={styles.modalContainer} edges={['bottom']}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle} numberOfLines={2}>{recipe.title || recipe.name}</Text>
+          <TouchableOpacity onPress={onClose} style={styles.modalCloseBtn}>
+            <Text style={styles.modalCloseText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.modalScroll}>
+          {recipe.image && (
+            <View style={styles.modalImagePlaceholder}>
+              <Text style={styles.imagePlaceholderText}>[Recipe Image: {recipe.title}]</Text>
+            </View>
+          )}
+
+          <View style={styles.modalMetaRow}>
+            {recipe.ready_in_minutes && (
+              <View style={styles.modalMetaItem}>
+                <Text style={styles.modalMetaLabel}>Ready in</Text>
+                <Text style={styles.modalMetaValue}>{recipe.ready_in_minutes}m</Text>
+              </View>
+            )}
+            {recipe.servings && (
+              <View style={styles.modalMetaItem}>
+                <Text style={styles.modalMetaLabel}>Servings</Text>
+                <Text style={styles.modalMetaValue}>{recipe.servings}</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.modalSection}>
+            <Text style={styles.modalSectionTitle}>Ingredients</Text>
+            {(recipe.ingredients || recipe.extendedIngredients || []).map((ing: any, idx: number) => (
+              <Text key={idx} style={styles.modalIngredientItem}>
+                • {ing.original || ing.name}
+              </Text>
+            ))}
+          </View>
+
+          <View style={styles.modalSection}>
+            <Text style={styles.modalSectionTitle}>Instructions</Text>
+            <Text style={styles.modalInstructionsText}>
+              {recipe.instructions?.replace(/<[^>]*>?/gm, '') || 'No instructions available.'}
+            </Text>
+          </View>
+        </ScrollView>
+
+        {onSave && !isSaved && (
+          <View style={[styles.modalFooter, {paddingBottom: Math.max(insets.bottom, Spacing.md)}]}>
+            <TouchableOpacity style={styles.modalSaveBtn} onPress={onSave}>
+              <Text style={styles.modalSaveBtnText}>Save to My Library</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </SafeAreaView>
+    </Modal>
   );
 }
 
 export default function MealsScreen() {
-  const [suggestions, setSuggestions] = React.useState<Meal[]>([]);
-  const [savedMeals, setSavedMeals] = React.useState<Meal[]>([]);
-  const [isLoading, setIsLoading] = React.useState(false);
   const insets = useSafeAreaInsets();
+  const { profile } = useAuthStore();
+  const householdId = profile?.household_id || '';
 
-  const loadSuggestions = useCallback(() => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setSuggestions(pickSuggestions(DEFAULT_PANTRY));
-      setIsLoading(false);
-    }, 400); // Simulate network latency
-  }, []);
+  // 1. Fetch Real Inventory
+  const { data: inventory = [] } = useInventory(householdId);
+  const ingredientNames = inventory.map(item => item.name);
 
-  const saveMeal = (meal: Meal) => {
-    if (!savedMeals.find(m => m.id === meal.id)) {
-      setSavedMeals(prev => [...prev, meal]);
+  // 2. Fetch Discovery Recipes (Spoonacular)
+  const { 
+    data: discoveryRecipes = [], 
+    isLoading: isLoadingDiscovery, 
+    refetch: refetchDiscovery 
+  } = useRecipes(ingredientNames);
+
+  // 3. Fetch Saved Meals (Supabase)
+  const { data: savedMeals = [] } = useSavedMeals(householdId);
+  const savedSpoonacularIds = new Set(savedMeals.map(m => m.recipe.spoonacular_id));
+
+  // 4. Persistence Mutations
+  const saveRecipeMutation = useSaveRecipe();
+  const removeSavedMealMutation = useRemoveSavedMeal();
+
+  // 5. UI State
+  const [selectedRecipe, setSelectedRecipe] = React.useState<any>(null);
+  const [isModalVisible, setIsModalVisible] = React.useState(false);
+
+  const handleSave = async (recipe: any) => {
+    try {
+      await saveRecipeMutation.mutateAsync({
+        householdId,
+        recipe,
+        fetchDetails: fetchRecipeDetails
+      });
+      setIsModalVisible(false);
+    } catch (err) {
+      console.error('Save failed:', err);
     }
   };
 
-  const removeSavedMeal = (id: string) => {
-    setSavedMeals(prev => prev.filter(m => m.id !== id));
+  const handleRemove = (recipeId: string) => {
+    removeSavedMealMutation.mutate({ householdId, recipeId });
   };
 
-  useEffect(() => {
-    loadSuggestions();
-  }, [loadSuggestions]);
+  const openRecipe = (recipe: any) => {
+    setSelectedRecipe(recipe);
+    setIsModalVisible(true);
+  };
 
-  const savedIds = new Set(savedMeals.map(m => m.id));
-
-  type ListItem =
-    | {type: 'suggestionsHeader'}
-    | {type: 'suggestionsRow'}
-    | {type: 'savedHeader'}
-    | {type: 'savedMeal'; data: Meal}
-    | {type: 'savedEmpty'};
-
-  const listData: ListItem[] = [
+  const listData: any[] = [
     {type: 'suggestionsHeader'},
     {type: 'suggestionsRow'},
     {type: 'savedHeader'},
     ...(savedMeals.length === 0
-      ? [{type: 'savedEmpty'} as ListItem]
-      : savedMeals.map(m => ({type: 'savedMeal', data: m} as ListItem))),
+      ? [{type: 'savedEmpty'}]
+      : savedMeals.map(m => ({type: 'savedMeal', data: m}))),
   ];
 
-  const renderItem = ({item}: {item: ListItem}) => {
+  const renderItem = ({item}: {item: any}) => {
     if (item.type === 'suggestionsHeader') {
       return (
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Suggested for you</Text>
           <TouchableOpacity
-            onPress={loadSuggestions}
-            disabled={isLoading}
+            onPress={() => refetchDiscovery()}
+            disabled={isLoadingDiscovery}
             hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
-            <Text style={[styles.refreshText, isLoading && styles.refreshTextDisabled]}>
+            <Text style={[styles.refreshText, isLoadingDiscovery && styles.refreshTextDisabled]}>
               Refresh
             </Text>
           </TouchableOpacity>
@@ -198,7 +303,7 @@ export default function MealsScreen() {
     }
 
     if (item.type === 'suggestionsRow') {
-      if (isLoading) {
+      if (isLoadingDiscovery) {
         return (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={Colors.blue} />
@@ -210,13 +315,23 @@ export default function MealsScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.suggestionsScrollContent}>
-          {suggestions.map(meal => (
-            <MealCard
-              key={meal.id}
-              meal={meal}
-              saved={savedIds.has(meal.id)}
-              onSave={() => saveMeal(meal)}
-            />
+          {discoveryRecipes.map(recipe => (
+            <TouchableOpacity key={recipe.id} onPress={() => openRecipe(recipe)}>
+              <View style={styles.mealCard}>
+                <Text style={styles.mealName} numberOfLines={2}>{recipe.title}</Text>
+                <Text style={styles.ingredientsText} numberOfLines={1}>
+                  Matches: {recipe.usedIngredientCount} items
+                </Text>
+                <TouchableOpacity
+                  style={[styles.saveBtn, savedSpoonacularIds.has(recipe.id) && styles.saveBtnSaved]}
+                  onPress={() => handleSave(recipe)}
+                  disabled={savedSpoonacularIds.has(recipe.id) || saveRecipeMutation.isPending}>
+                  <Text style={[styles.saveBtnText, savedSpoonacularIds.has(recipe.id) && styles.saveBtnTextSaved]}>
+                    {savedSpoonacularIds.has(recipe.id) ? 'Saved' : 'Save'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       );
@@ -246,7 +361,8 @@ export default function MealsScreen() {
         <View style={styles.savedCard}>
           <SavedMealRow
             meal={item.data}
-            onRemove={() => removeSavedMeal(item.data.id)}
+            onRemove={() => handleRemove(item.data.recipe.id)}
+            onPress={() => openRecipe(item.data.recipe)}
           />
         </View>
       );
@@ -257,7 +373,6 @@ export default function MealsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Meals</Text>
       </View>
@@ -270,6 +385,14 @@ export default function MealsScreen() {
         }}
         renderItem={renderItem}
         contentContainerStyle={[styles.listContent, {paddingBottom: insets.bottom + 90}]}
+      />
+
+      <RecipeDetailModal
+        visible={isModalVisible}
+        recipe={selectedRecipe}
+        onClose={() => setIsModalVisible(false)}
+        onSave={() => handleSave(selectedRecipe)}
+        isSaved={selectedRecipe && (savedSpoonacularIds.has(selectedRecipe.id) || savedSpoonacularIds.has(selectedRecipe.spoonacular_id))}
       />
     </SafeAreaView>
   );
@@ -472,5 +595,112 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     lineHeight: 18,
+  },
+
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: Border.width,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: {
+    flex: 1,
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
+    marginRight: Spacing.md,
+  },
+  modalCloseBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.surface,
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+  },
+  modalCloseText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+  },
+  modalScroll: {
+    padding: Spacing.lg,
+    gap: Spacing.xl,
+  },
+  modalImagePlaceholder: {
+    height: 180,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: Border.width,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+  },
+  imagePlaceholderText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xs,
+    fontStyle: 'italic',
+  },
+  modalMetaRow: {
+    flexDirection: 'row',
+    gap: Spacing.xl,
+  },
+  modalMetaItem: {
+    gap: 4,
+  },
+  modalMetaLabel: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  modalMetaValue: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
+  },
+  modalSection: {
+    gap: Spacing.md,
+  },
+  modalSectionTitle: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
+  },
+  modalIngredientItem: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    lineHeight: 22,
+  },
+  modalInstructionsText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.sizes.sm,
+    lineHeight: 24,
+  },
+  modalFooter: {
+    padding: Spacing.lg,
+    borderTopWidth: Border.width,
+    borderTopColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  modalSaveBtn: {
+    backgroundColor: Colors.blue,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+  },
+  modalSaveBtnText: {
+    color: Colors.textPrimary,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
   },
 });

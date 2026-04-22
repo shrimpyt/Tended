@@ -47,3 +47,22 @@ export function useRecipes(ingredientNames: string[], maxResults = 6) {
     retry: 1,
   });
 }
+
+export async function fetchRecipeDetails(spoonacularId: number): Promise<Partial<Recipe>> {
+  const apiKey = process.env.NEXT_PUBLIC_SPOONACULAR_API_KEY;
+  if (!apiKey) throw new Error('API Key missing');
+
+  const res = await fetch(
+    `https://api.spoonacular.com/recipes/${spoonacularId}/information?apiKey=${apiKey}`
+  );
+
+  if (!res.ok) throw new Error(`Spoonacular details error: ${res.status}`);
+  const details = await res.json();
+
+  return {
+    instructions: details.instructions || details.summary,
+    readyInMinutes: details.readyInMinutes,
+    servings: details.servings,
+    ingredients: details.extendedIngredients,
+  };
+}

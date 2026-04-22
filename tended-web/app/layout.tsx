@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { DM_Sans, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import ClientProvider from "@/components/ClientProvider";
 import NavShell from "@/components/NavShell";
@@ -7,21 +7,21 @@ import { cn } from "@/lib/utils";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
-const outfit = Outfit({
+const dmSans = DM_Sans({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  variable: "--font-dm-sans",
   display: "swap",
 });
 
-const inter = Inter({
+const playfair = Playfair_Display({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-playfair",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Tended",
-  description: "Household Management App",
+  title: "Tended — Home Inventory",
+  description: "Manage your home inventory, shopping list, and household spending in one place.",
 };
 
 export default function RootLayout({
@@ -30,22 +30,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans", outfit.variable, inter.variable)}>
-      <body className="bg-background text-foreground antialiased">
+    <html lang="en" className={cn(dmSans.variable, playfair.variable)}>
+      <body className="bg-background text-foreground antialiased font-sans">
         {/*
-          NavShell is a client component that reads usePathname() to decide
-          whether to render and which item to mark active.
-          It renders nothing on auth / setup routes.
+          NavShell renders a 220 px fixed sidebar on md+ and a bottom bar on mobile.
+          It returns null on auth/setup routes.
         */}
         <NavShell />
 
         <ClientProvider>
           {/*
-            md:pl-14  → offset for the 56 px (w-14) fixed sidebar on desktop
-            pb-24     → space for the floating bottom bar on mobile
-            md:pb-0   → no bottom padding needed on desktop
+            md:pl-[220px]  → offset for the 220 px fixed sidebar on desktop
+            pb-20 md:pb-0  → space for the floating bottom bar on mobile
           */}
-          <div className="md:pl-14 pb-24 md:pb-0">
+          <div className="md:pl-[220px] pb-20 md:pb-0">
             {children}
           </div>
         </ClientProvider>

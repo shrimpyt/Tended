@@ -13,6 +13,7 @@ export const queryKeys = {
   spending: (householdId: string, year: number, month: number) => ['spending', householdId, year, month] as const,
   shopping: (householdId: string) => ['shopping', householdId] as const,
   stockEvents: (itemId: string) => ['stockEvents', itemId] as const,
+  savedMeals: (householdId: string) => ['savedMeals', householdId] as const,
 };
 
 // =====================
@@ -301,6 +302,107 @@ export function useDeleteShoppingListItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: ['shopping']});
+    },
+  });
+}
+// =====================
+// MEALS & RECIPES
+// =====================
+
+export function useSavedMeals(householdId: string) {
+  return useQuery({
+    queryKey: queryKeys.savedMeals(householdId),
+    queryFn: async () => {
+      if (!householdId) return [];
+      const { data, error } = await supabase
+        .from('saved_meals')
+        .select(`
+          *,
+          recipe:recipes(*)
+        `)
+        .eq('household_id', householdId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw new Error(error.message);
+      return data as any[];
+    },
+    enabled: !!householdId,
+  });
+}
+
+export function useSaveRecipe() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ 
+      householdId, 
+      recipe, 
+      fetchDetails 
+    }: { 
+      householdId: string; 
+      recipe: any; 
+      fetchDetails: (id: number) => Promise<any> 
+    }) => {
+      // 1. Check if recipe exists in common database
+      let { data: existingRecipe } = await supabase
+        .from('recipes')
+        .select('id')
+        .eq('spoonacular_id', recipe.id)
+        .maybeSingle();
+
+      let targetRecipeId = existingRecipe?.id;
+
+      // 2. If not in DB, fetch full details and save
+      if (!targetRecipeId) {
+        const fullDetails = await fetchDetails(recipe.id);
+        const { data: newRecipe, error: insertError } = await supabase
+          .from('recipes')
+          .insert({
+            spoonacular_id: recipe.id,
+            title: recipe.title,
+            image: recipe.image,
+            instructions: fullDetails.instructions,
+            ingredients: fullDetails.ingredients,
+            ready_in_minutes: fullDetails.readyInMinutes,
+            servings: fullDetails.servings,
+            is_public: true
+          })
+          .select()
+          .single();
+
+        if (insertError) throw new Error(insertError.message);
+        targetRecipeId = newRecipe.id;
+      }
+
+      // 3. Link to saved_meals for this household
+      const { error: saveError } = await supabase
+        .from('saved_meals')
+        .upsert({
+          household_id: householdId,
+          recipe_id: targetRecipeId
+        }, { onConflict: 'household_id, recipe_id' });
+
+      if (saveError) throw new Error(saveError.message);
+    },
+    onSuccess: (_, { householdId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.savedMeals(householdId) });
+    },
+  });
+}
+
+export function useRemoveSavedMeal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ householdId, recipeId }: { householdId: string; recipeId: string }) => {
+      const { error } = await supabase
+        .from('saved_meals')
+        .delete()
+        .eq('household_id', householdId)
+        .eq('recipe_id', recipeId);
+      
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: (_, { householdId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.savedMeals(householdId) });
     },
   });
 }

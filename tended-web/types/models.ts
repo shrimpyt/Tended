@@ -1,11 +1,26 @@
 export type Category = string;
 
 export interface Recipe {
-  id: number;
+  id: string | number;
+  spoonacular_id?: number;
   title: string;
   image: string;
-  usedIngredientCount: number;
-  missedIngredientCount: number;
+  instructions?: string;
+  ingredients?: any[];
+  ready_in_minutes?: number;
+  servings?: number;
+  usedIngredientCount?: number;
+  missedIngredientCount?: number;
+  household_id?: string | null;
+  is_public?: boolean;
+}
+
+export interface SavedMeal {
+  id: string;
+  household_id: string;
+  recipe_id: string;
+  created_at: string;
+  recipe: Recipe;
 }
 
 

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,462 +7,634 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  TextInput,
+  Modal,
 } from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
-import {Colors, Typography, Spacing, Radius, Border} from '../../constants/theme';
-import {useInventory} from '../../hooks/queries';
-import {Item} from '../../types/models';
-import {useAuthStore} from '../../store/authStore';
-import {useRealtimeHousehold} from '../../hooks/useRealtimeHousehold';
-import {useDepletionRate} from '../../hooks/useDepletionRate';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Typography, Spacing, Radius } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { useInventory } from '../../hooks/queries';
+import { Item } from '../../types/models';
+import { useAuthStore } from '../../store/authStore';
+import { useRealtimeHousehold } from '../../hooks/useRealtimeHousehold';
+import { getCategoryColor, getCategoryChipBg } from '../../utils/categoryColors';
 import AddItemModal from '../../components/AddItemModal';
 import UpdateStockModal from '../../components/UpdateStockModal';
 import BarcodeScanModal from '../../components/BarcodeScanModal';
 import CameraInventoryModal from '../../components/CameraInventoryModal';
 
-export function getUniqueCategories(items: Item[]): string[] {
-  const seen = new Set<string>();
-  for (const item of items) {
-    if (item.category && item.category.trim()) {
-      seen.add(item.category.trim());
-    }
-  }
-  return Array.from(seen).sort();
-}
-
-type FilterCategory = 'All' | string;
-type StockStatus = 'OK' | 'Low' | 'Critical';
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 function fmtQty(n: number): string {
   return n % 1 === 0 ? String(n) : n.toFixed(1);
 }
 
-function getStatus(quantity: number, threshold: number): StockStatus {
-  if (quantity === 0) return 'Critical';
-  if (quantity < threshold) return 'Low';
-  return 'OK';
-}
-
-function getBarColor(quantity: number, threshold: number): string {
-  if (quantity === 0) return Colors.red;
-  if (quantity < threshold) return Colors.amber;
-  return Colors.green;
-}
-
-function getStatusColor(status: StockStatus): string {
-  switch (status) {
-    case 'OK':       return Colors.green;
-    case 'Low':      return Colors.amber;
-    case 'Critical': return Colors.red;
+function getUniqueCategories(items: Item[]): string[] {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (item.category?.trim()) seen.add(item.category.trim());
   }
+  return Array.from(seen).sort();
 }
 
-function StockBar({quantity, maxQuantity, threshold}: {quantity: number; maxQuantity: number; threshold: number}) {
-  const pct = Math.min(100, (quantity / maxQuantity) * 100);
-  return (
-    <View style={styles.barTrack}>
-      <View
-        style={[
-          styles.barFill,
-          {
-            width: `${pct}%` as `${number}%`,
-            backgroundColor: getBarColor(quantity, threshold),
-          },
-        ]}
-      />
-    </View>
-  );
-}
+export { getUniqueCategories };
 
-function StatusBadge({status}: {status: StockStatus}) {
-  const color = getStatusColor(status);
-  return (
-    <View style={[styles.badge, {borderColor: color}]}>
-      <Text style={[styles.badgeText, {color}]}>{status}</Text>
-    </View>
-  );
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Item Card — Grid view
+// ─────────────────────────────────────────────────────────────────────────────
 
-function ItemRow({item}: {item: Item}) {
-  const status = getStatus(item.quantity, item.threshold);
-  const depletion = useDepletionRate(item.id, item.quantity);
-  const qtyLabel = `${fmtQty(item.quantity)} / ${fmtQty(item.max_quantity)}${item.unit ? ' ' + item.unit : ''}`;
+function ItemGridCard({
+  item,
+  colors,
+  onPress,
+}: {
+  item: Item;
+  colors: ReturnType<typeof useTheme>['colors'];
+  onPress: () => void;
+}) {
+  const catColor = getCategoryColor(item.category);
+  const isLow = item.quantity < item.threshold;
+  const isOut = item.quantity === 0;
 
   return (
-    <View style={styles.itemRow}>
-      <View style={styles.itemHeader}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <StatusBadge status={status} />
+    <TouchableOpacity
+      style={{
+        flex: 1,
+        backgroundColor: colors.surface,
+        borderRadius: Radius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: Spacing.md,
+        gap: 6,
+      }}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      {/* Category dot */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+        <View
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: catColor,
+          }}
+        />
+        <Text
+          style={{
+            color: colors.textMuted,
+            fontSize: Typography.sizes.xs,
+          }}
+        >
+          {item.category ?? '—'}
+        </Text>
       </View>
-      <View style={styles.itemMeta}>
-        <Text style={styles.itemCategory}>{item.category}</Text>
-        <Text style={styles.itemStockPct}>{qtyLabel}</Text>
-      </View>
-      <StockBar quantity={item.quantity} maxQuantity={item.max_quantity} threshold={item.threshold} />
-      {depletion.available && depletion.daysRemaining > 0 && (
-        <Text style={styles.depletionText}>~{depletion.daysRemaining} days left</Text>
+
+      {/* Name */}
+      <Text
+        style={{
+          color: colors.textPrimary,
+          fontSize: Typography.sizes.sm,
+          fontWeight: Typography.weights.semiBold,
+          lineHeight: 18,
+        }}
+        numberOfLines={2}
+      >
+        {item.name}
+      </Text>
+
+      {/* Large quantity */}
+      <Text
+        style={{
+          color: isOut
+            ? colors.danger
+            : isLow
+            ? colors.warning
+            : colors.textPrimary,
+          fontSize: Typography.sizes.xxl,
+          fontWeight: Typography.weights.bold,
+          letterSpacing: -0.5,
+        }}
+      >
+        {fmtQty(item.quantity)}
+        {item.unit ? (
+          <Text
+            style={{
+              fontSize: Typography.sizes.sm,
+              fontWeight: Typography.weights.regular,
+              color: colors.textSecondary,
+            }}
+          >
+            {' '}
+            {item.unit}
+          </Text>
+        ) : null}
+      </Text>
+
+      {/* Badge */}
+      {(isLow || isOut) && (
+        <View
+          style={{
+            alignSelf: 'flex-start',
+            borderRadius: Radius.full,
+            paddingHorizontal: 7,
+            paddingVertical: 2,
+            backgroundColor: isOut ? colors.dangerBg : colors.warningBg,
+          }}
+        >
+          <Text
+            style={{
+              color: isOut ? colors.danger : colors.warning,
+              fontSize: 10,
+              fontWeight: Typography.weights.medium,
+            }}
+          >
+            {isOut ? 'Out' : 'Low'}
+          </Text>
+        </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Item Row — List view
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ItemListRow({
+  item,
+  colors,
+  onPress,
+}: {
+  item: Item;
+  colors: ReturnType<typeof useTheme>['colors'];
+  onPress: () => void;
+}) {
+  const catColor = getCategoryColor(item.category);
+  const isLow = item.quantity < item.threshold;
+  const isOut = item.quantity === 0;
+  const pct = Math.min(100, (item.quantity / item.max_quantity) * 100);
+
+  return (
+    <TouchableOpacity
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.md,
+        gap: Spacing.md,
+      }}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: 5,
+          backgroundColor: catColor,
+          flexShrink: 0,
+        }}
+      />
+      <View style={{ flex: 1, gap: 4 }}>
+        <Text
+          style={{
+            color: colors.textPrimary,
+            fontSize: Typography.sizes.md,
+            fontWeight: Typography.weights.medium,
+          }}
+        >
+          {item.name}
+        </Text>
+        <View
+          style={{
+            height: 4,
+            backgroundColor: colors.surfaceAlt,
+            borderRadius: 2,
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            style={{
+              width: `${pct}%`,
+              height: '100%',
+              backgroundColor: isOut
+                ? colors.danger
+                : isLow
+                ? colors.warning
+                : colors.success,
+              borderRadius: 2,
+            }}
+          />
+        </View>
+      </View>
+      <Text
+        style={{
+          color: isOut
+            ? colors.danger
+            : isLow
+            ? colors.warning
+            : colors.textPrimary,
+          fontSize: Typography.sizes.sm,
+          fontWeight: Typography.weights.semiBold,
+          minWidth: 40,
+          textAlign: 'right',
+        }}
+      >
+        {fmtQty(item.quantity)}
+        {item.unit ? ` ${item.unit}` : ''}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+type ViewMode = 'grid' | 'list';
 
 export default function InventoryScreen() {
-  const {profile} = useAuthStore();
+  const { profile } = useAuthStore();
   const householdId = profile?.household_id ?? '';
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
 
-  const {data: items = [], isLoading: loading} = useInventory(householdId);
+  const { data: items = [], isLoading: loading } = useInventory(householdId);
 
-  // RBAC: restricted users only see their allowed categories
   const allowedCategories: string[] | null =
-    profile?.role === 'restricted' && profile.restricted_categories && profile.restricted_categories.length > 0
+    profile?.role === 'restricted' &&
+    profile.restricted_categories &&
+    profile.restricted_categories.length > 0
       ? profile.restricted_categories
       : null;
 
   const visibleItems = allowedCategories
-    ? items.filter(item => allowedCategories.includes(item.category))
+    ? items.filter(item => allowedCategories.includes(item.category ?? ''))
     : items;
 
-  const filterCategories: FilterCategory[] = ['All', ...getUniqueCategories(visibleItems)];
+  const filterCategories = ['All', ...getUniqueCategories(visibleItems)];
 
-  const [activeCategory, setActiveCategory] = useState<FilterCategory>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
-  const insets = useSafeAreaInsets();
-  const fabBottomOffset = insets.bottom + 80;
-
   useRealtimeHousehold(householdId);
 
-  const filtered = activeCategory === 'All'
-    ? visibleItems
-    : visibleItems.filter(i => i.category === activeCategory);
+  const filtered: Item[] = useMemo(() => {
+    let result = activeCategory === 'All'
+      ? visibleItems
+      : visibleItems.filter(i => i.category === activeCategory);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(i => i.name.toLowerCase().includes(q));
+    }
+    return result;
+  }, [activeCategory, visibleItems, search]);
+
+  const fabBottom = insets.bottom + 80;
+
+  // ─── Dynamic styles ────────────────────────────────────────────────────────
+  const C = colors;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Inventory</Text>
-        <Text style={styles.headerCount}>{visibleItems.length} items</Text>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: C.background }}
+      edges={['top']}
+    >
+      {/* ─── Header ───────────────────────────────────────────────── */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: Spacing.lg,
+          paddingVertical: Spacing.md,
+        }}
+      >
+        <View>
+          <Text
+            style={{
+              color: C.textPrimary,
+              fontSize: Typography.sizes.xl,
+              fontWeight: Typography.weights.bold,
+              letterSpacing: -0.3,
+            }}
+          >
+            Inventory
+          </Text>
+          <Text style={{ color: C.textMuted, fontSize: Typography.sizes.xs }}>
+            {visibleItems.length} items
+          </Text>
+        </View>
+
+        {/* Grid/List Toggle */}
+        <View
+          style={{
+            flexDirection: 'row',
+            backgroundColor: C.surfaceAlt,
+            borderRadius: Radius.sm,
+            padding: 3,
+          }}
+        >
+          {(['list', 'grid'] as ViewMode[]).map(mode => (
+            <TouchableOpacity
+              key={mode}
+              style={{
+                paddingHorizontal: Spacing.sm,
+                paddingVertical: 4,
+                borderRadius: Radius.xs,
+                backgroundColor:
+                  viewMode === mode ? C.surface : 'transparent',
+              }}
+              onPress={() => setViewMode(mode)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: viewMode === mode ? C.accent : C.textMuted,
+                }}
+              >
+                {mode === 'list' ? '≡' : '⊞'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      {/* Filter pills */}
+      {/* ─── Search bar ───────────────────────────────────────────── */}
+      <View style={{ paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: C.surface,
+            borderRadius: Radius.sm,
+            borderWidth: 1,
+            borderColor: C.border,
+            paddingHorizontal: Spacing.md,
+            gap: Spacing.sm,
+          }}
+        >
+          <Text style={{ color: C.textMuted, fontSize: 16 }}>⌕</Text>
+          <TextInput
+            style={{
+              flex: 1,
+              color: C.textPrimary,
+              fontSize: Typography.sizes.sm,
+              paddingVertical: Spacing.sm,
+            }}
+            placeholder="Search items…"
+            placeholderTextColor={C.textMuted}
+            value={search}
+            onChangeText={setSearch}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} activeOpacity={0.7}>
+              <Text style={{ color: C.textMuted, fontSize: 14 }}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* ─── Category filter chips ────────────────────────────────── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.pillsContent}
-        style={styles.pillsRow}>
-        {filterCategories.map(cat => (
-          <TouchableOpacity
-            key={cat}
-            onPress={() => setActiveCategory(cat)}
-            style={[styles.pill, activeCategory === cat && styles.pillActive]}>
-            <Text style={[styles.pillText, activeCategory === cat && styles.pillTextActive]}>
-              {cat}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        contentContainerStyle={{
+          paddingHorizontal: Spacing.lg,
+          gap: Spacing.sm,
+          paddingBottom: Spacing.sm,
+        }}
+        style={{ flexGrow: 0 }}
+      >
+        {filterCategories.map(cat => {
+          const active = activeCategory === cat;
+          const catColor = cat === 'All' ? C.accent : getCategoryColor(cat);
+          return (
+            <TouchableOpacity
+              key={cat}
+              onPress={() => setActiveCategory(cat)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                paddingHorizontal: Spacing.md,
+                paddingVertical: 6,
+                borderRadius: Radius.full,
+                borderWidth: 1,
+                borderColor: active ? catColor : C.border,
+                backgroundColor: active
+                  ? isDark
+                    ? getCategoryChipBg(cat)
+                    : getCategoryChipBg(cat, 0.12)
+                  : C.surface,
+              }}
+              activeOpacity={0.7}
+            >
+              {cat !== 'All' && (
+                <View
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: catColor,
+                  }}
+                />
+              )}
+              <Text
+                style={{
+                  color: active ? catColor : C.textSecondary,
+                  fontSize: Typography.sizes.xs,
+                  fontWeight: active
+                    ? Typography.weights.semiBold
+                    : Typography.weights.medium,
+                }}
+              >
+                {cat}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
-      {/* Item list */}
+      {/* ─── Item list / grid ─────────────────────────────────────── */}
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={Colors.blue} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={C.accent} />
         </View>
       ) : filtered.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>No items yet. Tap + to add one.</Text>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: C.textMuted, fontSize: Typography.sizes.md }}>
+            {search ? 'No results' : 'No items yet — tap + to add one'}
+          </Text>
         </View>
+      ) : viewMode === 'grid' ? (
+        <FlatList
+          data={filtered}
+          keyExtractor={i => i.id}
+          numColumns={2}
+          columnWrapperStyle={{ gap: Spacing.sm }}
+          contentContainerStyle={{
+            paddingHorizontal: Spacing.lg,
+            paddingBottom: fabBottom + 24,
+            gap: Spacing.sm,
+          }}
+          renderItem={({ item }) => (
+            <ItemGridCard
+              item={item}
+              colors={C}
+              onPress={() => setSelectedItem(item)}
+            />
+          )}
+        />
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={item => item.id}
-          renderItem={({item}) => (
-            <TouchableOpacity onPress={() => setSelectedItem(item)} activeOpacity={0.7}>
-              <ItemRow item={item} />
-            </TouchableOpacity>
+          keyExtractor={i => i.id}
+          contentContainerStyle={{
+            paddingBottom: fabBottom + 24,
+            backgroundColor: C.surface,
+            marginHorizontal: Spacing.lg,
+            borderRadius: Radius.lg,
+            borderWidth: 1,
+            borderColor: C.border,
+            overflow: 'hidden',
+          }}
+          renderItem={({ item }) => (
+            <ItemListRow
+              item={item}
+              colors={C}
+              onPress={() => setSelectedItem(item)}
+            />
           )}
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={() => (
+            <View
+              style={{ height: 1, backgroundColor: C.border, marginHorizontal: Spacing.md }}
+            />
+          )}
         />
       )}
 
-      {/* Speed-dial backdrop */}
       {fabOpen && (
         <TouchableOpacity
-          style={styles.backdrop}
           activeOpacity={1}
           onPress={() => setFabOpen(false)}
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(28,25,22,0.25)',
+            zIndex: 10,
+          }}
         />
       )}
 
-      {/* Speed-dial actions */}
       {fabOpen && (
-        <View style={[styles.speedDial, {bottom: fabBottomOffset + 60}]}>
-          <TouchableOpacity
-            style={styles.dialAction}
-            activeOpacity={0.8}
-            onPress={() => {
-              setFabOpen(false);
-              setShowCameraModal(true);
-            }}>
-            <Text style={styles.dialActionLabel}>Scan Items</Text>
-            <View style={styles.dialActionBtn}>
-              <Text style={styles.dialActionIcon}>🪄</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dialAction}
-            activeOpacity={0.8}
-            onPress={() => {
-              setFabOpen(false);
-              setShowBarcodeModal(true);
-            }}>
-            <Text style={styles.dialActionLabel}>Scan Barcode</Text>
-            <View style={styles.dialActionBtn}>
-              <Text style={styles.dialActionIcon}>📷</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dialAction}
-            activeOpacity={0.8}
-            onPress={() => {
-              setFabOpen(false);
-              setShowAddModal(true);
-            }}>
-            <Text style={styles.dialActionLabel}>Add Manually</Text>
-            <View style={styles.dialActionBtn}>
-              <Text style={styles.dialActionIcon}>✏️</Text>
-            </View>
-          </TouchableOpacity>
+        <View
+          style={{
+            position: 'absolute',
+            bottom: fabBottom + 64,
+            right: Spacing.xl,
+            gap: Spacing.md,
+            alignItems: 'flex-end',
+            zIndex: 20,
+          }}
+        >
+          {[
+            { label: 'Scan Items', icon: '🪄', action: () => { setFabOpen(false); setShowCameraModal(true); } },
+            { label: 'Scan Barcode', icon: '📷', action: () => { setFabOpen(false); setShowBarcodeModal(true); } },
+            { label: 'Add Manually', icon: '✏️', action: () => { setFabOpen(false); setShowAddModal(true); } },
+          ].map(({ label, icon, action }) => (
+            <TouchableOpacity
+              key={label}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}
+              onPress={action}
+              activeOpacity={0.85}
+            >
+              <Text
+                style={{
+                  color: C.textPrimary,
+                  fontSize: Typography.sizes.sm,
+                  fontWeight: Typography.weights.medium,
+                  backgroundColor: C.surface,
+                  paddingHorizontal: Spacing.md,
+                  paddingVertical: Spacing.xs,
+                  borderRadius: Radius.sm,
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  overflow: 'hidden',
+                }}
+              >
+                {label}
+              </Text>
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: C.surface,
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 20 }}>{icon}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
 
-      {/* FAB */}
+      {/* ─── FAB ──────────────────────────────────────────────────── */}
       <TouchableOpacity
-        style={[styles.fab, fabOpen && styles.fabOpen, {bottom: fabBottomOffset}]}
-        activeOpacity={0.8}
-        onPress={() => setFabOpen(o => !o)}>
-        <Text style={[styles.fabIcon, fabOpen && styles.fabIconOpen]}>+</Text>
+        style={{
+          position: 'absolute',
+          bottom: fabBottom,
+          right: Spacing.xl,
+          width: 54,
+          height: 54,
+          borderRadius: 27,
+          backgroundColor: fabOpen ? C.surfaceAlt : C.accent,
+          borderWidth: fabOpen ? 1 : 0,
+          borderColor: C.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 20,
+          shadowColor: C.accent,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 6,
+        }}
+        onPress={() => setFabOpen(o => !o)}
+        activeOpacity={0.85}
+      >
+        <Text
+          style={{
+            color: fabOpen ? C.textSecondary : '#fff',
+            fontSize: 26,
+            lineHeight: 30,
+            transform: [{ rotate: fabOpen ? '45deg' : '0deg' }],
+          }}
+        >
+          +
+        </Text>
       </TouchableOpacity>
 
-      <AddItemModal
-        visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
-      />
-
-      <BarcodeScanModal
-        visible={showBarcodeModal}
-        onClose={() => setShowBarcodeModal(false)}
-      />
-
-      <CameraInventoryModal
-        visible={showCameraModal}
-        onClose={() => setShowCameraModal(false)}
-      />
-
-      <UpdateStockModal
-        item={selectedItem}
-        onClose={() => setSelectedItem(null)}
-      />
+      <AddItemModal visible={showAddModal} onClose={() => setShowAddModal(false)} />
+      <BarcodeScanModal visible={showBarcodeModal} onClose={() => setShowBarcodeModal(false)} />
+      <CameraInventoryModal visible={showCameraModal} onClose={() => setShowCameraModal(false)} />
+      <UpdateStockModal item={selectedItem} onClose={() => setSelectedItem(null)} />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  headerTitle: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.medium,
-  },
-  headerCount: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.regular,
-  },
-  pillsRow: {
-    flexGrow: 0,
-    marginBottom: Spacing.sm,
-  },
-  pillsContent: {
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  pill: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: 20,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  pillActive: {
-    backgroundColor: Colors.blue,
-    borderColor: Colors.blue,
-  },
-  pillText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-  },
-  pillTextActive: {
-    color: Colors.textPrimary,
-  },
-  listContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: 80,
-  },
-  separator: {
-    height: Border.width,
-    backgroundColor: Colors.border,
-  },
-  itemRow: {
-    paddingVertical: Spacing.md,
-    gap: Spacing.xs,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  itemName: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
-  },
-  itemMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  itemCategory: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.regular,
-  },
-  itemStockPct: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.regular,
-  },
-  barTrack: {
-    height: 4,
-    backgroundColor: Colors.surface,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginTop: Spacing.xs,
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  depletionText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.regular,
-    marginTop: 2,
-  },
-  badge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: Radius.sm,
-    borderWidth: Border.width,
-  },
-  badgeText: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.medium,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    zIndex: 10,
-  },
-  speedDial: {
-    position: 'absolute',
-    bottom: Spacing.xl + 60,
-    right: Spacing.xl,
-    gap: Spacing.md,
-    alignItems: 'flex-end',
-    zIndex: 20,
-  },
-  dialAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  dialActionLabel: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.sm,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    overflow: 'hidden',
-  },
-  dialActionBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.surface,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dialActionIcon: {
-    fontSize: 20,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: Spacing.xl,
-    right: Spacing.xl,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.blue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-  },
-  fabOpen: {
-    backgroundColor: Colors.surface,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-  },
-  fabIcon: {
-    color: Colors.textPrimary,
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: Typography.weights.regular,
-  },
-  fabIconOpen: {
-    transform: [{rotate: '45deg'}],
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.regular,
-  },
-});

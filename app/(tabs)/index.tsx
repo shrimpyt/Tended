@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,17 +8,24 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {useRouter} from 'expo-router';
-import {Colors, Typography, Spacing, Radius, Border, Shadows} from '../../constants/theme';
-import {useAuthStore} from '../../store/authStore';
-import {useInventory, useSpendingEntries, useShoppingList, useToggleShoppingListItem} from '../../hooks/queries';
-import {useRealtimeHousehold} from '../../hooks/useRealtimeHousehold';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Typography, Spacing, Radius } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
+import { useAuthStore } from '../../store/authStore';
+import {
+  useInventory,
+  useSpendingEntries,
+  useShoppingList,
+  useToggleShoppingListItem,
+} from '../../hooks/queries';
+import { useRealtimeHousehold } from '../../hooks/useRealtimeHousehold';
 import ShoppingListScreen from '../../screens/ShoppingListScreen';
+import { getCategoryColor } from '../../utils/categoryColors';
 
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -27,136 +34,361 @@ function getGreeting(): string {
   return 'Good evening';
 }
 
-/** Returns [weekStart, weekEnd] as ISO date strings (Monday-based week). */
-function currentWeekRange(): {start: string; end: string} {
-  const now = new Date();
-  const day = now.getDay(); // 0=Sun
-  const diffToMon = (day === 0 ? -6 : 1 - day);
-  const mon = new Date(now);
-  mon.setDate(now.getDate() + diffToMon);
-  const sun = new Date(mon);
-  sun.setDate(mon.getDate() + 6);
-
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-  return {start: fmt(mon), end: fmt(sun)};
-}
-
-/** Returns last week's [start, end] as ISO date strings. */
-function lastWeekRange(): {start: string; end: string} {
-  const now = new Date();
-  const day = now.getDay();
-  const diffToMon = (day === 0 ? -6 : 1 - day);
-  const thisMon = new Date(now);
-  thisMon.setDate(now.getDate() + diffToMon);
-
-  const lastMon = new Date(thisMon);
-  lastMon.setDate(thisMon.getDate() - 7);
-  const lastSun = new Date(lastMon);
-  lastSun.setDate(lastMon.getDate() + 6);
-
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-  return {start: fmt(lastMon), end: fmt(lastSun)};
+function formatDate(): string {
+  return new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 }
 
 function formatAmount(n: number): string {
   return '$' + n.toFixed(2);
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
+function currentMonth(): { year: number; month: number } {
+  const now = new Date();
+  return { year: now.getFullYear(), month: now.getMonth() + 1 };
+}
 
-function StockBar({stockLevel, threshold}: {stockLevel: number; threshold: number}) {
-  const pct = Math.min(100, Math.max(0, stockLevel));
-  const color =
-    stockLevel === 0 ? Colors.red : stockLevel < threshold ? Colors.amber : Colors.green;
+function lastMonthOf(year: number, month: number) {
+  if (month === 1) return { year: year - 1, month: 12 };
+  return { year, month: month - 1 };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-components
+// ─────────────────────────────────────────────────────────────────────────────
+
+function MetricCard({
+  label,
+  value,
+  accentColor,
+  accentBg,
+}: {
+  label: string;
+  value: string | number;
+  accentColor: string;
+  accentBg: string;
+}) {
   return (
-    <View style={styles.barTrack}>
-      <View style={[styles.barFill, {width: `${pct}%` as `${number}%`, backgroundColor: color}]} />
+    <View style={[metricCardStyles.card, { borderColor: accentBg }]}>
+      <Text style={[metricCardStyles.value, { color: accentColor }]}>
+        {value}
+      </Text>
+      <Text style={metricCardStyles.label}>{label}</Text>
     </View>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main screen
-// ---------------------------------------------------------------------------
+const metricCardStyles = StyleSheet.create({
+  card: {
+    flex: 1,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    padding: Spacing.md,
+    gap: 4,
+  },
+  value: {
+    fontSize: Typography.sizes.xxl,
+    fontWeight: Typography.weights.bold,
+    letterSpacing: -0.5,
+  },
+  label: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.medium,
+    color: '#7A6E68',
+    letterSpacing: 0.3,
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Screen
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
-  const {profile} = useAuthStore();
+  const { profile } = useAuthStore();
   const router = useRouter();
+  const { colors, isDark } = useTheme();
   const householdId = profile?.household_id ?? '';
-  const now = new Date();
+  const now = currentMonth();
+  const lastMonth = lastMonthOf(now.year, now.month);
 
-  const {data: items = [], isLoading: loadingItems} = useInventory(householdId);
-  const {data: entries = [], isLoading: loadingEntries} = useSpendingEntries(householdId, now.getFullYear(), now.getMonth() + 1);
-  const {data: shoppingItems = [], isLoading: loadingShopping} = useShoppingList(householdId);
-  const {mutate: toggleComplete} = useToggleShoppingListItem();
-
-  const loadingAll = loadingItems || loadingEntries || loadingShopping;
+  const { data: items = [], isLoading: loadingItems } =
+    useInventory(householdId);
+  const { data: entries = [], isLoading: loadingEntries } = useSpendingEntries(
+    householdId,
+    now.year,
+    now.month,
+  );
+  const { data: lastEntries = [] } = useSpendingEntries(
+    householdId,
+    lastMonth.year,
+    lastMonth.month,
+  );
+  const { data: shoppingItems = [], isLoading: loadingShopping } =
+    useShoppingList(householdId);
+  const { mutate: toggleComplete } = useToggleShoppingListItem();
 
   const [showShoppingList, setShowShoppingList] = useState(false);
-
   useRealtimeHousehold(householdId);
 
-  // ---------------------------------------------------------------------------
-  // Derived data
-  // ---------------------------------------------------------------------------
-
-  const thisWeek = useMemo(() => currentWeekRange(), []);
-  const lastWeek = useMemo(() => lastWeekRange(), []);
-
-  const weeklySpend = useMemo(() => {
-    let thisTotal = 0;
-    let lastTotal = 0;
-    let hasLastWeek = false;
-
-    for (const e of entries) {
-      if (e.date >= thisWeek.start && e.date <= thisWeek.end) {
-        thisTotal += e.amount;
-      }
-      if (e.date >= lastWeek.start && e.date <= lastWeek.end) {
-        lastTotal += e.amount;
-        hasLastWeek = true;
-      }
-    }
-    return {thisTotal, lastTotal, hasLastWeek};
-  }, [entries, thisWeek, lastWeek]);
+  // ─── Derived data ──────────────────────────────────────────────────────────
 
   const lowStockItems = useMemo(
-    () => items.filter(i => (i.quantity / i.max_quantity) * 100 < (i.threshold / i.max_quantity) * 100),
+    () => items.filter(i => i.quantity < i.threshold),
     [items],
   );
 
-  const pendingShoppingItems = useMemo(
-    () => shoppingItems.filter(i => !i.completed).slice(0, 5),
+  const pendingShoppingCount = useMemo(
+    () => shoppingItems.filter(i => !i.completed).length,
     [shoppingItems],
   );
 
   const monthSpend = useMemo(
-    () => entries.reduce((sum, e) => sum + e.amount, 0),
+    () => entries.reduce((s, e) => s + e.amount, 0),
     [entries],
   );
+  const lastMonthSpend = useMemo(
+    () => lastEntries.reduce((s, e) => s + e.amount, 0),
+    [lastEntries],
+  );
+  const spendDelta = lastMonthSpend > 0 ? monthSpend - lastMonthSpend : null;
 
-  // Week-over-week delta
-  const weekDelta = weeklySpend.hasLastWeek
-    ? weeklySpend.thisTotal - weeklySpend.lastTotal
-    : null;
+  // Category breakdown for pantry overview
+  const categoryBreakdown = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of items) {
+      const cat = item.category ?? 'Other';
+      map[cat] = (map[cat] ?? 0) + 1;
+    }
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  }, [items]);
 
-  const displayName = profile?.display_name ?? 'there';
+  const displayName = profile?.display_name
+    ? profile.display_name.split(' ')[0]
+    : 'there';
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
+  const initials = profile?.display_name
+    ? profile.display_name
+        .split(' ')
+        .map(w => w[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : '?';
+
+  const loadingAll = loadingItems || loadingEntries || loadingShopping;
+
+  // ─── Dynamic styles ────────────────────────────────────────────────────────
+
+  const dynStyles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    scroll: { flex: 1 },
+    content: {
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: 120,
+      paddingTop: Spacing.md,
+      gap: Spacing.xl,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingTop: Spacing.lg,
+    },
+    greeting: {
+      color: colors.textSecondary,
+      fontSize: Typography.sizes.sm,
+      fontWeight: Typography.weights.medium,
+    },
+    name: {
+      color: colors.textPrimary,
+      fontSize: Typography.sizes.xxxl,
+      fontWeight: Typography.weights.bold,
+      letterSpacing: -0.5,
+    },
+    date: {
+      color: colors.textMuted,
+      fontSize: Typography.sizes.xs,
+      fontWeight: Typography.weights.regular,
+      marginTop: 2,
+    },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.accentBg,
+      borderWidth: 1.5,
+      borderColor: colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 4,
+    },
+    avatarText: {
+      color: colors.accent,
+      fontSize: Typography.sizes.sm,
+      fontWeight: Typography.weights.bold,
+    },
+    metricsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: Spacing.sm,
+    },
+    metricsRow: {
+      flexDirection: 'row',
+      flex: 1,
+      gap: Spacing.sm,
+    },
+    section: { gap: Spacing.sm },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    sectionTitle: {
+      color: colors.textPrimary,
+      fontSize: Typography.sizes.md,
+      fontWeight: Typography.weights.bold,
+      letterSpacing: -0.3,
+    },
+    seeAll: {
+      color: colors.accent,
+      fontSize: Typography.sizes.sm,
+      fontWeight: Typography.weights.medium,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: Radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: 'hidden',
+    },
+    emptyCard: {
+      backgroundColor: colors.surface,
+      borderRadius: Radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: Spacing.lg,
+      alignItems: 'center',
+    },
+    emptyText: {
+      color: colors.textMuted,
+      fontSize: Typography.sizes.sm,
+    },
+    // Expiring items
+    expiryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm + 2,
+    },
+    expiryDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: Spacing.sm,
+    },
+    expiryName: {
+      flex: 1,
+      color: colors.textPrimary,
+      fontSize: Typography.sizes.sm,
+      fontWeight: Typography.weights.medium,
+    },
+    expiryQty: {
+      color: colors.textSecondary,
+      fontSize: Typography.sizes.xs,
+      marginRight: Spacing.sm,
+    },
+    expiryBadge: {
+      borderRadius: Radius.full,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 2,
+    },
+    expiryBadgeText: {
+      fontSize: Typography.sizes.xs,
+      fontWeight: Typography.weights.medium,
+    },
+    // Shopping row
+    shoppingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm + 2,
+      gap: Spacing.sm,
+    },
+    checkbox: {
+      width: 18,
+      height: 18,
+      borderRadius: 4,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+    },
+    shoppingName: {
+      flex: 1,
+      color: colors.textPrimary,
+      fontSize: Typography.sizes.sm,
+    },
+    autoTag: {
+      borderWidth: 1,
+      borderColor: colors.info,
+      borderRadius: Radius.full,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+    },
+    autoTagText: {
+      color: colors.info,
+      fontSize: 10,
+      fontWeight: Typography.weights.medium,
+    },
+    separator: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginHorizontal: Spacing.md,
+    },
+    // Pantry overview bar
+    pantryRow: {
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      gap: 6,
+    },
+    pantryLabelRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    pantryLabel: {
+      color: colors.textSecondary,
+      fontSize: Typography.sizes.xs,
+      fontWeight: Typography.weights.medium,
+      flex: 1,
+    },
+    pantryCount: {
+      color: colors.textMuted,
+      fontSize: Typography.sizes.xs,
+    },
+    pantryTrack: {
+      height: 5,
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 3,
+      overflow: 'hidden',
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
 
   if (!householdId) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>No household found. Please sign out and sign back in.</Text>
+      <SafeAreaView style={dynStyles.container} edges={['top']}>
+        <View style={dynStyles.center}>
+          <Text style={{ color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 32 }}>
+            No household found. Please sign out and back in.
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -164,163 +396,289 @@ export default function DashboardScreen() {
 
   if (loadingAll) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.center}>
-          <ActivityIndicator color={Colors.blue} />
+      <SafeAreaView style={dynStyles.container} edges={['top']}>
+        <View style={dynStyles.center}>
+          <ActivityIndicator color={colors.accent} />
         </View>
       </SafeAreaView>
     );
   }
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}>
+  const maxCategoryCount = categoryBreakdown[0]?.[1] ?? 1;
 
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>{getGreeting()},</Text>
-            <Text style={styles.name}>{displayName}</Text>
+  return (
+    <SafeAreaView style={dynStyles.container} edges={['top']}>
+      <ScrollView
+        style={dynStyles.scroll}
+        contentContainerStyle={dynStyles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ─── Header ─────────────────────────────────────────────────── */}
+        <View style={dynStyles.header}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={dynStyles.greeting}>{getGreeting()},</Text>
+            <Text style={dynStyles.name}>{displayName}</Text>
+            <Text style={dynStyles.date}>{formatDate()}</Text>
           </View>
           <TouchableOpacity
-            onPress={() => router.push('/settings')}
-            activeOpacity={0.7}
-            style={styles.profileButton}>
-            <Text style={styles.profileButtonText}>⚙</Text>
+            style={dynStyles.avatar}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(tabs)/settings')}
+          >
+            <Text style={dynStyles.avatarText}>{initials}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Quick stats row */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{items.length}</Text>
-            <Text style={styles.statLabel}>Items</Text>
+        {/* ─── 2×2 Metric Cards ────────────────────────────────────────── */}
+        <View style={{ gap: Spacing.sm }}>
+          <View style={dynStyles.metricsRow}>
+            <MetricCard
+              label="Total Items"
+              value={items.length}
+              accentColor={colors.textPrimary}
+              accentBg={colors.surfaceAlt}
+            />
+            <MetricCard
+              label="Low Stock"
+              value={lowStockItems.length}
+              accentColor={colors.danger}
+              accentBg={colors.dangerBg}
+            />
           </View>
-          <View style={[styles.statCard, styles.statCardMiddle]}>
-            <Text style={[styles.statValue, lowStockItems.length > 0 && {color: Colors.amber}]}>
-              {lowStockItems.length}
-            </Text>
-            <Text style={styles.statLabel}>Low stock</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{formatAmount(monthSpend)}</Text>
-            <Text style={styles.statLabel}>This month</Text>
+          <View style={dynStyles.metricsRow}>
+            <MetricCard
+              label="Shopping List"
+              value={pendingShoppingCount}
+              accentColor={colors.info}
+              accentBg={colors.infoBg}
+            />
+            <MetricCard
+              label="Monthly Spend"
+              value={formatAmount(monthSpend)}
+              accentColor={colors.success}
+              accentBg={colors.successBg}
+            />
           </View>
         </View>
 
-        {/* Weekly spend card */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>This week</Text>
-          <View style={styles.card}>
-            <View style={styles.weekSpendRow}>
-              <View>
-                <Text style={styles.weekAmount}>{formatAmount(weeklySpend.thisTotal)}</Text>
-                <Text style={styles.weekSub}>spent this week</Text>
-              </View>
-              {weekDelta !== null && (
-                <View
-                  style={[
-                    styles.deltaBadge,
-                    {borderColor: weekDelta > 0 ? Colors.amber : Colors.green},
-                  ]}>
-                  <Text
-                    style={[
-                      styles.deltaText,
-                      {color: weekDelta > 0 ? Colors.amber : Colors.green},
-                    ]}>
-                    {weekDelta > 0 ? '+' : ''}{formatAmount(weekDelta)} vs last week
+        {/* ─── Expiring Soon ───────────────────────────────────────────── */}
+        <View style={dynStyles.section}>
+          <Text style={dynStyles.sectionTitle}>Expiring Soon</Text>
+          {items.length === 0 ? (
+            <View style={dynStyles.emptyCard}>
+              <Text style={dynStyles.emptyText}>Nothing expiring soon</Text>
+            </View>
+          ) : (
+            <View style={dynStyles.card}>
+              {items
+                .filter(i => i.expiry_date)
+                .sort((a, b) =>
+                  (a.expiry_date ?? '').localeCompare(
+                    b.expiry_date ?? '',
+                  ),
+                )
+                .slice(0, 5)
+                .map((item, idx, arr) => {
+                  const expiryDate: string | null =
+                    item.expiry_date ?? null;
+                  const daysLeft = expiryDate
+                    ? Math.round(
+                        (new Date(expiryDate + 'T00:00:00').getTime() -
+                          new Date().setHours(0, 0, 0, 0)) /
+                          86400000,
+                      )
+                    : null;
+                  const badgeColor =
+                    daysLeft === null
+                      ? colors.textMuted
+                      : daysLeft <= 0
+                      ? colors.danger
+                      : daysLeft === 1
+                      ? colors.warning
+                      : daysLeft <= 3
+                      ? colors.warning
+                      : colors.textSecondary;
+                  const badgeBg =
+                    daysLeft === null
+                      ? colors.surfaceAlt
+                      : daysLeft <= 0
+                      ? colors.dangerBg
+                      : daysLeft <= 3
+                      ? colors.warningBg
+                      : colors.surfaceAlt;
+                  const badgeLabel =
+                    daysLeft === null
+                      ? '—'
+                      : daysLeft <= 0
+                      ? 'Today'
+                      : daysLeft === 1
+                      ? 'Tomorrow'
+                      : `${daysLeft}d`;
+
+                  return (
+                    <View key={item.id}>
+                      <View style={dynStyles.expiryRow}>
+                        <View
+                          style={[
+                            dynStyles.expiryDot,
+                            {
+                              backgroundColor: getCategoryColor(item.category),
+                            },
+                          ]}
+                        />
+                        <Text style={dynStyles.expiryName}>{item.name}</Text>
+                        <Text style={dynStyles.expiryQty}>
+                          {item.quantity}
+                          {item.unit ? ` ${item.unit}` : ''}
+                        </Text>
+                        <View
+                          style={[
+                            dynStyles.expiryBadge,
+                            { backgroundColor: badgeBg },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              dynStyles.expiryBadgeText,
+                              { color: badgeColor },
+                            ]}
+                          >
+                            {badgeLabel}
+                          </Text>
+                        </View>
+                      </View>
+                      {idx < arr.length - 1 && (
+                        <View style={dynStyles.separator} />
+                      )}
+                    </View>
+                  );
+                })}
+
+              {items.filter(i => i.expiry_date).length === 0 && (
+                <View style={{ padding: Spacing.lg, alignItems: 'center' }}>
+                  <Text style={dynStyles.emptyText}>
+                    Add expiry dates to items to track them here
                   </Text>
                 </View>
               )}
             </View>
-          </View>
-        </View>
-
-        {/* Inventory alerts */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Inventory alerts</Text>
-          {lowStockItems.length === 0 ? (
-            <View style={styles.card}>
-              <Text style={styles.emptyStateText}>All stocked up ✓</Text>
-            </View>
-          ) : (
-            <View style={styles.card}>
-              {lowStockItems.map((item, idx) => (
-                <View key={item.id}>
-                  <View style={styles.alertRow}>
-                    <View style={styles.alertLeft}>
-                      <Text style={styles.alertName}>{item.name}</Text>
-                      {item.category ? (
-                        <Text style={styles.alertCategory}>{item.category}</Text>
-                      ) : null}
-                    </View>
-                    <View style={styles.alertRight}>
-                      <Text
-                        style={[
-                          styles.alertLevel,
-                          {color: item.quantity === 0 ? Colors.red : Colors.amber},
-                        ]}>
-                        {item.quantity === 0 ? 'Out' : `${Math.round((item.quantity / item.max_quantity) * 100)}%`}
-                      </Text>
-                      <StockBar stockLevel={Math.round((item.quantity / item.max_quantity) * 100)} threshold={Math.round((item.threshold / item.max_quantity) * 100)} />
-                    </View>
-                  </View>
-                  {idx < lowStockItems.length - 1 && <View style={styles.separator} />}
-                </View>
-              ))}
-            </View>
           )}
         </View>
 
-        {/* Shopping list preview */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Shopping list</Text>
+        {/* ─── Pantry Overview ─────────────────────────────────────────── */}
+        {categoryBreakdown.length > 0 && (
+          <View style={dynStyles.section}>
+            <Text style={dynStyles.sectionTitle}>Pantry Overview</Text>
+            <View style={dynStyles.card}>
+              {categoryBreakdown.map(([cat, count], idx) => {
+                const pct = (count / maxCategoryCount) * 100;
+                const catColor = getCategoryColor(cat);
+                return (
+                  <View key={cat}>
+                    <View style={dynStyles.pantryRow}>
+                      <View style={dynStyles.pantryLabelRow}>
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 6,
+                            flex: 1,
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: catColor,
+                            }}
+                          />
+                          <Text style={dynStyles.pantryLabel}>{cat}</Text>
+                        </View>
+                        <Text style={dynStyles.pantryCount}>
+                          {count} {count === 1 ? 'item' : 'items'}
+                        </Text>
+                      </View>
+                      <View style={dynStyles.pantryTrack}>
+                        <View
+                          style={{
+                            width: `${pct}%`,
+                            height: '100%',
+                            backgroundColor: catColor,
+                            borderRadius: 3,
+                            opacity: 0.75,
+                          }}
+                        />
+                      </View>
+                    </View>
+                    {idx < categoryBreakdown.length - 1 && (
+                      <View style={dynStyles.separator} />
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* ─── Shopping List Preview ───────────────────────────────────── */}
+        <View style={dynStyles.section}>
+          <View style={dynStyles.sectionHeader}>
+            <Text style={dynStyles.sectionTitle}>Shopping List</Text>
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => setShowShoppingList(true)}>
-              <Text style={styles.viewAllLink}>View all</Text>
+              onPress={() => setShowShoppingList(true)}
+            >
+              <Text style={dynStyles.seeAll}>View all</Text>
             </TouchableOpacity>
           </View>
 
-          {pendingShoppingItems.length === 0 ? (
-            <View style={styles.card}>
-              <Text style={styles.emptyStateText}>Nothing on your list</Text>
+          {pendingShoppingCount === 0 ? (
+            <View style={dynStyles.emptyCard}>
+              <Text style={dynStyles.emptyText}>Your list is empty</Text>
             </View>
           ) : (
-            <View style={styles.card}>
-              {pendingShoppingItems.map((item, idx) => (
-                <View key={item.id}>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={styles.shoppingRow}
-                    onPress={() => toggleComplete({itemId: item.id, completed: true})}>
-                    <View style={styles.checkbox} />
-                    <View style={styles.shoppingInfo}>
-                      <Text style={styles.shoppingName}>{item.item_name}</Text>
-                      {item.note ? (
-                        <Text style={styles.shoppingNote}>{item.note}</Text>
-                      ) : null}
-                    </View>
-                    {item.added_by === 'system' && (
-                      <View style={styles.autoTag}>
-                        <Text style={styles.autoTagText}>Auto</Text>
-                      </View>
+            <View style={dynStyles.card}>
+              {shoppingItems
+                .filter(i => !i.completed)
+                .slice(0, 5)
+                .map((item, idx, arr) => (
+                  <View key={item.id}>
+                    <TouchableOpacity
+                      style={dynStyles.shoppingRow}
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        toggleComplete({ itemId: item.id, completed: true })
+                      }
+                    >
+                      <View style={dynStyles.checkbox} />
+                      <Text style={dynStyles.shoppingName}>
+                        {item.item_name}
+                      </Text>
+                      {item.added_by === 'system' && (
+                        <View style={dynStyles.autoTag}>
+                          <Text style={dynStyles.autoTagText}>Auto</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                    {idx < arr.length - 1 && (
+                      <View style={dynStyles.separator} />
                     )}
-                  </TouchableOpacity>
-                  {idx < pendingShoppingItems.length - 1 && <View style={styles.separator} />}
-                </View>
-              ))}
-              {shoppingItems.filter(i => !i.completed).length > 5 && (
+                  </View>
+                ))}
+              {pendingShoppingCount > 5 && (
                 <TouchableOpacity
+                  style={{
+                    padding: Spacing.md,
+                    alignItems: 'center',
+                    borderTopWidth: 1,
+                    borderTopColor: colors.border,
+                  }}
                   activeOpacity={0.7}
-                  style={styles.viewMoreRow}
-                  onPress={() => setShowShoppingList(true)}>
-                  <Text style={styles.viewMoreText}>
-                    +{shoppingItems.filter(i => !i.completed).length - 5} more items
+                  onPress={() => setShowShoppingList(true)}
+                >
+                  <Text style={dynStyles.seeAll}>
+                    +{pendingShoppingCount - 5} more
                   </Text>
                 </TouchableOpacity>
               )}
@@ -328,290 +686,75 @@ export default function DashboardScreen() {
           )}
         </View>
 
+        {/* ─── Spend Delta ─────────────────────────────────────────────── */}
+        {spendDelta !== null && (
+          <View style={dynStyles.section}>
+            <Text style={dynStyles.sectionTitle}>Month vs Last Month</Text>
+            <View
+              style={[
+                dynStyles.card,
+                {
+                  padding: Spacing.lg,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                },
+              ]}
+            >
+              <View>
+                <Text
+                  style={{
+                    color: colors.textPrimary,
+                    fontSize: Typography.sizes.xxxl,
+                    fontWeight: Typography.weights.bold,
+                    letterSpacing: -1,
+                  }}
+                >
+                  {formatAmount(monthSpend)}
+                </Text>
+                <Text
+                  style={{
+                    color: colors.textSecondary,
+                    fontSize: Typography.sizes.xs,
+                    marginTop: 2,
+                  }}
+                >
+                  this month
+                </Text>
+              </View>
+              <View
+                style={{
+                  borderRadius: Radius.full,
+                  paddingHorizontal: Spacing.md,
+                  paddingVertical: 6,
+                  backgroundColor:
+                    spendDelta > 0 ? colors.dangerBg : colors.successBg,
+                }}
+              >
+                <Text
+                  style={{
+                    color: spendDelta > 0 ? colors.danger : colors.success,
+                    fontSize: Typography.sizes.sm,
+                    fontWeight: Typography.weights.medium,
+                  }}
+                >
+                  {spendDelta > 0 ? '↑' : '↓'} {formatAmount(Math.abs(spendDelta))}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
-      {/* Shopping list full-screen modal */}
+      {/* Shopping list modal */}
       <Modal
         visible={showShoppingList}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setShowShoppingList(false)}>
+        onRequestClose={() => setShowShoppingList(false)}
+      >
         <ShoppingListScreen onClose={() => setShowShoppingList(false)} />
       </Modal>
-
     </SafeAreaView>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.md,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.xl,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: 100,
-    paddingTop: Spacing.md,
-    gap: Spacing.xl,
-  },
-
-  // Header
-  header: {
-    paddingTop: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  headerLeft: {
-    flex: 1,
-    gap: 2,
-  },
-  greeting: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-  },
-  name: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.xxxl,
-    fontWeight: Typography.weights.bold,
-    letterSpacing: -0.5,
-  },
-  profileButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.surface,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  profileButtonText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.md,
-  },
-
-  // Stats row
-  statsRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: Colors.surfaceElevated,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    alignItems: 'flex-start',
-    gap: 4,
-    ...Shadows.soft,
-  },
-  statCardMiddle: {
-    // Gap handled in statsRow
-  },
-  statValue: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.bold,
-  },
-  statLabel: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-  },
-
-  // Section
-  section: {
-    gap: Spacing.md,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  sectionTitle: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.bold,
-    letterSpacing: -0.3,
-  },
-  viewAllLink: {
-    color: Colors.blue,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-  },
-
-  // Card
-  card: {
-    backgroundColor: Colors.surfaceElevated,
-    borderWidth: Border.width,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    overflow: 'hidden',
-    ...Shadows.medium,
-  },
-
-  // Weekly spend
-  weekSpendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.lg,
-  },
-  weekAmount: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.xxxl,
-    fontWeight: Typography.weights.bold,
-    letterSpacing: -1,
-  },
-  weekSub: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-    marginTop: 4,
-  },
-  deltaBadge: {
-    borderWidth: Border.width,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-  },
-  deltaText: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.medium,
-  },
-
-  // Inventory alerts
-  alertRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    gap: Spacing.md,
-  },
-  alertLeft: {
-    flex: 1,
-    gap: 2,
-  },
-  alertName: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.regular,
-  },
-  alertCategory: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.regular,
-  },
-  alertRight: {
-    alignItems: 'flex-end',
-    gap: 4,
-    minWidth: 60,
-  },
-  alertLevel: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.medium,
-  },
-  barTrack: {
-    width: 60,
-    height: 4,
-    backgroundColor: Colors.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: 4,
-    borderRadius: 2,
-  },
-
-  // Shopping list preview
-  shoppingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    gap: Spacing.md,
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: Colors.textSecondary,
-  },
-  shoppingInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  shoppingName: {
-    color: Colors.textPrimary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.regular,
-  },
-  shoppingNote: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.regular,
-  },
-  autoTag: {
-    borderWidth: Border.width,
-    borderColor: Colors.blue,
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-  autoTagText: {
-    color: Colors.blue,
-    fontSize: 10,
-    fontWeight: Typography.weights.medium,
-  },
-  viewMoreRow: {
-    padding: Spacing.md,
-    alignItems: 'center',
-    borderTopWidth: Border.width,
-    borderTopColor: Colors.border,
-  },
-  viewMoreText: {
-    color: Colors.blue,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-  },
-
-  // Shared
-  separator: {
-    height: Border.width,
-    backgroundColor: Colors.border,
-    marginHorizontal: Spacing.md,
-  },
-  emptyStateText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.regular,
-    padding: Spacing.md,
-    textAlign: 'center',
-  },
-});
