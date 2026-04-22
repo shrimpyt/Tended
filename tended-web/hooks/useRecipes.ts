@@ -61,7 +61,7 @@ export async function fetchRecipeDetails(spoonacularId: number): Promise<Partial
 
   return {
     instructions: details.instructions || details.summary,
-    readyInMinutes: details.readyInMinutes,
+    ready_in_minutes: details.readyInMinutes,
     servings: details.servings,
     ingredients: details.extendedIngredients,
   };

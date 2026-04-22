@@ -95,6 +95,7 @@ export interface ShoppingListItem {
   added_by: string; // user id or 'system'
   note: string | null;
   completed: boolean;
+  category: string | null;
   created_at: string;
   added_by_name?: string;
 }
