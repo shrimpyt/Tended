@@ -14,3 +14,7 @@
 ## 2026-04-12 - Accessibility of dynamic modal interactive components
 **Learning:** Interactive elements such as custom toggle switches, quantity adjustment (+/-) buttons, and category chips within dynamic modals often miss ARIA roles/labels and distinct keyboard focus states, hindering accessibility for keyboard and screen-reader users.
 **Action:** Always verify that interactive items in modal lists (like restock toggles or amount steppers) have their corresponding `role`, `aria-checked`, `aria-label` attributes and utilize `focus-visible` utility classes for clear visual keyboard navigation.
+
+## 2025-04-25 - Accessibility of text buttons in dynamic modals
+**Learning:** Custom text buttons (e.g. 'Cancel', 'Add', 'Look up') and category chips within dynamic modals like `BarcodeScanModal.tsx` lacked distinct focus states. Keyboard users couldn't see which item was currently focused.
+**Action:** Always verify that interactive items in modal lists (like header action buttons and inline lookup buttons) have their corresponding `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color]` utility classes for clear visual keyboard navigation.

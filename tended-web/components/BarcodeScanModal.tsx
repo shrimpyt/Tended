@@ -236,7 +236,7 @@ export default function BarcodeScanModal({ visible, onScan, onManualEntry, onClo
         <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
           <button
             onClick={step === 'confirm' || step === 'notFound' ? () => { reset(); startCamera(); } : handleClose}
-            className="text-sm text-text-secondary hover:text-foreground transition-colors w-14"
+            className="text-sm text-text-secondary hover:text-foreground transition-colors w-14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue rounded-md px-1"
           >
             {step === 'confirm' || step === 'notFound' ? 'Rescan' : 'Cancel'}
           </button>
@@ -248,7 +248,7 @@ export default function BarcodeScanModal({ visible, onScan, onManualEntry, onClo
             {step === 'saving' && 'Saving…'}
           </h2>
           {(step === 'confirm' || step === 'notFound') ? (
-            <button onClick={handleSave} className="text-sm text-primary-blue font-medium hover:text-primary-blue/80 transition-colors w-14 text-right">Add</button>
+            <button onClick={handleSave} className="text-sm text-primary-blue font-medium hover:text-primary-blue/80 transition-colors w-14 text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue rounded-md px-1">Add</button>
           ) : (
             <div className="w-14" />
           )}
@@ -298,7 +298,7 @@ export default function BarcodeScanModal({ visible, onScan, onManualEntry, onClo
                 />
                 <button
                   onClick={() => handleManualBarcodeSubmit(manualInputRef.current?.value ?? '')}
-                  className="px-4 py-2 rounded-lg bg-primary-blue text-white text-sm font-medium hover:bg-primary-blue/90 transition-colors"
+                  className="px-4 py-2 rounded-lg bg-primary-blue text-white text-sm font-medium hover:bg-primary-blue/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   Look up
                 </button>
@@ -369,7 +369,7 @@ export default function BarcodeScanModal({ visible, onScan, onManualEntry, onClo
                   <button
                     key={chip}
                     onClick={() => step === 'confirm' ? setDraft(d => d ? { ...d, category: chip } : d) : setManualCategory(chip)}
-                    className="px-2.5 py-1 rounded-full text-xs border border-border text-text-secondary hover:text-foreground hover:border-primary-blue transition-colors"
+                    className="px-2.5 py-1 rounded-full text-xs border border-border text-text-secondary hover:text-foreground hover:border-primary-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue"
                   >
                     {chip}
                   </button>
