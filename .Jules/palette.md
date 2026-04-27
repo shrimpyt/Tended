@@ -14,3 +14,7 @@
 ## 2026-04-12 - Accessibility of dynamic modal interactive components
 **Learning:** Interactive elements such as custom toggle switches, quantity adjustment (+/-) buttons, and category chips within dynamic modals often miss ARIA roles/labels and distinct keyboard focus states, hindering accessibility for keyboard and screen-reader users.
 **Action:** Always verify that interactive items in modal lists (like restock toggles or amount steppers) have their corresponding `role`, `aria-checked`, `aria-label` attributes and utilize `focus-visible` utility classes for clear visual keyboard navigation.
+
+## 2026-04-27 - Accessible Interactive Form Elements
+**Learning:** Non-semantic interactive elements, like using a `<label>` as a primary click target for a hidden file input or visually selected category chips without state bindings, remain invisible or ambiguous to screen readers and keyboard users.
+**Action:** Always refactor interactive `<label>` wrappers into focusable `<button>`s that programmatically trigger inputs. Furthermore, apply `aria-pressed` states to custom category selection chips to communicate their toggle status clearly.
