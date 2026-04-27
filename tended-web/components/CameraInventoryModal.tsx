@@ -5,13 +5,22 @@ import Image from 'next/image';
 
 import { useAuthStore } from '../store/authStore';
 import { useInventory, useAddInventoryItem } from '../hooks/queries';
-const getUniqueCategories = (items: any[]) => Array.from(new Set(items.map(i => i.category).filter(Boolean)));
+const getUniqueCategories = (items: any[]) =>
+  Array.from(new Set(items.map(i => i.category).filter(Boolean)));
 import type { NewItem } from '../types/models';
 import { supabase } from '../lib/supabase';
 
 type Props = { visible: boolean; householdId: string; onClose: () => void };
 type Step = 'pick' | 'analyzing' | 'review' | 'saving';
-type IdentifiedItem = { name: string; category: string; quantity: number; max_quantity: number; threshold: number; unit: string | null; checked: boolean };
+type IdentifiedItem = {
+  name: string;
+  category: string;
+  quantity: number;
+  max_quantity: number;
+  threshold: number;
+  unit: string | null;
+  checked: boolean;
+};
 
 async function compressImageToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -34,7 +43,11 @@ async function compressImageToBase64(file: File): Promise<string> {
   });
 }
 
-export default function CameraInventoryModal({ visible, householdId, onClose }: Props) {
+export default function CameraInventoryModal({
+  visible,
+  householdId,
+  onClose,
+}: Props) {
   const { profile } = useAuthStore();
   const { data: items = [] } = useInventory(householdId);
   const { mutateAsync: addItem } = useAddInventoryItem();
@@ -57,7 +70,10 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
     setError(null);
   };
 
-  const handleClose = () => { reset(); onClose(); };
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -72,23 +88,33 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
       const previewUrl = URL.createObjectURL(file);
       setPhotoDataUrl(previewUrl);
 
-      const { data, error: fnError } = await supabase.functions.invoke('analyze-image', {
-        body: { action: 'inventory', image: base64 },
-      });
+      const { data, error: fnError } = await supabase.functions.invoke(
+        'analyze-image',
+        {
+          body: { action: 'inventory', image: base64 },
+        },
+      );
 
       if (fnError) throw new Error(fnError.message ?? 'Edge function failed');
 
       if (data?.items) {
         setIdentified(
-          data.items.map((item: { name: string; category: string; stock_level?: number; unit?: string }) => ({
-            name: item.name,
-            category: item.category,
-            quantity: Math.round(((item.stock_level || 50) / 100) * 10) / 10,
-            max_quantity: 1,
-            threshold: 0.25,
-            unit: item.unit || null,
-            checked: true,
-          }))
+          data.items.map(
+            (item: {
+              name: string;
+              category: string;
+              stock_level?: number;
+              unit?: string;
+            }) => ({
+              name: item.name,
+              category: item.category,
+              quantity: Math.round(((item.stock_level || 50) / 100) * 10) / 10,
+              max_quantity: 1,
+              threshold: 0.25,
+              unit: item.unit || null,
+              checked: true,
+            }),
+          ),
         );
       } else {
         setIdentified([]);
@@ -101,10 +127,20 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
   };
 
   const toggleItem = (index: number) =>
-    setIdentified(prev => prev.map((item, i) => i === index ? { ...item, checked: !item.checked } : item));
+    setIdentified(prev =>
+      prev.map((item, i) =>
+        i === index ? { ...item, checked: !item.checked } : item,
+      ),
+    );
 
-  const updateItem = (index: number, field: 'name' | 'category', value: string) =>
-    setIdentified(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  const updateItem = (
+    index: number,
+    field: 'name' | 'category',
+    value: string,
+  ) =>
+    setIdentified(prev =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
+    );
 
   const handleAddAll = async () => {
     if (!profile?.household_id || !profile?.id) return;
@@ -120,8 +156,14 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
         unit: item.unit,
       };
       try {
-        await addItem({ householdId: profile.household_id, userId: profile.id, item: newItem });
-      } catch (e) { console.error(e); }
+        await addItem({
+          householdId: profile.household_id,
+          userId: profile.id,
+          item: newItem,
+        });
+      } catch (e) {
+        console.error(e);
+      }
     }
     handleClose();
   };
@@ -135,11 +177,17 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
       <div className="glass rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col border border-white/20 shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <button onClick={handleClose} className="text-sm text-text-secondary hover:text-foreground transition-colors">Cancel</button>
+          <button
+            onClick={handleClose}
+            className="text-sm text-text-secondary hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue rounded-md px-1"
+          >
+            Cancel
+          </button>
           <h2 className="text-sm font-semibold">
             {step === 'pick' && 'Scan Items'}
             {step === 'analyzing' && 'Analyzing…'}
-            {step === 'review' && `${identified.length} item${identified.length !== 1 ? 's' : ''} found`}
+            {step === 'review' &&
+              `${identified.length} item${identified.length !== 1 ? 's' : ''} found`}
             {step === 'saving' && 'Saving…'}
           </h2>
           <div className="w-12" />
@@ -150,8 +198,13 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
           <div className="flex-1 flex flex-col items-center justify-center p-8 gap-5">
             <div className="text-4xl">📷</div>
             <div className="text-center">
-              <p className="text-base font-medium text-foreground mb-1">Scan your pantry</p>
-              <p className="text-sm text-text-secondary">Take a photo of any shelf, fridge, or cupboard. AI will identify what it sees.</p>
+              <p className="text-base font-medium text-foreground mb-1">
+                Scan your pantry
+              </p>
+              <p className="text-sm text-text-secondary">
+                Take a photo of any shelf, fridge, or cupboard. AI will identify
+                what it sees.
+              </p>
             </div>
             {error && (
               <div className="w-full px-4 py-3 rounded-lg bg-red/10 border border-red/30 text-sm text-red">
@@ -168,7 +221,7 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full py-3 rounded-xl bg-primary-blue text-white font-semibold text-sm hover:bg-primary-blue/90 transition-colors"
+              className="w-full py-3 rounded-xl bg-primary-blue text-white font-semibold text-sm hover:bg-primary-blue/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Take Photo
             </button>
@@ -179,13 +232,17 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
               className="hidden"
               onChange={handleFileChange}
             />
-            <label
-              htmlFor="camera-gallery-input"
-              className="w-full py-3 rounded-xl bg-surface-elevated border border-border text-foreground font-medium text-sm text-center cursor-pointer hover:bg-white/5 transition-colors"
+            <button
+              onClick={() =>
+                document.getElementById('camera-gallery-input')?.click()
+              }
+              className="w-full py-3 rounded-xl bg-surface-elevated border border-border text-foreground font-medium text-sm text-center cursor-pointer hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue"
             >
               Choose from Library
-            </label>
-            <p className="text-xs text-text-secondary text-center">💡 Works best with good lighting and items visible</p>
+            </button>
+            <p className="text-xs text-text-secondary text-center">
+              💡 Works best with good lighting and items visible
+            </p>
           </div>
         )}
 
@@ -193,11 +250,20 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
         {step === 'analyzing' && (
           <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">
             {photoDataUrl && (
-              <Image src={photoDataUrl} alt="Preview" width={128} height={128} className="w-32 h-32 rounded-xl object-cover opacity-60" unoptimized />
+              <Image
+                src={photoDataUrl}
+                alt="Preview"
+                width={128}
+                height={128}
+                className="w-32 h-32 rounded-xl object-cover opacity-60"
+                unoptimized
+              />
             )}
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-blue" />
             <p className="text-base font-medium">Identifying items…</p>
-            <p className="text-sm text-text-secondary">AI is scanning your photo</p>
+            <p className="text-sm text-text-secondary">
+              AI is scanning your photo
+            </p>
           </div>
         )}
 
@@ -212,7 +278,9 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
                 <div
                   key={idx}
                   className={`flex items-start gap-3 p-4 rounded-xl border transition-opacity ${
-                    item.checked ? 'bg-surface-elevated border-border' : 'bg-transparent border-border/30 opacity-50'
+                    item.checked
+                      ? 'bg-surface-elevated border-border'
+                      : 'bg-transparent border-border/30 opacity-50'
                   }`}
                 >
                   <button
@@ -220,11 +288,17 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
                     aria-checked={item.checked}
                     aria-label={`Select ${item.name}`}
                     onClick={() => toggleItem(idx)}
-                    className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                      item.checked ? 'bg-primary-blue border-primary-blue' : 'border-border bg-transparent'
+                    className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                      item.checked
+                        ? 'bg-primary-blue border-primary-blue'
+                        : 'border-border bg-transparent'
                     }`}
                   >
-                    {item.checked && <span className="text-white text-[10px] font-bold">✓</span>}
+                    {item.checked && (
+                      <span className="text-white text-[10px] font-bold">
+                        ✓
+                      </span>
+                    )}
                   </button>
                   <div className="flex-1 min-w-0">
                     <input
@@ -236,8 +310,9 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
                       {categorySuggestions.map(cat => (
                         <button
                           key={cat}
+                          aria-pressed={item.category === cat}
                           onClick={() => updateItem(idx, 'category', cat)}
-                          className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                          className={`px-2.5 py-1 rounded-full text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue ${
                             item.category === cat
                               ? 'bg-primary-blue border-primary-blue text-white'
                               : 'border-border text-text-secondary bg-transparent hover:text-foreground'
@@ -251,15 +326,19 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
                 </div>
               ))}
               {identified.length === 0 && (
-                <p className="text-sm text-text-secondary text-center py-6">No items identified. Try again with better lighting.</p>
+                <p className="text-sm text-text-secondary text-center py-6">
+                  No items identified. Try again with better lighting.
+                </p>
               )}
             </div>
             <div className="px-5 py-4 border-t border-border flex items-center justify-between gap-3">
-              <span className="text-xs text-text-secondary">{selectedCount} of {identified.length} selected</span>
+              <span className="text-xs text-text-secondary">
+                {selectedCount} of {identified.length} selected
+              </span>
               <button
                 onClick={handleAddAll}
                 disabled={selectedCount === 0}
-                className="px-5 py-2.5 rounded-xl bg-primary-blue text-white text-sm font-semibold disabled:opacity-40 hover:bg-primary-blue/90 transition-colors"
+                className="px-5 py-2.5 rounded-xl bg-primary-blue text-white text-sm font-semibold disabled:opacity-40 hover:bg-primary-blue/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 Add {selectedCount} item{selectedCount !== 1 ? 's' : ''} →
               </button>
