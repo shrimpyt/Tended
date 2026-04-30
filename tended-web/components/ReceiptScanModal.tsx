@@ -248,6 +248,7 @@ export default function ReceiptScanModal({ visible, householdId, onClose }: Prop
                     {CATEGORIES.map(cat => (
                       <button
                         key={cat}
+                        aria-pressed={li.category === cat}
                         onClick={() => handleUpdateItem(index, 'category', cat)}
                         className={`px-2 py-0.5 rounded-full text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue ${
                           li.category === cat
