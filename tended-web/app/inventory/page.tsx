@@ -2,9 +2,25 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { useInventory, useAddInventoryItem, useDeleteInventoryItem, useUpdateQuantity } from '@/hooks/queries';
+import {
+  useInventory,
+  useAddInventoryItem,
+  useDeleteInventoryItem,
+  useUpdateQuantity,
+} from '@/hooks/queries';
 import Link from 'next/link';
-import { Zap, Plus, X, Edit, Trash2, Package, AlertTriangle, Clock, MoreHorizontal, Minus } from 'lucide-react';
+import {
+  Zap,
+  Plus,
+  X,
+  Edit,
+  Trash2,
+  Package,
+  AlertTriangle,
+  Clock,
+  MoreHorizontal,
+  Minus,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AIDialog from '@/components/AIDialog';
 import BarcodeScanModal from '@/components/BarcodeScanModal';
@@ -27,7 +43,8 @@ function mapOFFCategory(categoriesStr: string | undefined): string {
     cats.includes('laundry') ||
     cats.includes('trash') ||
     cats.includes('paper')
-  ) return 'Cleaning';
+  )
+    return 'Cleaning';
 
   if (
     cats.includes('cosmetics') ||
@@ -36,7 +53,8 @@ function mapOFFCategory(categoriesStr: string | undefined): string {
     cats.includes('soap') ||
     cats.includes('shampoo') ||
     cats.includes('hygiene')
-  ) return 'Bathroom';
+  )
+    return 'Bathroom';
 
   if (
     cats.includes('pantry') ||
@@ -45,14 +63,17 @@ function mapOFFCategory(categoriesStr: string | undefined): string {
     cats.includes('canned') ||
     cats.includes('dry') ||
     cats.includes('baking')
-  ) return 'Pantry';
+  )
+    return 'Pantry';
 
   return 'Kitchen'; // default
 }
 
 function parseUnit(quantityStr: string | undefined): string {
   if (!quantityStr) return 'pc';
-  const match = quantityStr.match(/(?:\b|(?<=\d))(ml|l|g|kg|oz|lb|fl oz|count|rolls|sheets|pack)\b/i);
+  const match = quantityStr.match(
+    /(?:\b|(?<=\d))(ml|l|g|kg|oz|lb|fl oz|count|rolls|sheets|pack)\b/i,
+  );
   if (match && match[1]) {
     const u = match[1].toLowerCase();
     if (u === 'l') return 'L';
@@ -102,7 +123,8 @@ function QuantityStepper({ item, userId }: { item: Item; userId: string }) {
         style={{
           border: '1px solid var(--glass-border)',
           background: 'var(--surface)',
-          color: item.quantity <= 0 ? 'var(--text-secondary)' : 'var(--foreground)',
+          color:
+            item.quantity <= 0 ? 'var(--text-secondary)' : 'var(--foreground)',
           opacity: item.quantity <= 0 ? 0.4 : 1,
           cursor: item.quantity <= 0 ? 'not-allowed' : 'pointer',
         }}
@@ -123,7 +145,10 @@ function QuantityStepper({ item, userId }: { item: Item; userId: string }) {
           >
             {item.quantity}
             {item.unit ? (
-              <span className="ml-0.5 text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>
+              <span
+                className="ml-0.5 text-[10px] font-normal"
+                style={{ color: 'var(--text-secondary)' }}
+              >
                 {item.unit}
               </span>
             ) : null}
@@ -143,9 +168,12 @@ function QuantityStepper({ item, userId }: { item: Item; userId: string }) {
           border: '1px solid var(--glass-border)',
           background: 'var(--surface)',
           color:
-            item.quantity >= item.max_quantity ? 'var(--text-secondary)' : 'var(--foreground)',
+            item.quantity >= item.max_quantity
+              ? 'var(--text-secondary)'
+              : 'var(--foreground)',
           opacity: item.quantity >= item.max_quantity ? 0.4 : 1,
-          cursor: item.quantity >= item.max_quantity ? 'not-allowed' : 'pointer',
+          cursor:
+            item.quantity >= item.max_quantity ? 'not-allowed' : 'pointer',
         }}
       >
         <Plus size={13} strokeWidth={2.5} />
@@ -156,7 +184,10 @@ function QuantityStepper({ item, userId }: { item: Item; userId: string }) {
 
 // ── Item Card ─────────────────────────────────────────────────────
 function InventoryCard({ item, userId }: { item: Item; userId: string }) {
-  const pct = Math.min(100, Math.max(0, (item.quantity / item.max_quantity) * 100));
+  const pct = Math.min(
+    100,
+    Math.max(0, (item.quantity / item.max_quantity) * 100),
+  );
   const isLow = item.quantity / item.max_quantity <= item.threshold;
   const isEmpty = item.quantity === 0;
 
@@ -177,7 +208,10 @@ function InventoryCard({ item, userId }: { item: Item; userId: string }) {
             {item.name}
           </h3>
           {item.category && (
-            <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>
+            <p
+              className="text-xs mt-0.5 truncate"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               {item.category}
             </p>
           )}
@@ -192,7 +226,11 @@ function InventoryCard({ item, userId }: { item: Item; userId: string }) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               className="flex-shrink-0 flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full"
-              style={{ background: 'rgba(239,68,68,0.15)', color: '#F87171', border: '1px solid rgba(239,68,68,0.3)' }}
+              style={{
+                background: 'rgba(239,68,68,0.15)',
+                color: '#F87171',
+                border: '1px solid rgba(239,68,68,0.3)',
+              }}
             >
               <AlertTriangle size={10} strokeWidth={2.5} />
               Out
@@ -204,7 +242,11 @@ function InventoryCard({ item, userId }: { item: Item; userId: string }) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               className="flex-shrink-0 flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full"
-              style={{ background: 'rgba(245,158,11,0.15)', color: '#FBBF24', border: '1px solid rgba(245,158,11,0.3)' }}
+              style={{
+                background: 'rgba(245,158,11,0.15)',
+                color: '#FBBF24',
+                border: '1px solid rgba(245,158,11,0.3)',
+              }}
             >
               <AlertTriangle size={10} strokeWidth={2.5} />
               Low
@@ -215,7 +257,10 @@ function InventoryCard({ item, userId }: { item: Item; userId: string }) {
 
       {/* Progress bar */}
       <div>
-        <div className="flex justify-between items-center text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+        <div
+          className="flex justify-between items-center text-xs mb-1.5"
+          style={{ color: 'var(--text-secondary)' }}
+        >
           <span>Stock level</span>
           <span className="font-medium text-foreground">
             {item.quantity} / {item.max_quantity}
@@ -232,8 +277,8 @@ function InventoryCard({ item, userId }: { item: Item; userId: string }) {
               background: isEmpty
                 ? 'rgba(239,68,68,0.6)'
                 : isLow
-                ? 'linear-gradient(90deg, #F59E0B, #FBBF24)'
-                : 'var(--primary)',
+                  ? 'linear-gradient(90deg, #F59E0B, #FBBF24)'
+                  : 'var(--primary)',
             }}
             initial={false}
             animate={{ width: `${pct}%` }}
@@ -243,8 +288,14 @@ function InventoryCard({ item, userId }: { item: Item; userId: string }) {
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center justify-between border-t pt-3" style={{ borderColor: 'var(--glass-border)' }}>
-        <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+      <div
+        className="flex items-center justify-between border-t pt-3"
+        style={{ borderColor: 'var(--glass-border)' }}
+      >
+        <span
+          className="text-xs font-medium"
+          style={{ color: 'var(--text-secondary)' }}
+        >
           Adjust quantity
         </span>
         <QuantityStepper item={item} userId={userId} />
@@ -258,7 +309,10 @@ function SkeletonCard() {
   return (
     <div
       className="rounded-2xl p-5 space-y-4"
-      style={{ border: '1px solid var(--glass-border)', background: 'var(--surface-elevated)' }}
+      style={{
+        border: '1px solid var(--glass-border)',
+        background: 'var(--surface-elevated)',
+      }}
     >
       <div className="flex justify-between">
         <div className="space-y-2 flex-1">
@@ -267,7 +321,10 @@ function SkeletonCard() {
         </div>
       </div>
       <div className="h-2 bg-white/10 rounded-full animate-pulse" />
-      <div className="flex justify-between items-center pt-3 border-t" style={{ borderColor: 'var(--glass-border)' }}>
+      <div
+        className="flex justify-between items-center pt-3 border-t"
+        style={{ borderColor: 'var(--glass-border)' }}
+      >
         <div className="h-3 bg-white/5 rounded animate-pulse w-20" />
         <div className="flex gap-2">
           <div className="w-8 h-8 bg-white/10 rounded-lg animate-pulse" />
@@ -294,11 +351,14 @@ export default function InventoryPage() {
       : null;
 
   const visibleItems = allowedCategories
-    ? items.filter(item => item.category != null && allowedCategories.includes(item.category))
+    ? items.filter(
+        item =>
+          item.category != null && allowedCategories.includes(item.category),
+      )
     : items;
 
   const [aiOpen, setAiOpen] = useState(false);
-  const [cameraOpen, setCameraOpen]   = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [quickFeedback, setQuickFeedback] = useState<string | null>(null);
@@ -323,14 +383,21 @@ export default function InventoryPage() {
     try {
       const res = await fetch(
         `https://world.openfoodfacts.org/api/v0/product/${code}.json`,
-        {headers: {'User-Agent': 'TendedWebApp/1.0'}},
+        { headers: { 'User-Agent': 'TendedWebApp/1.0' } },
       );
       const json = await res.json();
 
       if (json.status !== 1 || !json.product) {
         setQuickFeedback(`Product not found. Please add manually.`);
         setTimeout(() => setQuickFeedback(null), 4000);
-        setFormData({ name: '', category: 'Pantry', quantity: 1, max_quantity: 1, threshold: 0, unit: 'pc' });
+        setFormData({
+          name: '',
+          category: 'Pantry',
+          quantity: 1,
+          max_quantity: 1,
+          threshold: 0,
+          unit: 'pc',
+        });
         setIsManualModalOpen(true);
         return true; // Return true to close scanner
       }
@@ -353,7 +420,7 @@ export default function InventoryPage() {
             unit: parseUnit(p.quantity) || 'pc',
             max_quantity: 1,
             threshold: 1,
-          }
+          },
         });
         setQuickFeedback(`Added ${name}!`);
         setTimeout(() => setQuickFeedback(null), 3000);
@@ -361,7 +428,14 @@ export default function InventoryPage() {
       } else {
         setQuickFeedback(`Product not found. Please add manually.`);
         setTimeout(() => setQuickFeedback(null), 4000);
-        setFormData({ name: '', category: 'Pantry', quantity: 1, max_quantity: 1, threshold: 0, unit: 'pc' });
+        setFormData({
+          name: '',
+          category: 'Pantry',
+          quantity: 1,
+          max_quantity: 1,
+          threshold: 0,
+          unit: 'pc',
+        });
         setIsManualModalOpen(true);
         return true;
       }
@@ -369,7 +443,14 @@ export default function InventoryPage() {
       console.error(err);
       setQuickFeedback(`Error looking up product. Please add manually.`);
       setTimeout(() => setQuickFeedback(null), 4000);
-      setFormData({ name: '', category: 'Pantry', quantity: 1, max_quantity: 1, threshold: 0, unit: 'pc' });
+      setFormData({
+        name: '',
+        category: 'Pantry',
+        quantity: 1,
+        max_quantity: 1,
+        threshold: 0,
+        unit: 'pc',
+      });
       setIsManualModalOpen(true);
       return true;
     }
@@ -409,11 +490,13 @@ export default function InventoryPage() {
         .update({ quantity: newQuantity })
         .eq('id', item.id);
       if (error) throw error;
-      queryClient.invalidateQueries({ queryKey: queryKeys.inventory(householdId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.inventory(householdId),
+      });
       setQuickFeedback(`Updated ${item.name} quantity to ${newQuantity}`);
       setTimeout(() => setQuickFeedback(null), 3000);
     } catch (err) {
-      console.error("Failed to update quantity", err);
+      console.error('Failed to update quantity', err);
       setQuickFeedback(`Error updating ${item.name}`);
       setTimeout(() => setQuickFeedback(null), 3000);
     }
@@ -435,7 +518,9 @@ export default function InventoryPage() {
         if (error) throw error;
 
         // Invalidate cache
-        queryClient.invalidateQueries({ queryKey: queryKeys.inventory(householdId) });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.inventory(householdId),
+        });
       } else {
         // Add new item
         await addItem({
@@ -446,31 +531,48 @@ export default function InventoryPage() {
       }
       setIsManualModalOpen(false);
     } catch (err) {
-      console.error("Failed to save item", err);
+      console.error('Failed to save item', err);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (itemId: string) => {
-    if (confirm("Are you sure you want to delete this item?")) {
+    if (confirm('Are you sure you want to delete this item?')) {
       await deleteItem(itemId);
     }
   };
 
-    return (
+  return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="bg-background/80 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-text-secondary hover:text-primary-blue">&larr; Back</Link>
-          <div className="font-bold text-xl text-text-primary tracking-tight">Inventory</div>
+          <Link
+            href="/"
+            className="text-text-secondary hover:text-primary-blue"
+          >
+            &larr; Back
+          </Link>
+          <div className="font-bold text-xl text-text-primary tracking-tight">
+            Inventory
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <motion.button whileTap={{ scale: 0.95 }} whileHover={{ scale: 1.02 }} onClick={openManualAdd} className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text-primary rounded-md text-sm font-medium hover:bg-white/5 transition-colors">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            onClick={openManualAdd}
+            className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border text-text-primary rounded-md text-sm font-medium hover:bg-white/5 transition-colors"
+          >
             <Plus size={16} />
             <span className="hidden sm:inline">Add Item</span>
           </motion.button>
-          <motion.button whileTap={{ scale: 0.95 }} whileHover={{ scale: 1.02 }} onClick={() => setAiOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-primary-blue text-white rounded-md text-sm font-medium hover:bg-primary-blue/90 transition-colors">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            onClick={() => setAiOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-primary-blue text-white rounded-md text-sm font-medium hover:bg-primary-blue/90 transition-colors"
+          >
             <Zap size={16} />
             <span className="hidden sm:inline">Quick Capture</span>
           </motion.button>
@@ -484,139 +586,195 @@ export default function InventoryPage() {
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24">
         {/* Stats Row - Scrollable horizontally on mobile */}
         <div className="flex overflow-x-auto pb-6 gap-4 hide-scrollbar snap-x">
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-                 <Package size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Total Items</p>
-                 <p className="text-2xl font-bold text-white truncate">{visibleItems.length}</p>
-              </div>
-           </div>
+          <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+              <Package size={24} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm text-text-secondary font-medium">
+                Total Items
+              </p>
+              <p className="text-2xl font-bold text-white truncate">
+                {visibleItems.length}
+              </p>
+            </div>
+          </div>
 
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
-                 <AlertTriangle size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Low Stock</p>
-                 <p className="text-2xl font-bold text-white truncate">
-                   {visibleItems.filter(i => i.quantity <= i.threshold).length}
-                 </p>
-              </div>
-           </div>
+          <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+            <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
+              <AlertTriangle size={24} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm text-text-secondary font-medium">
+                Low Stock
+              </p>
+              <p className="text-2xl font-bold text-white truncate">
+                {visibleItems.filter(i => i.quantity <= i.threshold).length}
+              </p>
+            </div>
+          </div>
 
-           <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-                 <Clock size={24} />
-              </div>
-              <div className="min-w-0">
-                 <p className="text-sm text-text-secondary font-medium">Recently Added</p>
-                 <p className="text-2xl font-bold text-white truncate">-- items</p>
-              </div>
-           </div>
+          <div className="min-w-[280px] sm:min-w-0 sm:flex-1 bg-[#1A1C23] rounded-2xl p-5 border border-white/5 flex items-center gap-4 snap-center">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+              <Clock size={24} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm text-text-secondary font-medium">
+                Recently Added
+              </p>
+              <p className="text-2xl font-bold text-white truncate">-- items</p>
+            </div>
+          </div>
         </div>
 
-{/* Inventory List */}
+        {/* Inventory List */}
         <div>
-           <div className="flex items-center justify-between mb-4">
-             <h2 className="text-lg font-bold text-white">Recent Inventory</h2>
-           </div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-white">Recent Inventory</h2>
+          </div>
 
-           <div className="bg-[#1A1C23] rounded-2xl border border-white/5 overflow-hidden">
-             {isLoading ? (
-               <div className="flex h-32 items-center justify-center">
-                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-               </div>
-             ) : (
-               <div className="divide-y divide-white/5">
-                 {visibleItems.length === 0 ? (
-                    <div className="p-8 text-center text-text-secondary">No items found in inventory.</div>
-                 ) : (
-                    visibleItems.map(item => {
-                      let percentage = 50;
-                      if (item.quantity > 0 && item.threshold > 0) {
-                         percentage = Math.min(100, (item.quantity / (item.threshold * 2)) * 100);
-                      }
-
-                      const isLowStock = item.quantity <= item.threshold;
-                      return (
-                         <div key={item.id} className={`flex flex-col sm:flex-row sm:items-center p-4 sm:px-6 sm:py-4 hover:bg-white/[0.02] transition-colors gap-4 ${isLowStock ? 'bg-red-500/5 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)] animate-pulse-slow' : ''}`}>
-                            {/* Mobile: Icon & Title Row */}
-                            <div className="flex items-center gap-4 w-full sm:w-auto">
-                              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary shrink-0">
-                                 <Package size={20} />
-                              </div>
-                              <div className="flex-1 min-w-0 sm:w-48">
-                                 <h3 className="font-semibold text-white text-sm truncate">{item.name}</h3>
-                                 <p className="text-xs text-text-secondary mt-0.5 truncate">{item.category}</p>
-                              </div>
-                              <div className="flex sm:hidden shrink-0 gap-1">
-                                <button aria-label={`Edit ${item.name}`} onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none">
-                                   <Edit size={18} />
-                                </button>
-                                <button aria-label={`Delete ${item.name}`} onClick={() => handleDelete(item.id)} className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors focus-visible:ring-2 focus-visible:outline-none">
-                                   <Trash2 size={18} />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Quick Adjust Quantity Controls */}
-                            <div className="flex items-center gap-3">
-                               <motion.button
-                                  aria-label={`Decrease quantity of ${item.name}`}
-                                  whileTap={{ scale: 0.9, transition: { type: 'spring', stiffness: 400, damping: 10 } }}
-                                  onClick={() => handleUpdateQuantity(item, item.quantity - 1)}
-                                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                               >
-                                  <Minus size={14} />
-                               </motion.button>
-                               <span className="text-white font-medium min-w-[2ch] text-center">{item.quantity}</span>
-                               <motion.button
-                                  aria-label={`Increase quantity of ${item.name}`}
-                                  whileTap={{ scale: 0.9, transition: { type: 'spring', stiffness: 400, damping: 10 } }}
-                                  onClick={() => handleUpdateQuantity(item, item.quantity + 1)}
-                                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                               >
-                                  <Plus size={14} />
-                               </motion.button>
-                            </div>
-
-                            {/* Progress bar */}
-                            <div className="flex-1 w-full min-w-0 hidden sm:block">
-                               <div className="flex justify-between text-xs text-text-secondary mb-1.5">
-                                  <span>{Math.round(percentage)}% remaining</span>
-                               </div>
-                               <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                  <div
-                                     className={`h-full rounded-full ${isLowStock ? 'bg-red-500' : 'bg-blue-500'}`}
-                                     style={{ width: `${percentage}%` }}
-                                  />
-                               </div>
-                            </div>
-
-                            <div className="hidden sm:flex items-center gap-2 shrink-0 justify-end">
-                               <button aria-label={`Edit ${item.name}`} onClick={() => openManualEdit(item)} className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none">
-                                  <Edit size={18} />
-                                </button>
-                               <button aria-label={`Delete ${item.name}`} onClick={() => handleDelete(item.id)} className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors focus-visible:ring-2 focus-visible:outline-none">
-                                  <Trash2 size={18} />
-                               </button>
-                            </div>
-                         </div>
+          <div className="bg-[#1A1C23] rounded-2xl border border-white/5 overflow-hidden">
+            {isLoading ? (
+              <div className="flex h-32 items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                {visibleItems.length === 0 ? (
+                  <div className="p-8 text-center text-text-secondary">
+                    No items found in inventory.
+                  </div>
+                ) : (
+                  visibleItems.map(item => {
+                    let percentage = 50;
+                    if (item.quantity > 0 && item.threshold > 0) {
+                      percentage = Math.min(
+                        100,
+                        (item.quantity / (item.threshold * 2)) * 100,
                       );
-                    })
-                 )}
-               </div>
-             )}
-           </div>
+                    }
+
+                    const isLowStock = item.quantity <= item.threshold;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`flex flex-col sm:flex-row sm:items-center p-4 sm:px-6 sm:py-4 hover:bg-white/[0.02] transition-colors gap-4 ${isLowStock ? 'bg-red-500/5 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)] animate-pulse-slow' : ''}`}
+                      >
+                        {/* Mobile: Icon & Title Row */}
+                        <div className="flex items-center gap-4 w-full sm:w-auto">
+                          <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary shrink-0">
+                            <Package size={20} />
+                          </div>
+                          <div className="flex-1 min-w-0 sm:w-48">
+                            <h3 className="font-semibold text-white text-sm truncate">
+                              {item.name}
+                            </h3>
+                            <p className="text-xs text-text-secondary mt-0.5 truncate">
+                              {item.category}
+                            </p>
+                          </div>
+                          <div className="flex sm:hidden shrink-0 gap-1">
+                            <button
+                              aria-label={`Edit ${item.name}`}
+                              onClick={() => openManualEdit(item)}
+                              className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                            >
+                              <Edit size={18} />
+                            </button>
+                            <button
+                              aria-label={`Delete ${item.name}`}
+                              onClick={() => handleDelete(item.id)}
+                              className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Quick Adjust Quantity Controls */}
+                        <div className="flex items-center gap-3">
+                          <motion.button
+                            aria-label={`Decrease quantity of ${item.name}`}
+                            whileTap={{
+                              scale: 0.9,
+                              transition: {
+                                type: 'spring',
+                                stiffness: 400,
+                                damping: 10,
+                              },
+                            }}
+                            onClick={() =>
+                              handleUpdateQuantity(item, item.quantity - 1)
+                            }
+                            className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                          >
+                            <Minus size={14} />
+                          </motion.button>
+                          <span className="text-white font-medium min-w-[2ch] text-center">
+                            {item.quantity}
+                          </span>
+                          <motion.button
+                            aria-label={`Increase quantity of ${item.name}`}
+                            whileTap={{
+                              scale: 0.9,
+                              transition: {
+                                type: 'spring',
+                                stiffness: 400,
+                                damping: 10,
+                              },
+                            }}
+                            onClick={() =>
+                              handleUpdateQuantity(item, item.quantity + 1)
+                            }
+                            className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                          >
+                            <Plus size={14} />
+                          </motion.button>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="flex-1 w-full min-w-0 hidden sm:block">
+                          <div className="flex justify-between text-xs text-text-secondary mb-1.5">
+                            <span>{Math.round(percentage)}% remaining</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${isLowStock ? 'bg-red-500' : 'bg-blue-500'}`}
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="hidden sm:flex items-center gap-2 shrink-0 justify-end">
+                          <button
+                            aria-label={`Edit ${item.name}`}
+                            onClick={() => openManualEdit(item)}
+                            className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            aria-label={`Delete ${item.name}`}
+                            onClick={() => handleDelete(item.id)}
+                            className="p-2 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
       <AIDialog
         open={aiOpen}
         onClose={() => setAiOpen(false)}
-        onTriggerScanner={(type) => {
+        onTriggerScanner={type => {
           if (type === 'camera') setCameraOpen(true);
           else if (type === 'barcode') setBarcodeOpen(true);
           else if (type === 'receipt') setReceiptOpen(true);
@@ -659,23 +817,39 @@ export default function InventoryPage() {
 
             <form onSubmit={handleManualSubmit} className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1 text-text-secondary">Name</label>
+                <label
+                  htmlFor="item-name"
+                  className="block text-sm font-medium mb-1 text-text-secondary"
+                >
+                  Name
+                </label>
                 <input
+                  id="item-name"
                   required
                   type="text"
                   value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  onChange={e =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
                   placeholder="e.g. Olive Oil"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1 text-text-secondary">Category</label>
+                <label
+                  htmlFor="item-category"
+                  className="block text-sm font-medium mb-1 text-text-secondary"
+                >
+                  Category
+                </label>
                 <select
+                  id="item-category"
                   required
                   value={formData.category || 'Kitchen'}
-                  onChange={e => setFormData({...formData, category: e.target.value})}
+                  onChange={e =>
+                    setFormData({ ...formData, category: e.target.value })
+                  }
                   className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
                 >
                   <option value="Pantry">Pantry</option>
@@ -686,38 +860,68 @@ export default function InventoryPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1 text-text-secondary">Current Qty</label>
+                <label
+                  htmlFor="item-quantity"
+                  className="block text-sm font-medium mb-1 text-text-secondary"
+                >
+                  Current Qty
+                </label>
                 <input
+                  id="item-quantity"
                   required
                   type="number"
                   min="0"
                   step="0.1"
                   value={formData.quantity}
-                  onChange={e => setFormData({...formData, quantity: parseFloat(e.target.value) || 0})}
+                  onChange={e =>
+                    setFormData({
+                      ...formData,
+                      quantity: parseFloat(e.target.value) || 0,
+                    })
+                  }
                   className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Threshold (reorder at)</label>
+                  <label
+                    htmlFor="item-threshold"
+                    className="block text-sm font-medium mb-1 text-text-secondary"
+                  >
+                    Threshold (reorder at)
+                  </label>
                   <input
+                    id="item-threshold"
                     required
                     type="number"
                     min="0"
                     step="0.1"
                     value={formData.threshold}
-                    onChange={e => setFormData({...formData, threshold: parseFloat(e.target.value) || 0})}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        threshold: parseFloat(e.target.value) || 0,
+                      })
+                    }
                     className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-text-secondary">Unit</label>
+                  <label
+                    htmlFor="item-unit"
+                    className="block text-sm font-medium mb-1 text-text-secondary"
+                  >
+                    Unit
+                  </label>
                   <input
+                    id="item-unit"
                     required
                     type="text"
                     value={formData.unit || ''}
-                    onChange={e => setFormData({...formData, unit: e.target.value})}
+                    onChange={e =>
+                      setFormData({ ...formData, unit: e.target.value })
+                    }
                     placeholder="pc, kg, L..."
                     className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue text-text-primary"
                   />
@@ -737,7 +941,11 @@ export default function InventoryPage() {
                   disabled={isSaving}
                   className="px-4 py-2 rounded-md text-sm font-medium bg-primary-blue text-white hover:bg-primary-blue/90 transition-colors disabled:opacity-50"
                 >
-                  {isSaving ? 'Saving...' : (editingItem ? 'Save Changes' : 'Add Item')}
+                  {isSaving
+                    ? 'Saving...'
+                    : editingItem
+                      ? 'Save Changes'
+                      : 'Add Item'}
                 </button>
               </div>
             </form>
