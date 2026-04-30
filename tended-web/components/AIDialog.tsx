@@ -136,13 +136,14 @@ export default function AIDialog({ open, onClose, onTriggerScanner }: AIDialogPr
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-0.5 rounded-full p-0.5 text-xs bg-white/5 border border-white/5">
+            <div className="flex items-center gap-0.5 rounded-full p-0.5 text-xs bg-white/5 border border-white/5" role="group" aria-label="Mode selection">
               {(['scanner', 'chat'] as Mode[]).map(m => (
                 <button
                   key={m}
+                  aria-pressed={mode === m}
                   onClick={() => setMode(m)}
                   className={clsx(
-                    'px-3 py-1 rounded-full font-medium capitalize transition-all duration-150',
+                    'px-3 py-1 rounded-full font-medium capitalize transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue',
                     mode === m ? 'bg-blue text-white' : 'text-text-secondary hover:text-foreground'
                   )}
                 >
@@ -165,7 +166,7 @@ export default function AIDialog({ open, onClose, onTriggerScanner }: AIDialogPr
               <button
                 key={label}
                 onClick={MODAL_OPENERS[idx]}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 transition-all text-left group"
+                className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 transition-all text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue"
               >
                 <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center transition-colors', bg)}>
                   <Icon size={20} className={color} />

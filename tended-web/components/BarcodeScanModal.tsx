@@ -365,15 +365,23 @@ export default function BarcodeScanModal({ visible, onScan, onManualEntry, onClo
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary-blue"
               />
               <div className="flex flex-wrap gap-1.5">
-                {categorySuggestions.map(chip => (
-                  <button
-                    key={chip}
-                    onClick={() => step === 'confirm' ? setDraft(d => d ? { ...d, category: chip } : d) : setManualCategory(chip)}
-                    className="px-2.5 py-1 rounded-full text-xs border border-border text-text-secondary hover:text-foreground hover:border-primary-blue transition-colors"
-                  >
-                    {chip}
-                  </button>
-                ))}
+                {categorySuggestions.map(chip => {
+                  const isActive = step === 'confirm' ? draft?.category === chip : manualCategory === chip;
+                  return (
+                    <button
+                      key={chip}
+                      aria-pressed={isActive}
+                      onClick={() => step === 'confirm' ? setDraft(d => d ? { ...d, category: chip } : d) : setManualCategory(chip)}
+                      className={`px-2.5 py-1 rounded-full text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue ${
+                        isActive
+                          ? 'bg-primary-blue border-primary-blue text-white'
+                          : 'border-border text-text-secondary hover:text-foreground hover:border-primary-blue'
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

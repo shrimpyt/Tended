@@ -236,8 +236,9 @@ export default function CameraInventoryModal({ visible, householdId, onClose }: 
                       {categorySuggestions.map(cat => (
                         <button
                           key={cat}
+                          aria-pressed={item.category === cat}
                           onClick={() => updateItem(idx, 'category', cat)}
-                          className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                          className={`px-2.5 py-1 rounded-full text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue ${
                             item.category === cat
                               ? 'bg-primary-blue border-primary-blue text-white'
                               : 'border-border text-text-secondary bg-transparent hover:text-foreground'
