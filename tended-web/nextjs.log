@@ -1,0 +1,40 @@
+
+> tended-web@0.1.0 dev /app/tended-web
+> next dev --webpack
+
+▲ Next.js 16.2.3 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 556ms
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /app/package-lock.json as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles:
+   * /app/tended-web/pnpm-lock.yaml
+
+ ○ (pwa) PWA support is disabled.
+
+○ Compiling /sign-in ...
+ GET /sign-in 200 in 9.0s (next.js: 8.6s, application-code: 412ms)
+ GET /sign-in 200 in 79ms (next.js: 8ms, application-code: 70ms)
+[browser] TypeError: Failed to fetch
+    at handleSignIn (app/sign-in/page.tsx:21:43)
+  19 |     setErrorText('');
+  20 |
+> 21 |     const { error } = await supabase.auth.signInWithPassword({
+     |                                           ^
+  22 |       email,
+  23 |       password,
+  24 |     }); (app/sign-in/page.tsx:21:23)
+ GET /sign-in 200 in 85ms (next.js: 4ms, application-code: 81ms)
+[browser] TypeError: Failed to fetch
+    at handleSignIn (app/sign-in/page.tsx:21:43)
+  19 |     setErrorText('');
+  20 |
+> 21 |     const { error } = await supabase.auth.signInWithPassword({
+     |                                           ^
+  22 |       email,
+  23 |       password,
+  24 |     }); (app/sign-in/page.tsx:21:23)
+ GET /sign-in 200 in 66ms (next.js: 4ms, application-code: 63ms)
