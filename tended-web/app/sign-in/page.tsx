@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 export default function SignInPage() {
   const [email, setEmail] = useState('');
@@ -72,9 +73,16 @@ export default function SignInPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-primary-blue hover:bg-opacity-90 text-white rounded-xl font-medium tracking-wide transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+            className="flex justify-center items-center gap-2 w-full py-3.5 bg-primary-blue hover:bg-opacity-90 text-white rounded-xl font-medium tracking-wide transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                Signing in...
+              </>
+            ) : (
+              'Sign In'
+            )}
           </button>
         </form>
 
